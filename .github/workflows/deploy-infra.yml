@@ -23,6 +23,8 @@ jobs:
       # Required GitHub secrets for AWS access and stack configuration
       AWS_REGION: ${{ secrets.AWS_REGION }}
       AWS_IAC_ROLE_ARN: ${{ secrets.AWS_IAC_ROLE_ARN }}
+      # Required when provisioning the data stack internally; should point to a Secrets Manager secret ARN that stores the Redis auth token as plain text.
+      DATA_REDIS_AUTH_TOKEN_SECRET_ARN: ${{ secrets.DATA_REDIS_AUTH_TOKEN_SECRET_ARN }}
       STATIC_SITE_BUCKET_NAME: ${{ secrets.STATIC_SITE_BUCKET_NAME }}
       STATIC_SITE_CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.STATIC_SITE_CLOUDFRONT_DISTRIBUTION_ID }}
       STATIC_SITE_API_DOMAIN: ${{ secrets.STATIC_SITE_API_DOMAIN }}
@@ -99,6 +101,54 @@ jobs:
           if [ -n "${version_id:-}" ] && [ "$version_id" != "None" ]; then
             echo "LAMBDA_CODE_VERSION=$version_id" >> "$GITHUB_ENV"
           fi
+
+      - name: Deploy data stack when missing
+        if: env.USE_EXTERNAL_REDIS != 'true'
+        run: |
+          set -euo pipefail
+
+          if aws cloudformation describe-stacks --stack-name "$DATA_STACK_NAME" >/dev/null 2>&1; then
+            echo "Stack $DATA_STACK_NAME already exists; skipping creation."
+            exit 0
+          fi
+
+          echo "Ensuring $DATA_STACK_NAME is ready for creation..."
+          scripts/helpers/wait-for-stable-stack.sh "$DATA_STACK_NAME"
+
+          aws cloudformation deploy \
+            --stack-name "$DATA_STACK_NAME" \
+            --template-file infra/data/template.yaml \
+            --parameter-overrides \
+              EnvironmentName=$DATA_ENVIRONMENT_NAME \
+              SharedParametersStackName=$SHARED_PARAMETERS_STACK_NAME \
+              RedisAuthToken="{{resolve:secretsmanager:${DATA_REDIS_AUTH_TOKEN_SECRET_ARN}:SecretString}}"
+
+          echo "Waiting for $DATA_STACK_NAME to stabilize after creation..."
+          scripts/helpers/wait-for-stable-stack.sh "$DATA_STACK_NAME"
+
+      - name: Validate external Redis exports
+        if: env.USE_EXTERNAL_REDIS == 'true'
+        run: |
+          set -euo pipefail
+
+          require_export() {
+            local export_name="$1"
+            local value
+            value=$(aws cloudformation list-exports \
+              --query "Exports[?Name=='${export_name}'].Value" \
+              --output text)
+            if [ -z "$value" ] || [ "$value" = "None" ]; then
+              echo "Fant ikke eksporten '${export_name}'. Sørg for at datasstacken '${DATA_STACK_NAME}' har denne eksporten før workflowen fortsetter." >&2
+              return 1
+            fi
+          }
+
+          require_export "${DATA_STACK_NAME}-PrivateSubnet1Id"
+          require_export "${DATA_STACK_NAME}-PrivateSubnet2Id"
+          require_export "${DATA_STACK_NAME}-LambdaSecurityGroupId"
+          require_export "${DATA_STACK_NAME}-RedisEndpointParameterName"
+          require_export "${DATA_STACK_NAME}-RedisPortParameterName"
+          require_export "${DATA_STACK_NAME}-RedisPasswordSecretName"
 
       - name: Recover data stack from ROLLBACK_COMPLETE
         run: |
