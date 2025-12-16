@@ -9,12 +9,51 @@ Parameters:
     Type: String
     Description: Short environment identifier used in parameter paths (e.g. prod).
 
+  RedisEndpoint:
+    Type: String
+    Default: ""
+    Description: Redis endpoint hostname used by clients when connecting to an external Redis instance.
+
+  RedisPort:
+    Type: String
+    Default: ""
+    Description: Redis port used by clients when connecting to an external Redis instance.
+
+  RedisPasswordSecretName:
+    Type: String
+    Default: ""
+    Description: Fully-qualified Secrets Manager name or ARN for the Redis authentication token/password.
+
+  LambdaSecurityGroupId:
+    Type: String
+    Default: ""
+    Description: Security group ID that API Lambdas should use when connecting to external Redis.
+
+  PrivateSubnet1Id:
+    Type: String
+    Default: ""
+    Description: First private subnet ID used by the API Lambda when USE_EXTERNAL_REDIS=true.
+
+  PrivateSubnet2Id:
+    Type: String
+    Default: ""
+    Description: Second private subnet ID used by the API Lambda when USE_EXTERNAL_REDIS=true.
+
+Conditions:
+  HasRedisEndpoint: !Not [!Equals [!Ref RedisEndpoint, ""]]
+  HasRedisPort: !Not [!Equals [!Ref RedisPort, ""]]
+  UseProvidedRedisSecret: !Not [!Equals [!Ref RedisPasswordSecretName, ""]]
+  CreateRedisPasswordSecret: !Equals [!Ref RedisPasswordSecretName, ""]
+  HasLambdaSecurityGroupId: !Not [!Equals [!Ref LambdaSecurityGroupId, ""]]
+  HasPrivateSubnet1Id: !Not [!Equals [!Ref PrivateSubnet1Id, ""]]
+  HasPrivateSubnet2Id: !Not [!Equals [!Ref PrivateSubnet2Id, ""]]
+
 Outputs:
   RedisPasswordSecretName:
     Description: >-
       Fully-qualified name of the Secrets Manager secret that stores the Redis
       authentication token/password.
-    Value: !Sub 'math-visuals/${EnvironmentName}/redis/password'
+    Value: !If [UseProvidedRedisSecret, !Ref RedisPasswordSecretName, !Sub 'math-visuals/${EnvironmentName}/redis/password']
     Export:
       Name: !Sub '${AWS::StackName}-RedisPasswordSecretName'
 
@@ -44,9 +83,28 @@ Outputs:
     Export:
       Name: !Sub '${AWS::StackName}-SvgAllowedOriginsParameterName'
 
+  PrivateSubnet1Id:
+    Description: Name of the SSM parameter that stores the first private subnet ID for API Lambdas.
+    Value: !Sub '/math-visuals/${EnvironmentName}/network/private-subnet-1-id'
+    Export:
+      Name: !Sub '${AWS::StackName}-PrivateSubnet1Id'
+
+  PrivateSubnet2Id:
+    Description: Name of the SSM parameter that stores the second private subnet ID for API Lambdas.
+    Value: !Sub '/math-visuals/${EnvironmentName}/network/private-subnet-2-id'
+    Export:
+      Name: !Sub '${AWS::StackName}-PrivateSubnet2Id'
+
+  LambdaSecurityGroupId:
+    Description: Name of the SSM parameter that stores the Lambda security group ID for external Redis access.
+    Value: !Sub '/math-visuals/${EnvironmentName}/network/lambda-security-group-id'
+    Export:
+      Name: !Sub '${AWS::StackName}-LambdaSecurityGroupId'
+
 Resources:
   RedisPasswordSecret:
     Type: AWS::SecretsManager::Secret
+    Condition: CreateRedisPasswordSecret
     DeletionPolicy: Retain
     Properties:
       Name: !Sub 'math-visuals/${EnvironmentName}/redis/password'
@@ -58,7 +116,7 @@ Resources:
     Properties:
       Name: !Sub '/math-visuals/${EnvironmentName}/redis/endpoint'
       Type: String
-      Value: placeholder
+      Value: !If [HasRedisEndpoint, !Ref RedisEndpoint, placeholder]
       Description: Redis endpoint hostname used by clients.
 
   RedisPortParameter:
@@ -67,8 +125,35 @@ Resources:
     Properties:
       Name: !Sub '/math-visuals/${EnvironmentName}/redis/port'
       Type: String
-      Value: placeholder
+      Value: !If [HasRedisPort, !Ref RedisPort, placeholder]
       Description: Redis port used by clients.
+
+  LambdaSecurityGroupIdParameter:
+    Type: AWS::SSM::Parameter
+    DeletionPolicy: Retain
+    Properties:
+      Name: !Sub '/math-visuals/${EnvironmentName}/network/lambda-security-group-id'
+      Type: String
+      Value: !If [HasLambdaSecurityGroupId, !Ref LambdaSecurityGroupId, placeholder]
+      Description: Security group ID for API Lambdas that need external Redis connectivity.
+
+  PrivateSubnet1IdParameter:
+    Type: AWS::SSM::Parameter
+    DeletionPolicy: Retain
+    Properties:
+      Name: !Sub '/math-visuals/${EnvironmentName}/network/private-subnet-1-id'
+      Type: String
+      Value: !If [HasPrivateSubnet1Id, !Ref PrivateSubnet1Id, placeholder]
+      Description: First private subnet ID for API Lambdas using external Redis.
+
+  PrivateSubnet2IdParameter:
+    Type: AWS::SSM::Parameter
+    DeletionPolicy: Retain
+    Properties:
+      Name: !Sub '/math-visuals/${EnvironmentName}/network/private-subnet-2-id'
+      Type: String
+      Value: !If [HasPrivateSubnet2Id, !Ref PrivateSubnet2Id, placeholder]
+      Description: Second private subnet ID for API Lambdas using external Redis.
 
   SharedStackVersionParameter:
     Type: AWS::SSM::Parameter

@@ -28,11 +28,17 @@ Redis/Vercel KV for `api/examples` (prod):
 
 Datastack-provisjonering fra GitHub Actions:
 - `deploy-infra.yml` kan nå opprette data-stacken automatisk hvis `USE_EXTERNAL_REDIS` **ikke** er satt til `true` og stacken mangler. Legg til GitHub-secreten `DATA_REDIS_AUTH_TOKEN_SECRET_ARN` med ARN-en til en Secrets Manager-secret som lagrer Redis-auth-tokenet som ren tekst; workflowen bruker en dynamisk referanse `{{resolve:secretsmanager:<arn>:SecretString}}` for å sende verdien inn i CloudFormation uten å logge tokenet.
+- Når `USE_EXTERNAL_REDIS=true`, speil Redis/VPC-verdier inn i GitHub-secrets slik at `math-visuals-shared` kan publisere eksportene API-stacken trenger:
+  - `REDIS_ENDPOINT` (writer-endpoint eller hostname)
+  - `REDIS_PORT` (heltall som streng)
+  - `REDIS_PASSWORD_SECRET_ARN` (ARN eller navn på Secrets Manager-secret med Redis-passordet)
+  - `PRIVATE_SUBNET_1_ID` / `PRIVATE_SUBNET_2_ID` (subnets for Lambda)
+  - `LAMBDA_SECURITY_GROUP_ID` (security group for Lambda mot VPC)
+  Disse verdiene skrives til SSM/Secrets Manager via `infra/shared-parameters.yaml` og eksporterer navnene API-stacken bruker.
 
 Ekstern Redis (hopper over datastack/secret-sync):
-- Sett GitHub-secreten `USE_EXTERNAL_REDIS=true` for å hoppe over "Deploy data stack" og "Sync shared Redis connection parameters" i `deploy-infra.yml`. Resterende API/static deploy-steg kjører som før.
-- `DATA_STACK_NAME` må fortsatt peke på en stack som eksporterer VPC/subnet/security group-ressurser og Redis-parameter-/secret-navnene som API-malen forventer (f.eks. en eksisterende `math-visuals-data`).
-- Sørg for at SSM-parameterne og Secrets Manager-secretet finnes med navnene fra `infra/shared-parameters.yaml`: `/math-visuals/<env>/redis/endpoint` (writer-endpoint), `/math-visuals/<env>/redis/port` og `math-visuals/<env>/redis/password` (JSON med `{"authToken":"<pass>"}`). Når disse finnes trenger ikke workflowen å skrive Redis-hemligheter selv.
+- Sett GitHub-secreten `USE_EXTERNAL_REDIS=true` for å hoppe over "Deploy data stack" i `deploy-infra.yml`. Resterende API/static deploy-steg kjører som før.
+- `math-visuals-shared` eksporterer nå VPC/Redis-parameter- og secret-navnene når du setter hemmelighetene over. Sørg for at SSM-parameterne `/math-visuals/<env>/redis/endpoint`, `/math-visuals/<env>/redis/port`, `/math-visuals/<env>/network/private-subnet-1-id`, `/math-visuals/<env>/network/private-subnet-2-id`, `/math-visuals/<env>/network/lambda-security-group-id` og Secrets Manager-secretet `math-visuals/<env>/redis/password` (JSON med `{"authToken":"<pass>"}`) enten eksisterer fra før eller kan opprettes av stacken.
 
 Feilsøking: Bygg som ser ut til å loope
 - En «loop» i Vercel/CI-loggene (f.eks. gjentatte linjer om `palette/palette-config.js`) skyldes vanligvis at vår build-kommando (`npm run build` i `package.json`) regenererer filer hver gang den kjøres: `scripts/build-figure-manifests.mjs` lager manifestfiler under `images/`, `npm run build --workspaces` bygger pakkene i `packages/*`, og `scripts/create-public.js` sletter og kopierer hele prosjektet inn i `public/`. Når samme build-kommando kjøres både som install/postinstall og som eksplisitt build-steg vil loggen se ut som en loop selv om den egentlig bare kjører to ganger.
@@ -49,6 +55,6 @@ Etter-deploy sjekkliste (for å fange drift i scripts/maler)
 
 Ekstern Redis sjekkliste (bruk eksisterende datastack + delte parametre):
 - Sett GitHub-secret `USE_EXTERNAL_REDIS=true` så data-stacken og parameter-sync hoppes over i `deploy-infra.yml`.
-- Legg til GitHub environment secret/variable `DATA_STACK_NAME` (Settings → Environments → Production) som peker på datasstacken som allerede eksporterer VPC-ressursene (`...-PrivateSubnet1Id`, `...-PrivateSubnet2Id`, `...-LambdaSecurityGroupId`). Redis-parameter-navnene skal eksporteres fra datasstacken (ikke legges som GitHub-secrets) slik at workflowen kan importere dem direkte.
+- Legg til GitHub environment secrets/variables for `PRIVATE_SUBNET_1_ID`, `PRIVATE_SUBNET_2_ID`, `LAMBDA_SECURITY_GROUP_ID`, `REDIS_ENDPOINT`, `REDIS_PORT` og `REDIS_PASSWORD_SECRET_ARN` når du bruker ekstern Redis. Stacken `math-visuals-shared` skriver disse verdiene til SSM/Secrets Manager og eksporterer navnene (`<stack>-PrivateSubnet1Id`, `<stack>-PrivateSubnet2Id`, `<stack>-LambdaSecurityGroupId`, `<stack>-RedisEndpointParameterName`, `<stack>-RedisPortParameterName`, `<stack>-RedisPasswordSecretName`).
 - Kjør/oppdater `infra/shared-parameters.yaml` med korrekt `EnvironmentName` slik at SSM-parameterne `/math-visuals/<env>/redis/endpoint` og `/math-visuals/<env>/redis/port` samt Secrets Manager-secretet `math-visuals/<env>/redis/password` (JSON `{\"authToken\":\"<redis-password\"}`) peker til den eksterne serverless Redis-instansen. Se samme sjekkliste for forventede navn.
-- Bekreft i CloudFormation-eksportene for datasstacken (f.eks. `math-visuals-data-RedisEndpointParameterName`) at parameter-/secret-navnene matcher outputene fra `infra/shared-parameters.yaml` før du kjører `deploy-infra.yml`; API-stacken kan da importere både nettverket og Redis-tilkoblingsverdiene uten å provisjonere ny Redis. Workflowen feiler nå tidlig om eksportene `...-PrivateSubnet1Id`, `...-PrivateSubnet2Id`, `...-LambdaSecurityGroupId`, `...-RedisEndpointParameterName`, `...-RedisPortParameterName` eller `...-RedisPasswordSecretName` mangler.
+- Bekreft i CloudFormation-eksportene for `math-visuals-shared` (f.eks. `math-visuals-shared-RedisEndpointParameterName`) at parameter-/secret-navnene matcher outputene fra `infra/shared-parameters.yaml` før du kjører `deploy-infra.yml`; API-stacken kan da importere både nettverket og Redis-tilkoblingsverdiene uten å provisjonere ny Redis. Workflowen feiler nå tidlig om eksportene `...-PrivateSubnet1Id`, `...-PrivateSubnet2Id`, `...-LambdaSecurityGroupId`, `...-RedisEndpointParameterName`, `...-RedisPortParameterName` eller `...-RedisPasswordSecretName` mangler.
