@@ -32,6 +32,12 @@ jobs:
       STATIC_SITE_CLOUDFRONT_PRICE_CLASS: ${{ secrets.STATIC_SITE_CLOUDFRONT_PRICE_CLASS }}
       API_ARTIFACT_BUCKET: ${{ secrets.API_ARTIFACT_BUCKET }}
       API_ARTIFACT_KEY: ${{ secrets.API_ARTIFACT_KEY }}
+      REDIS_ENDPOINT: ${{ secrets.REDIS_ENDPOINT || '' }}
+      REDIS_PORT: ${{ secrets.REDIS_PORT || '' }}
+      REDIS_PASSWORD_SECRET_ARN: ${{ secrets.REDIS_PASSWORD_SECRET_ARN || '' }}
+      PRIVATE_SUBNET_1_ID: ${{ secrets.PRIVATE_SUBNET_1_ID || '' }}
+      PRIVATE_SUBNET_2_ID: ${{ secrets.PRIVATE_SUBNET_2_ID || '' }}
+      LAMBDA_SECURITY_GROUP_ID: ${{ secrets.LAMBDA_SECURITY_GROUP_ID || '' }}
       # Default to the template's prod stage when the secret is missing so the
       # deploy step doesn't fail with an empty StageName parameter.
       API_STAGE_NAME: ${{ secrets.API_STAGE_NAME || 'prod' }}
@@ -74,10 +80,30 @@ jobs:
           echo "Ensuring $SHARED_PARAMETERS_STACK_NAME is ready for an update..."
           scripts/helpers/wait-for-stable-stack.sh "$SHARED_PARAMETERS_STACK_NAME"
 
+          PARAM_OVERRIDES="EnvironmentName=$DATA_ENVIRONMENT_NAME"
+          if [ -n "${REDIS_ENDPOINT:-}" ]; then
+            PARAM_OVERRIDES="$PARAM_OVERRIDES RedisEndpoint=$REDIS_ENDPOINT"
+          fi
+          if [ -n "${REDIS_PORT:-}" ]; then
+            PARAM_OVERRIDES="$PARAM_OVERRIDES RedisPort=$REDIS_PORT"
+          fi
+          if [ -n "${REDIS_PASSWORD_SECRET_ARN:-}" ]; then
+            PARAM_OVERRIDES="$PARAM_OVERRIDES RedisPasswordSecretName=$REDIS_PASSWORD_SECRET_ARN"
+          fi
+          if [ -n "${PRIVATE_SUBNET_1_ID:-}" ]; then
+            PARAM_OVERRIDES="$PARAM_OVERRIDES PrivateSubnet1Id=$PRIVATE_SUBNET_1_ID"
+          fi
+          if [ -n "${PRIVATE_SUBNET_2_ID:-}" ]; then
+            PARAM_OVERRIDES="$PARAM_OVERRIDES PrivateSubnet2Id=$PRIVATE_SUBNET_2_ID"
+          fi
+          if [ -n "${LAMBDA_SECURITY_GROUP_ID:-}" ]; then
+            PARAM_OVERRIDES="$PARAM_OVERRIDES LambdaSecurityGroupId=$LAMBDA_SECURITY_GROUP_ID"
+          fi
+
           aws cloudformation deploy \
             --stack-name "$SHARED_PARAMETERS_STACK_NAME" \
             --template-file infra/shared-parameters.yaml \
-            --parameter-overrides EnvironmentName=$DATA_ENVIRONMENT_NAME
+            --parameter-overrides $PARAM_OVERRIDES
 
       - name: Compute Lambda artefact key
         run: |
@@ -143,12 +169,12 @@ jobs:
             fi
           }
 
-          require_export "${DATA_STACK_NAME}-PrivateSubnet1Id"
-          require_export "${DATA_STACK_NAME}-PrivateSubnet2Id"
-          require_export "${DATA_STACK_NAME}-LambdaSecurityGroupId"
-          require_export "${DATA_STACK_NAME}-RedisEndpointParameterName"
-          require_export "${DATA_STACK_NAME}-RedisPortParameterName"
-          require_export "${DATA_STACK_NAME}-RedisPasswordSecretName"
+          require_export "${SHARED_PARAMETERS_STACK_NAME}-PrivateSubnet1Id"
+          require_export "${SHARED_PARAMETERS_STACK_NAME}-PrivateSubnet2Id"
+          require_export "${SHARED_PARAMETERS_STACK_NAME}-LambdaSecurityGroupId"
+          require_export "${SHARED_PARAMETERS_STACK_NAME}-RedisEndpointParameterName"
+          require_export "${SHARED_PARAMETERS_STACK_NAME}-RedisPortParameterName"
+          require_export "${SHARED_PARAMETERS_STACK_NAME}-RedisPasswordSecretName"
 
       - name: Recover data stack from ROLLBACK_COMPLETE
         run: |
