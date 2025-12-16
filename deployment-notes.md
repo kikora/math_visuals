@@ -43,3 +43,9 @@ Etter-deploy sjekkliste (for å fange drift i scripts/maler)
 1. Åpne CloudFront-konsollet → velg produksjonsdistribusjonen → fanen «Origins» → klikk `ApiGatewayOrigin`.
 2. Bekreft at **Origin domain** matcher verdien som ble gitt i `ApiGatewayDomainName` (GitHub-secret brukt av deploy-pipelinen) og at **Origin path** er `/prod`.
 3. Lagre/avbryt uten å endre noe. Hvis verdiene avviker, oppdater malen/scriptet før ny deploy for å hindre regressjon.
+
+Ekstern Redis sjekkliste (bruk eksisterende datastack + delte parametre):
+- Sett GitHub-secret `USE_EXTERNAL_REDIS=true` så data-stacken og parameter-sync hoppes over i `deploy-infra.yml`.
+- Legg til GitHub environment secret/variable `DATA_STACK_NAME` som peker på datasstacken som allerede eksporterer VPC-ressursene (`...-PrivateSubnet1Id`, `...-PrivateSubnet2Id`, `...-LambdaSecurityGroupId`) og Redis-navnene (`...-RedisEndpointParameterName`, `...-RedisPortParameterName`, `...-RedisPasswordSecretName`).
+- Kjør/oppdater `infra/shared-parameters.yaml` med korrekt `EnvironmentName` slik at SSM-parameterne `/math-visuals/<env>/redis/endpoint` og `/math-visuals/<env>/redis/port` samt Secrets Manager-secretet `math-visuals/<env>/redis/password` (JSON `{\"authToken\":\"<redis-password\"}`) peker til den eksterne serverless Redis-instansen.
+- Bekreft i CloudFormation-eksportene for datasstacken at parameter-/secret-navnene matcher outputene fra `infra/shared-parameters.yaml`; API-stacken kan da importere både nettverket og Redis-tilkoblingsverdiene uten å provisjonere ny Redis.
