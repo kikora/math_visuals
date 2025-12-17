@@ -23,8 +23,8 @@ jobs:
       # Required GitHub secrets for AWS access and stack configuration
       AWS_REGION: ${{ secrets.AWS_REGION }}
       AWS_IAC_ROLE_ARN: ${{ secrets.AWS_IAC_ROLE_ARN }}
-      # Required when provisioning the data stack internally; should point to a Secrets Manager secret ARN that stores the Redis auth token as plain text.
-      DATA_REDIS_AUTH_TOKEN_SECRET_ARN: ${{ secrets.DATA_REDIS_AUTH_TOKEN_SECRET_ARN }}
+      # Required when provisioning the data stack internally; pass the Redis password directly from GitHub Secrets.
+      REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD || '' }}
       STATIC_SITE_BUCKET_NAME: ${{ secrets.STATIC_SITE_BUCKET_NAME }}
       STATIC_SITE_CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.STATIC_SITE_CLOUDFRONT_DISTRIBUTION_ID }}
       STATIC_SITE_API_DOMAIN: ${{ secrets.STATIC_SITE_API_DOMAIN }}
@@ -133,6 +133,11 @@ jobs:
         run: |
           set -euo pipefail
 
+          if [ -z "${REDIS_PASSWORD:-}" ]; then
+            echo "REDIS_PASSWORD secret is required when provisioning the data stack internally." >&2
+            exit 1
+          fi
+
           if aws cloudformation describe-stacks --stack-name "$DATA_STACK_NAME" >/dev/null 2>&1; then
             echo "Stack $DATA_STACK_NAME already exists; skipping creation."
             exit 0
@@ -147,7 +152,7 @@ jobs:
             --parameter-overrides \
               EnvironmentName=$DATA_ENVIRONMENT_NAME \
               SharedParametersStackName=$SHARED_PARAMETERS_STACK_NAME \
-              RedisAuthToken="{{resolve:secretsmanager:${DATA_REDIS_AUTH_TOKEN_SECRET_ARN}:SecretString}}"
+              RedisAuthToken="$REDIS_PASSWORD"
 
           echo "Waiting for $DATA_STACK_NAME to stabilize after creation..."
           scripts/helpers/wait-for-stable-stack.sh "$DATA_STACK_NAME"
@@ -204,7 +209,14 @@ jobs:
           if [ -n "${LAMBDA_CODE_VERSION:-}" ]; then
             PARAM_OVERRIDES="$PARAM_OVERRIDES LambdaCodeS3ObjectVersion=$LAMBDA_CODE_VERSION"
           fi
-          PARAM_OVERRIDES="$PARAM_OVERRIDES DataStackName=$DATA_STACK_NAME SharedParametersStackName=$SHARED_PARAMETERS_STACK_NAME"
+          data_exports_stack="$DATA_STACK_NAME"
+          network_params="false"
+          if [ "${USE_EXTERNAL_REDIS}" = "true" ]; then
+            data_exports_stack="$SHARED_PARAMETERS_STACK_NAME"
+            network_params="true"
+          fi
+
+          PARAM_OVERRIDES="$PARAM_OVERRIDES DataStackName=$data_exports_stack SharedParametersStackName=$SHARED_PARAMETERS_STACK_NAME ResolveNetworkFromParameters=$network_params"
           aws cloudformation deploy \
             --stack-name "$API_STACK_NAME" \
             --template-file infra/api/template.yaml \
