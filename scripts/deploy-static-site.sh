@@ -48,6 +48,11 @@ function read_output() {
   echo "$value"
 }
 
+function bucket_exists() {
+  local bucket_name=$1
+  aws s3api head-bucket --bucket "$bucket_name" >/dev/null 2>&1
+}
+
 SITE_BUCKET_NAME=${SITE_BUCKET_NAME:-}
 API_GATEWAY_DOMAIN=${API_GATEWAY_DOMAIN:-}
 API_GATEWAY_ORIGIN_PATH=${API_GATEWAY_ORIGIN_PATH:-}
@@ -111,12 +116,17 @@ fi
 if [[ -z "$CREATE_SITE_BUCKET" ]]; then
   if $STACK_EXISTS; then
     CREATE_SITE_BUCKET=$(read_parameter "CreateSiteBucket")
-  elif aws s3api head-bucket --bucket "$SITE_BUCKET_NAME" >/dev/null 2>&1; then
+  elif bucket_exists "$SITE_BUCKET_NAME"; then
     echo "Bucket $SITE_BUCKET_NAME already exists; reusing it (CreateSiteBucket=false)."
     CREATE_SITE_BUCKET=false
   else
     CREATE_SITE_BUCKET=true
   fi
+fi
+
+if [[ "${CREATE_SITE_BUCKET,,}" == "true" ]] && bucket_exists "$SITE_BUCKET_NAME"; then
+  echo "Bucket $SITE_BUCKET_NAME already exists. Set CREATE_SITE_BUCKET=false to reuse the existing bucket." >&2
+  exit 1
 fi
 
 echo "Using CreateSiteBucket=$CREATE_SITE_BUCKET for bucket $SITE_BUCKET_NAME"
