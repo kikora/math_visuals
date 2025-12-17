@@ -44,14 +44,15 @@ extension or includes an example slug.
 
 ## Parameters
 
-| Name                   | Description                                                   |
-| ---------------------- | ------------------------------------------------------------- |
-| `SiteBucketName`       | Globally unique name of the S3 bucket that will host the site. |
-| `ApiGatewayDomainName` | Domain name of the API Gateway stage (e.g. `abc123.execute-api.us-east-1.amazonaws.com`). |
-| `ApiGatewayOriginPath` | Optional origin path that points to the API stage (default `/prod`). |
-| `CloudFrontPriceClass` | CloudFront price class to use (defaults to `PriceClass_100`). |
-| `CachePolicyId`        | CloudFront cache policy applied to API-backed behaviours (defaults to the managed `CachingDisabled` policy). |
-| `SharedParametersStackName` | Name of the stack created from `infra/shared-parameters.yaml`. |
+| Name                       | Description |
+| -------------------------- | ----------- |
+| `SiteEnvironmentName`      | Short environment identifier used for tagging (e.g. `prod`, `dev`). |
+| `SiteBucketName`           | Globally unique name of the S3 bucket that will host the site. |
+| `CreateSiteBucket`         | Set to `false` to reuse an existing bucket with the given name instead of creating a new one. |
+| `ApiGatewayDomainName`     | Domain name of the API Gateway stage (e.g. `abc123.execute-api.us-east-1.amazonaws.com`). |
+| `CloudFrontPriceClass`     | CloudFront price class to use (defaults to `PriceClass_100`). |
+| `CachePolicyId`            | CloudFront cache policy applied to API-backed behaviours (defaults to the managed `CachingDisabled` policy). |
+| `SharedParametersStackName`| Name of the stack created from `infra/shared-parameters.yaml`. |
 
 ## Outputs
 
