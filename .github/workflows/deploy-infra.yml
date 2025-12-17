@@ -211,8 +211,15 @@ jobs:
           fi
           data_exports_stack="$DATA_STACK_NAME"
           network_params="false"
+
           if [ "${USE_EXTERNAL_REDIS}" = "true" ]; then
             data_exports_stack="$SHARED_PARAMETERS_STACK_NAME"
+          fi
+
+          if [ "$data_exports_stack" = "$SHARED_PARAMETERS_STACK_NAME" ]; then
+            network_params="true"
+          elif [ -n "${PRIVATE_SUBNET_1_ID:-}" ] || [ -n "${PRIVATE_SUBNET_2_ID:-}" ] || [ -n "${LAMBDA_SECURITY_GROUP_ID:-}" ]; then
+            # Shared stack writes the provided VPC IDs into SSM parameters and exports the parameter names
             network_params="true"
           fi
 
