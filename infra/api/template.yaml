@@ -17,6 +17,16 @@ Parameters:
     Type: String
     Default: prod
     Description: Deployment stage name for the HTTP API.
+  ResolveNetworkFromParameters:
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: >-
+      When true, import values are treated as SSM parameter names and resolved via
+      dynamic references so the Lambda VPC config receives raw subnet and
+      security group IDs.
   DataStackName:
     Type: String
     Default: math-visuals-data
@@ -79,13 +89,31 @@ Resources:
           - !Ref AWS::NoValue
       VpcConfig:
         SecurityGroupIds:
-          - !ImportValue
-            'Fn::Sub': '${DataStackName}-LambdaSecurityGroupId'
+          - !If
+              - UseNetworkParameterExports
+              - !Sub
+                - '{{resolve:ssm:${LambdaSecurityGroupIdParameterName}}}'
+                - LambdaSecurityGroupIdParameterName: !ImportValue
+                    Fn::Sub: '${DataStackName}-LambdaSecurityGroupId'
+              - !ImportValue
+                  Fn::Sub: '${DataStackName}-LambdaSecurityGroupId'
         SubnetIds:
-          - !ImportValue
-            'Fn::Sub': '${DataStackName}-PrivateSubnet1Id'
-          - !ImportValue
-            'Fn::Sub': '${DataStackName}-PrivateSubnet2Id'
+          - !If
+              - UseNetworkParameterExports
+              - !Sub
+                - '{{resolve:ssm:${PrivateSubnet1IdParameterName}}}'
+                - PrivateSubnet1IdParameterName: !ImportValue
+                    Fn::Sub: '${DataStackName}-PrivateSubnet1Id'
+              - !ImportValue
+                  Fn::Sub: '${DataStackName}-PrivateSubnet1Id'
+          - !If
+              - UseNetworkParameterExports
+              - !Sub
+                - '{{resolve:ssm:${PrivateSubnet2IdParameterName}}}'
+                - PrivateSubnet2IdParameterName: !ImportValue
+                    Fn::Sub: '${DataStackName}-PrivateSubnet2Id'
+              - !ImportValue
+                  Fn::Sub: '${DataStackName}-PrivateSubnet2Id'
       Environment:
         Variables:
           NODE_OPTIONS: --enable-source-maps
@@ -409,6 +437,7 @@ Resources:
       SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/*/*
 
 Conditions:
+  UseNetworkParameterExports: !Equals [!Ref ResolveNetworkFromParameters, 'true']
   HasLambdaCodeVersion: !Not [!Equals [!Ref LambdaCodeS3ObjectVersion, '']]
   UseProvidedAlarmTopic: !Not [!Equals [!Ref AlarmTopicArn, '']]
   CreateDefaultAlarmTopic: !Equals [!Ref AlarmTopicArn, '']
