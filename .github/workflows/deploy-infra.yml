@@ -224,6 +224,9 @@ jobs:
           fi
 
           PARAM_OVERRIDES="$PARAM_OVERRIDES DataStackName=$data_exports_stack SharedParametersStackName=$SHARED_PARAMETERS_STACK_NAME ResolveNetworkFromParameters=$network_params"
+          if [ -n "${LAMBDA_SECURITY_GROUP_ID:-}" ]; then
+            PARAM_OVERRIDES="$PARAM_OVERRIDES LambdaSecurityGroupIdOverride=$LAMBDA_SECURITY_GROUP_ID"
+          fi
           aws cloudformation deploy \
             --stack-name "$API_STACK_NAME" \
             --template-file infra/api/template.yaml \
