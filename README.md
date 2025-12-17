@@ -95,7 +95,7 @@ Følgende GitHub Secrets må være definert for at workflowen skal lykkes:
 | --- | --- |
 | `AWS_REGION` | AWS-regionen alle stackene deployes i. |
 | `AWS_IAC_ROLE_ARN` | ARN til IAM-rollen som Actions skal anta via OIDC. |
-| `STATIC_SITE_BUCKET_NAME` | Navnet på S3-bøtta som huser de statiske filene. |
+| `STATIC_SITE_BUCKET_NAME` | Navnet på S3-bøtta som huser de statiske filene. Prod skal bruke den eksisterende bøtta `math-visuals-static-site-796063593326-202512172100921`; workflowen faller tilbake til dette navnet hvis secret mangler, men sett gjerne secreten for å gjøre intensjonen eksplisitt. |
 | `STATIC_SITE_CLOUDFRONT_DISTRIBUTION_ID` | ID til CloudFront-distribusjonen som skal invaliders etter opplasting. |
 | `STATIC_SITE_API_DOMAIN` | *(Valgfritt)* Overstyr domene til API Gateway-opprinnelsen. Standardverdi hentes fra `ApiEndpoint`-outputen i API-stacken. |
 | `STATIC_SITE_API_ORIGIN_PATH` | *(Valgfritt)* Overstyr origin-path (f.eks. `/prod`). Standardverdi er stien som `ApiEndpoint`-outputen returnerer. |

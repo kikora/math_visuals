@@ -61,3 +61,14 @@ Ekstern Redis sjekkliste (bruk eksisterende datastack + delte parametre):
 - Workflowen bruker automatisk `math-visuals-shared` som `DataStackName` og setter `ResolveNetworkFromParameters=true` når `USE_EXTERNAL_REDIS=true`, slik at VPC-eksportene tolkes som SSM-parameternavn og løses til faktiske subnet/security group-ID-er (unngår Lambda CREATE_FAILED-feilen med `/math-visuals/.../network/*` i `VpcConfig`).
 - Når `math-visuals-shared` eksporterer VPC-parameternavn (enten fordi `USE_EXTERNAL_REDIS=true` eller fordi subnet/security group-ID-er kommer inn som SSM-parameterverdier), må `ResolveNetworkFromParameters=true` settes slik at Lambda ser faktiske subnet/SG-ID-er i `VpcConfig` i stedet for `[placeholder]`-verdier.
 - Bekreft i CloudFormation-eksportene for `math-visuals-shared` (f.eks. `math-visuals-shared-RedisEndpointParameterName`) at parameter-/secret-navnene matcher outputene fra `infra/shared-parameters.yaml` før du kjører `deploy-infra.yml`; API-stacken kan da importere både nettverket og Redis-tilkoblingsverdiene uten å provisjonere ny Redis. Workflowen feiler nå tidlig om eksportene `...-PrivateSubnet1Id`, `...-PrivateSubnet2Id`, `...-LambdaSecurityGroupId`, `...-RedisEndpointParameterName`, `...-RedisPortParameterName` eller `...-RedisPasswordSecretName` mangler.
+
+CloudFormation valideringsfeil: «Resource name conflict» for S3-bøtte
+- Oppstår når en `aws cloudformation package`/`deploy`-kall prøver å opprette en S3-bøtte som allerede finnes globalt (typisk `mathlive-lambdas-gpt-mathlive-lambdas-S3UploadBucket-<hash>` fra en tidligere stack).
+- Løsning:
+  1. Finn bucket-eieren: `aws s3api get-bucket-location --bucket <navn>` eller sjekk i S3-konsollet om den tilhører ditt miljø.
+  2. Hvis det er din tidligere stack, slett stacken/bøtten (CloudFormation «Delete» eller `aws s3 rb s3://<navn> --force`).
+  3. Hvis bøtten ligger i et annet AWS-konto/miljø, gjør stack-navnet eller bucket-navnet unikt. For SAM/`cloudformation package`, gi en unik `--s3-bucket`/`--s3-prefix` og bruk miljøspesifikke stack-navn (f.eks. `mathlive-lambdas-dev` vs `mathlive-lambdas-prod`).
+  4. Kjør `aws cloudformation deploy ... --capabilities CAPABILITY_NAMED_IAM` på nytt etter at navnekonflikten er løst.
+
+Prod-static bucket (skal gjenbrukes, ikke opprettes på nytt)
+- Bruk den eksisterende S3-bøtten `math-visuals-static-site-796063593326-202512172100921` for den statiske nettsiden i prod (se AWS-skjermdumpen). Ikke opprett en ny bøtte i deploy-script eller CloudFormation; pek eventuelle `aws s3 sync`/`aws s3 cp`-steg mot denne bøtten.
