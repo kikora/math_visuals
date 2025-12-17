@@ -12,6 +12,15 @@ Parameters:
   SiteBucketName:
     Type: String
     Description: Globally-unique name for the S3 bucket hosting the static site.
+  CreateSiteBucket:
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: >-
+      Whether CloudFormation should create the S3 bucket. Set to false to reuse an
+      existing bucket with the provided name.
   ApiGatewayDomainName:
     Type: String
     Description: API Gateway domain (e.g., xxxxx.execute-api...).
@@ -34,9 +43,13 @@ Parameters:
     Type: String
     Description: Name of the CloudFormation stack that exports shared parameter names.
 
+Conditions:
+  CreateSiteBucketCondition: !Equals [!Ref CreateSiteBucket, 'true']
+
 Resources:
   SiteBucket:
     Type: AWS::S3::Bucket
+    Condition: CreateSiteBucketCondition
     Properties:
       BucketName: !Ref SiteBucketName
       VersioningConfiguration:
@@ -59,7 +72,7 @@ Resources:
   SiteBucketPolicy:
     Type: AWS::S3::BucketPolicy
     Properties:
-      Bucket: !Ref SiteBucket
+      Bucket: !Ref SiteBucketName
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -69,7 +82,7 @@ Resources:
               CanonicalUser: !GetAtt SiteOriginAccessIdentity.S3CanonicalUserId
             Action:
               - s3:GetObject
-            Resource: !Sub '${SiteBucket.Arn}/*'
+            Resource: !Sub 'arn:${AWS::Partition}:s3:::${SiteBucketName}/*'
 
   ApiOriginRequestPolicy:
     Type: AWS::CloudFront::OriginRequestPolicy
@@ -238,7 +251,10 @@ Resources:
         Comment: !Sub 'Math Visuals static site (${SiteEnvironmentName})'
         Origins:
           - Id: SiteBucketOrigin
-            DomainName: !GetAtt SiteBucket.RegionalDomainName
+            DomainName: !If
+              - CreateSiteBucketCondition
+              - !GetAtt SiteBucket.RegionalDomainName
+              - !Sub '${SiteBucketName}.s3.${AWS::Region}.amazonaws.com'
             S3OriginConfig:
               OriginAccessIdentity: !Sub 'origin-access-identity/cloudfront/${SiteOriginAccessIdentity}'
           - Id: ApiGatewayOrigin
@@ -415,7 +431,7 @@ Resources:
 Outputs:
   StaticSiteBucketName:
     Description: Name of the S3 bucket hosting the static site artifacts.
-    Value: !Ref SiteBucket
+    Value: !Ref SiteBucketName
     Export:
       Name: !Sub '${AWS::StackName}-StaticSiteBucketName'
   CloudFrontDistributionId:
