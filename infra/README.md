@@ -116,6 +116,11 @@ Disse hemmelighetene må være tilstede i CI-miljøet. Workflowen validerer at a
 tre er satt og avbryter før API-deployen dersom én mangler, slik at man slipper
 å pushe en stack uten konsistente Redis-verdier.
 
+Statiskside-deployen i samme workflow sjekker nå eksplisitt om bøtten angitt i
+`STATIC_SITE_BUCKET_NAME` allerede finnes når `CREATE_SITE_BUCKET=true`. Hvis
+bøtten finnes fra før stopper jobben med en feilmelding som ber deg sette
+`CREATE_SITE_BUCKET=false` for å gjenbruke den eksisterende ressursen.
+
 ### IAM-tilgang for GitHub Actions-rollen
 
 `deploy-infra.yml` antar at IAM-rollen som actions-jobben overtar kan opprette
