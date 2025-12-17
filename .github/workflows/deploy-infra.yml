@@ -25,7 +25,9 @@ jobs:
       AWS_IAC_ROLE_ARN: ${{ secrets.AWS_IAC_ROLE_ARN }}
       # Required when provisioning the data stack internally; pass the Redis password directly from GitHub Secrets.
       REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD || '' }}
-      STATIC_SITE_BUCKET_NAME: ${{ secrets.STATIC_SITE_BUCKET_NAME }}
+      # Prod-static bucket must be reused (see deployment-notes.md). Default to the
+      # existing bucket so deploys don't create a new one if the secret is missing.
+      STATIC_SITE_BUCKET_NAME: ${{ secrets.STATIC_SITE_BUCKET_NAME || 'math-visuals-static-site-796063593326-202512172100921' }}
       STATIC_SITE_CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.STATIC_SITE_CLOUDFRONT_DISTRIBUTION_ID }}
       STATIC_SITE_API_DOMAIN: ${{ secrets.STATIC_SITE_API_DOMAIN }}
       STATIC_SITE_API_ORIGIN_PATH: ${{ secrets.STATIC_SITE_API_ORIGIN_PATH }}
