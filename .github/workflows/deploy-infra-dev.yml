@@ -337,6 +337,7 @@ jobs:
             --capabilities CAPABILITY_IAM \
             --parameter-overrides \
               SiteBucketName=$STATIC_SITE_BUCKET_NAME \
+              CreateSiteBucket=false \
               SiteEnvironmentName=$DATA_ENVIRONMENT_NAME \
               ApiGatewayDomainName=$api_domain \
               ApiGatewayOriginPath=$api_origin_path \
