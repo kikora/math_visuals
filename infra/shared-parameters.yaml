@@ -164,6 +164,15 @@ Resources:
       Value: https://visualmath.kikora.com
       Description: Comma-separated list of allowed origins for the examples API frontend.
 
+  SvgAllowedOriginsParameter:
+    Type: AWS::SSM::Parameter
+    DeletionPolicy: Retain
+    Properties:
+      Name: !Sub '/math-visuals/${EnvironmentName}/config/svg-allowed-origins'
+      Type: String
+      Value: https://visualmath.kikora.com
+      Description: Comma-separated list of allowed origins for the SVG export API frontend.
+
   SharedStackVersionParameter:
     Type: AWS::SSM::Parameter
     Properties:
