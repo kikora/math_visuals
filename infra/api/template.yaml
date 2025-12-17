@@ -27,6 +27,13 @@ Parameters:
       When true, import values are treated as SSM parameter names and resolved via
       dynamic references so the Lambda VPC config receives raw subnet and
       security group IDs.
+  LambdaSecurityGroupIdOverride:
+    Type: String
+    Default: ''
+    Description: >-
+      Optional security group ID to attach to the Lambda instead of importing the
+      ID from the data stack. Useful when the VPC resources already exist and you
+      want to supply a known sg- identifier directly.
   DataStackName:
     Type: String
     Default: math-visuals-data
@@ -90,13 +97,16 @@ Resources:
       VpcConfig:
         SecurityGroupIds:
           - !If
-              - UseNetworkParameterExports
-              - !Sub
-                - '{{resolve:ssm:${LambdaSecurityGroupIdParameterName}}}'
-                - LambdaSecurityGroupIdParameterName: !ImportValue
-                    Fn::Sub: '${DataStackName}-LambdaSecurityGroupId'
-              - !ImportValue
-                  Fn::Sub: '${DataStackName}-LambdaSecurityGroupId'
+              - UseLambdaSecurityGroupOverride
+              - !Ref LambdaSecurityGroupIdOverride
+              - !If
+                  - UseNetworkParameterExports
+                  - !Sub
+                    - '{{resolve:ssm:${LambdaSecurityGroupIdParameterName}}}'
+                    - LambdaSecurityGroupIdParameterName: !ImportValue
+                        Fn::Sub: '${DataStackName}-LambdaSecurityGroupId'
+                  - !ImportValue
+                      Fn::Sub: '${DataStackName}-LambdaSecurityGroupId'
         SubnetIds:
           - !If
               - UseNetworkParameterExports
@@ -441,6 +451,7 @@ Conditions:
   HasLambdaCodeVersion: !Not [!Equals [!Ref LambdaCodeS3ObjectVersion, '']]
   UseProvidedAlarmTopic: !Not [!Equals [!Ref AlarmTopicArn, '']]
   CreateDefaultAlarmTopic: !Equals [!Ref AlarmTopicArn, '']
+  UseLambdaSecurityGroupOverride: !Not [!Equals [!Ref LambdaSecurityGroupIdOverride, '']]
 
 Outputs:
   ApiEndpoint:

@@ -75,6 +75,7 @@ aws cloudformation deploy \
       --parameter-overrides \
           LambdaCodeS3Bucket=<artefakt-bucket> \
           LambdaCodeS3Key=<sti>/api-lambda.zip \
+          LambdaSecurityGroupIdOverride="" \
           StageName=prod \
           DataStackName=math-visuals-data \
           SharedParametersStackName=math-visuals-shared \
@@ -91,6 +92,7 @@ aws cloudformation deploy \
 #       --parameter-overrides \
 #           LambdaCodeS3Bucket=<artefakt-bucket> \
 #           LambdaCodeS3Key=<sti>/api-lambda.zip \
+#           LambdaSecurityGroupIdOverride="" \
 #           LambdaCodeS3ObjectVersion=<versjon-id eller \"\"> \
 #           StageName=prod \
 #           DataStackName=math-visuals-data \
@@ -118,6 +120,23 @@ Hvis du bruker versjonerte objekter i S3, kan du sette `LambdaCodeS3ObjectVersio
 bruker `math-visuals-data`). Denne verdien brukes til å importere VPC-ID,
 private subnett, Lambda-sikkerhetsgruppen og Redis-endepunkter slik at
 Lambdaen kan kjøre bak samme nettverk/firewall som Redis.
+
+### Direkte overstyring av Lambda-sikkerhetsgruppen
+
+Hvis Lambdaen må bruke en allerede eksisterende security group (f.eks.
+`sg-0d4bd79e8a4e01832`) kan du sette
+`LambdaSecurityGroupIdOverride=<sg-id>` i `--parameter-overrides`. Når denne
+er satt hopper stacken over importen fra datastacken og bruker ID-en du oppgir
+som eneste security group. Subnettene importeres fortsatt fra `DataStackName`.
+
+GitHub Actions-workflowen `deploy-infra.yml` plukker opp hemmeligheten
+`LAMBDA_SECURITY_GROUP_ID` og sender den som `LambdaSecurityGroupIdOverride`
+automatisk, slik at du kan legge den endelige sg-ID-en i repoets secrets og
+slippe placeholders i `VpcConfig`.
+
+GitHub Action-secrets (`REDIS_PASSWORD`, `REDIS_ENDPOINT`, `REDIS_PORT`) trenger
+ikke å endres bare fordi du overstyrer security groupen – de brukes kun til å
+speile Redis-verdier inn i Secrets Manager/SSM.
 
 `SharedParametersStackName` gjør at malen kan importere Secrets Manager- og
 Parameter Store-navn fra `infra/shared-parameters.yaml`. Sørg for at

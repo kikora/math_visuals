@@ -35,6 +35,7 @@ Datastack-provisjonering fra GitHub Actions:
   - `PRIVATE_SUBNET_1_ID` / `PRIVATE_SUBNET_2_ID` (subnets for Lambda)
   - `LAMBDA_SECURITY_GROUP_ID` (security group for Lambda mot VPC)
   Disse verdiene skrives til SSM/Secrets Manager via `infra/shared-parameters.yaml` og eksporterer navnene API-stacken bruker.
+  `LAMBDA_SECURITY_GROUP_ID` sendes også som `LambdaSecurityGroupIdOverride` til API-malen av `deploy-infra.yml`, slik at VpcConfig bruker den endelige sg-ID-en selv om data-stacken ikke eksporterer den.
 
 Ekstern Redis (hopper over datastack/secret-sync):
 - Sett GitHub-secreten `USE_EXTERNAL_REDIS=true` for å hoppe over "Deploy data stack" i `deploy-infra.yml`. Resterende API/static deploy-steg kjører som før.
