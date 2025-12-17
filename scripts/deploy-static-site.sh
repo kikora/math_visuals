@@ -60,7 +60,7 @@ CLOUDFRONT_PRICE_CLASS=${CLOUDFRONT_PRICE_CLASS:-}
 CACHE_POLICY_ID=${CACHE_POLICY_ID:-}
 CLOUDFRONT_REGION=${CLOUDFRONT_REGION:-us-east-1}
 SKIP_INVALIDATION=${SKIP_INVALIDATION:-}
-CREATE_SITE_BUCKET=${CREATE_SITE_BUCKET:-}
+CREATE_SITE_BUCKET=${CREATE_SITE_BUCKET:-false}
 
 STACK_EXISTS=false
 if stack_exists; then
@@ -119,8 +119,6 @@ if [[ -z "$CREATE_SITE_BUCKET" ]]; then
   elif bucket_exists "$SITE_BUCKET_NAME"; then
     echo "Bucket $SITE_BUCKET_NAME already exists; reusing it (CreateSiteBucket=false)."
     CREATE_SITE_BUCKET=false
-  else
-    CREATE_SITE_BUCKET=true
   fi
 fi
 
