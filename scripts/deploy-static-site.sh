@@ -27,6 +27,10 @@ function read_parameter() {
   echo "$value"
 }
 
+function stack_exists() {
+  aws cloudformation describe-stacks --stack-name "$STACK_NAME" >/dev/null 2>&1
+}
+
 function read_output() {
   local key=$1
   local value
@@ -51,17 +55,35 @@ CLOUDFRONT_PRICE_CLASS=${CLOUDFRONT_PRICE_CLASS:-}
 CACHE_POLICY_ID=${CACHE_POLICY_ID:-}
 CLOUDFRONT_REGION=${CLOUDFRONT_REGION:-us-east-1}
 SKIP_INVALIDATION=${SKIP_INVALIDATION:-}
+CREATE_SITE_BUCKET=${CREATE_SITE_BUCKET:-}
+
+STACK_EXISTS=false
+if stack_exists; then
+  STACK_EXISTS=true
+fi
 
 if [[ -z "$SITE_BUCKET_NAME" ]]; then
-  SITE_BUCKET_NAME=$(read_parameter "SiteBucketName")
+  if $STACK_EXISTS; then
+    SITE_BUCKET_NAME=$(read_parameter "SiteBucketName")
+  else
+    echo "SITE_BUCKET_NAME must be set when deploying a new stack." >&2
+    exit 1
+  fi
 fi
 
 if [[ -z "$API_GATEWAY_DOMAIN" ]]; then
-  API_GATEWAY_DOMAIN=$(read_parameter "ApiGatewayDomainName")
+  if $STACK_EXISTS; then
+    API_GATEWAY_DOMAIN=$(read_parameter "ApiGatewayDomainName")
+  else
+    echo "API_GATEWAY_DOMAIN must be set when deploying a new stack." >&2
+    exit 1
+  fi
 fi
 
 if [[ -z "$API_GATEWAY_ORIGIN_PATH" ]]; then
-  API_GATEWAY_ORIGIN_PATH=$(read_parameter "ApiGatewayOriginPath")
+  if $STACK_EXISTS; then
+    API_GATEWAY_ORIGIN_PATH=$(read_parameter "ApiGatewayOriginPath")
+  fi
 fi
 
 # CloudFront requires origin paths to start with a leading '/'. Normalize
@@ -71,18 +93,40 @@ if [[ -n "$API_GATEWAY_ORIGIN_PATH" && "${API_GATEWAY_ORIGIN_PATH:0:1}" != "/" ]
 fi
 
 if [[ -z "$CLOUDFRONT_PRICE_CLASS" ]]; then
-  CLOUDFRONT_PRICE_CLASS=$(read_parameter "CloudFrontPriceClass")
+  if $STACK_EXISTS; then
+    CLOUDFRONT_PRICE_CLASS=$(read_parameter "CloudFrontPriceClass")
+  else
+    CLOUDFRONT_PRICE_CLASS="PriceClass_100"
+  fi
 fi
 
 if [[ -z "$CACHE_POLICY_ID" ]]; then
-  CACHE_POLICY_ID=$(read_parameter "CachePolicyId")
+  if $STACK_EXISTS; then
+    CACHE_POLICY_ID=$(read_parameter "CachePolicyId")
+  else
+    CACHE_POLICY_ID="4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
+  fi
 fi
 
-echo "Deploying $STACK_NAME using parameters from the existing stack..."
+if [[ -z "$CREATE_SITE_BUCKET" ]]; then
+  if $STACK_EXISTS; then
+    CREATE_SITE_BUCKET=$(read_parameter "CreateSiteBucket")
+  elif aws s3api head-bucket --bucket "$SITE_BUCKET_NAME" >/dev/null 2>&1; then
+    echo "Bucket $SITE_BUCKET_NAME already exists; reusing it (CreateSiteBucket=false)."
+    CREATE_SITE_BUCKET=false
+  else
+    CREATE_SITE_BUCKET=true
+  fi
+fi
+
+echo "Using CreateSiteBucket=$CREATE_SITE_BUCKET for bucket $SITE_BUCKET_NAME"
+
+echo "Deploying $STACK_NAME with resolved parameters..."
 echo "  Cache policy: $CACHE_POLICY_ID"
 
 PARAM_OVERRIDES=(
   "SiteBucketName=$SITE_BUCKET_NAME"
+  "CreateSiteBucket=$CREATE_SITE_BUCKET"
   "ApiGatewayDomainName=$API_GATEWAY_DOMAIN"
   "ApiGatewayOriginPath=$API_GATEWAY_ORIGIN_PATH"
   "CloudFrontPriceClass=$CLOUDFRONT_PRICE_CLASS"
