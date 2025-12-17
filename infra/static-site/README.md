@@ -106,6 +106,14 @@ Prerequisites:
 scripts/deploy-static-site.sh
 ```
 
+If the specified `SiteBucketName` already exists in the account (for example
+from a previous manual creation), CloudFormation will fail with a
+"Resource name conflict" error unless the bucket is reused. The deploy script
+now detects existing buckets and automatically sets `CreateSiteBucket=false` so
+the stack binds to the pre-existing bucket instead of trying to create it.
+Override the behaviour by exporting `CREATE_SITE_BUCKET=true|false` before
+running the script when you need to force a particular mode.
+
 The script reads the current parameter values for `SiteBucketName`,
 `ApiGatewayDomainName`, `ApiGatewayOriginPath`, `CloudFrontPriceClass` and
 `CachePolicyId` from the existing `math-visuals-static-site` stack before calling
