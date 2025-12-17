@@ -109,6 +109,10 @@ Resources:
     Properties:
       Name: !Sub 'math-visuals/${EnvironmentName}/redis/password'
       Description: Redis authentication token/password used by the API and examples API.
+      # Provide an initial secret version so consumers can resolve AWSCURRENT
+      # immediately after stack creation. The value should be overwritten with
+      # the real Redis password via `scripts/update-shared-params.sh`.
+      SecretString: '{"authToken":""}'
 
   RedisEndpointParameter:
     Type: AWS::SSM::Parameter

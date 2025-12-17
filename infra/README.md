@@ -23,9 +23,11 @@ passing `SharedParametersStackName=math-visuals-shared`.
 ## Setting secret and parameter values before deployment
 
 The consuming stacks use dynamic references to resolve the values at deploy
-and runtime. Make sure the Secrets Manager secret and SSM parameters exist (and
-contain the latest values) **before** deploying the API, static site or data
-stacks:
+and runtime. The shared template now seeds the Redis secret with an empty JSON
+payload so the `AWSCURRENT` version is immediately available, but you still
+need to overwrite it with the real password. Make sure the Secrets Manager
+secret and SSM parameters exist (and contain the latest values) **before**
+deploying the API, static site or data stacks:
 
 Use the helper script to update the Redis secrets and the frontend allow-list in
 one go:
