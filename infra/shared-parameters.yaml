@@ -155,6 +155,15 @@ Resources:
       Value: !If [HasPrivateSubnet2Id, !Ref PrivateSubnet2Id, placeholder]
       Description: Second private subnet ID for API Lambdas using external Redis.
 
+  ExamplesAllowedOriginsParameter:
+    Type: AWS::SSM::Parameter
+    DeletionPolicy: Retain
+    Properties:
+      Name: !Sub '/math-visuals/${EnvironmentName}/config/examples-allowed-origins'
+      Type: StringList
+      Value: https://visualmath.kikora.com
+      Description: Comma-separated list of allowed origins for the examples API frontend.
+
   SharedStackVersionParameter:
     Type: AWS::SSM::Parameter
     Properties:
