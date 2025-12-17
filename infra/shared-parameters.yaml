@@ -160,7 +160,7 @@ Resources:
     DeletionPolicy: Retain
     Properties:
       Name: !Sub '/math-visuals/${EnvironmentName}/config/examples-allowed-origins'
-      Type: StringList
+      Type: String
       Value: https://visualmath.kikora.com
       Description: Comma-separated list of allowed origins for the examples API frontend.
 
