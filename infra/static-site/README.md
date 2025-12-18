@@ -144,10 +144,14 @@ traceability.
 
 ### Resource retention
 
-The stack retains the S3 bucket and CloudFront origin request policy on delete
-or replacement so previously uploaded assets and shared policies are not
-removed unintentionally. Clean them up manually only when you intend to fully
-remove the static site infrastructure.
+The stack retains the S3 bucket on delete or replacement so previously uploaded
+assets are not removed unintentionally. Clean it up manually only when you
+intend to fully remove the static site infrastructure.
+
+Origin request and cache policies use AWS-managed IDs so the stack no longer
+creates its own origin request policy. This avoids `Another origin request
+policy with the same name already exists` failures when recreating the stack
+after a previous deployment left a retained policy behind.
 
 ### Allowing API write methods via CloudShell
 
