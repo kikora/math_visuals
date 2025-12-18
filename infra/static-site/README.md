@@ -48,7 +48,7 @@ extension or includes an example slug.
 | -------------------------- | ----------- |
 | `SiteEnvironmentName`      | Short environment identifier used for tagging (e.g. `prod`, `dev`). |
 | `SiteBucketName`           | Globally unique name of the S3 bucket that will host the site. |
-| `CreateSiteBucket`         | Set to `false` to reuse an existing bucket with the given name instead of creating a new one. |
+| `CreateSiteBucket`         | Set to `false` to reuse an existing bucket with the given name instead of creating a new one. When reusing a bucket the stack leaves any existing bucket policy untouched. |
 | `ApiGatewayDomainName`     | Domain name of the API Gateway stage (e.g. `abc123.execute-api.us-east-1.amazonaws.com`). |
 | `CloudFrontPriceClass`     | CloudFront price class to use (defaults to `PriceClass_100`). |
 | `CachePolicyId`            | CloudFront cache policy applied to API-backed behaviours (defaults to the managed `CachingDisabled` policy). |
@@ -110,7 +110,10 @@ If the specified `SiteBucketName` already exists in the account (for example
 from a previous manual creation), CloudFormation will fail with a
 "Resource name conflict" error unless the bucket is reused. The deploy script
 now detects existing buckets and automatically sets `CreateSiteBucket=false` so
-the stack binds to the pre-existing bucket instead of trying to create it.
+the stack binds to the pre-existing bucket instead of trying to create it while
+leaving any existing bucket policy in place. Keep the origin access identity
+granted in that policy up to date with the CloudFront distribution if you
+rotate or recreate the stack.
 Override the behaviour by exporting `CREATE_SITE_BUCKET=true|false` before
 running the script when you need to force a particular mode.
 
@@ -138,6 +141,13 @@ distribution if the console moved it) and validates the configured cache policy.
 Unless `SKIP_INVALIDATION=1` is set it then invalidates `/api/*` and the SPA
 fallback `/*`, logging the distribution ID and invalidated paths for
 traceability.
+
+### Resource retention
+
+The stack retains the S3 bucket and CloudFront origin request policy on delete
+or replacement so previously uploaded assets and shared policies are not
+removed unintentionally. Clean them up manually only when you intend to fully
+remove the static site infrastructure.
 
 ### Allowing API write methods via CloudShell
 

@@ -50,6 +50,8 @@ Resources:
   SiteBucket:
     Type: AWS::S3::Bucket
     Condition: CreateSiteBucketCondition
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       BucketName: !Ref SiteBucketName
       VersioningConfiguration:
@@ -71,6 +73,7 @@ Resources:
 
   SiteBucketPolicy:
     Type: AWS::S3::BucketPolicy
+    Condition: CreateSiteBucketCondition
     Properties:
       Bucket: !Ref SiteBucketName
       PolicyDocument:
@@ -86,6 +89,8 @@ Resources:
 
   ApiOriginRequestPolicy:
     Type: AWS::CloudFront::OriginRequestPolicy
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       OriginRequestPolicyConfig:
         Name: !Sub '${AWS::StackName}-api-origin-request-policy'
