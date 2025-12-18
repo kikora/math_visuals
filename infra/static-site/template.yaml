@@ -87,21 +87,6 @@ Resources:
               - s3:GetObject
             Resource: !Sub 'arn:${AWS::Partition}:s3:::${SiteBucketName}/*'
 
-  ApiOriginRequestPolicy:
-    Type: AWS::CloudFront::OriginRequestPolicy
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
-    Properties:
-      OriginRequestPolicyConfig:
-        Name: !Sub '${AWS::StackName}-api-origin-request-policy'
-        Comment: Forward all query strings required by API Gateway path parameters
-        CookiesConfig:
-          CookieBehavior: none
-        HeadersConfig:
-          HeaderBehavior: none
-        QueryStringsConfig:
-          QueryStringBehavior: all
-
   ViewerRequestRouterFunction:
     Type: AWS::CloudFront::Function
     Properties:
