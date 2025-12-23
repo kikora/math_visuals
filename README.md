@@ -20,7 +20,7 @@ Mapper under `packages/` inneholder gjenbrukbare moduler som distribueres som b�
 
 ### Serverløse funksjoner
 
-`api/`-mappen rommer de serverløse handlerne som nå kjøres i AWS Lambda (via `infra/api/template.yaml`). `api/examples` er kjernen for lagrede elevprodukter og deler en lagringsmodell beskrevet i [`docs/examples-storage.md`](docs/examples-storage.md). Øvrige endepunkter forsyner appene med analyser, beskrivelser og eksportmuligheter.
+`api/`-mappen rommer de serverløse handlerne som nå kjøres i AWS Lambda (via `infra/api/template.yaml`). `api/examples` er kjernen for lagrede elevprodukter og deler en lagringsmodell beskrevet i [`docs/examples-storage.md`](docs/examples-storage.md). Øvrige endepunkter forsyner appene med analyser, beskrivelser og eksportmuligheter. All ordinær trafikk går via CloudFront → API Gateway/Lambda; Vercel er avviklet og kun beholdt som nødsbackup i [`docs/vercel-backup.json`](docs/vercel-backup.json) dersom vi må spinne opp et midlertidig miljø.
 
 ## Domenespesifikke verktøy
 

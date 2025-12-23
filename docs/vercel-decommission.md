@@ -2,7 +2,7 @@
 
 Denne runbooken dokumenterer hvordan vi gjør en full avvikling av Vercel-miljøene for `math_visuals`. Oppgavene må utføres med tilgang til de eksterne tjenestene (AWS, Vercel og DNS-provider). I dette repoet er ingen av operasjonene automatisert, så status må bekreftes manuelt.
 
-> **Status:** Vercel-prosjektet er nå lukket; AWS (CloudFront + API Gateway/Lambda + Redis) er eneste operative miljø. Behold runbooken for revisjonsspor og for å kunne bekrefte tidligere DNS-/dataflytting.
+> **Status:** Vercel-prosjektet er nå lukket; AWS (CloudFront + API Gateway/Lambda + Redis) er eneste operative miljø. Behold runbooken for revisjonsspor og for å kunne bekrefte tidligere DNS-/dataflytting. Konfigurasjonen for et midlertidig Vercel-miljø er arkivert som backup i [`docs/vercel-backup.json`](vercel-backup.json) – den distribueres ikke automatisk.
 
 ## 1. Verifiser CloudFront-produksjon
 - Finn produksjonsdistribusjonen (se `infra`/Terraform eller AWS-kontoens CloudFront-konsoll) og noter domenet.
