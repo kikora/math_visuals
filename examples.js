@@ -5536,6 +5536,18 @@ initExamples();
       return hasContent;
     };
     const trimmedValue = stringValue.trim();
+    const renderPlainText = () => {
+      const fragment = buildDescriptionPreview(stringValue);
+      const hasFragmentContent = fragment && fragment.childNodes && fragment.childNodes.length > 0;
+      clearChildren(preview);
+      if (hasFragmentContent) {
+        preview.appendChild(fragment);
+      } else {
+        preview.textContent = stringValue;
+      }
+      updateTaskCheckAvailability(preview);
+      return hasFragmentContent || !!trimmedValue;
+    };
     if (!trimmedValue) {
       clearChildren(preview);
       clearDescriptionPlaceholder(preview);
@@ -5558,18 +5570,6 @@ initExamples();
       applyState(hasContent);
       return markRendered(hasContent);
     }
-    const renderPlainText = () => {
-      const fragment = buildDescriptionPreview(stringValue);
-      const hasFragmentContent = fragment && fragment.childNodes && fragment.childNodes.length > 0;
-      clearChildren(preview);
-      if (hasFragmentContent) {
-        preview.appendChild(fragment);
-      } else {
-        preview.textContent = stringValue;
-      }
-      updateTaskCheckAvailability(preview);
-      return hasFragmentContent || !!trimmedValue;
-    };
     let placeholderRendered = false;
     const renderPlainTextPlaceholder = () => {
       if (placeholderRendered) return true;
