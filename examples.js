@@ -5536,7 +5536,8 @@ initExamples();
       return hasContent;
     };
     const trimmedValue = stringValue.trim();
-    const renderPlainText = () => {
+
+    function renderPlainText() {
       const fragment = buildDescriptionPreview(stringValue);
       const hasFragmentContent = fragment && fragment.childNodes && fragment.childNodes.length > 0;
       clearChildren(preview);
@@ -5547,7 +5548,7 @@ initExamples();
       }
       updateTaskCheckAvailability(preview);
       return hasFragmentContent || !!trimmedValue;
-    };
+    }
     if (!trimmedValue) {
       clearChildren(preview);
       clearDescriptionPlaceholder(preview);
@@ -5571,7 +5572,8 @@ initExamples();
       return markRendered(hasContent);
     }
     let placeholderRendered = false;
-    const renderPlainTextPlaceholder = () => {
+
+    function renderPlainTextPlaceholder() {
       if (placeholderRendered) return true;
       const hasContent = renderPlainText();
       preview.dataset.placeholder = 'true';
@@ -5579,21 +5581,24 @@ initExamples();
       markRendered(hasContent);
       placeholderRendered = true;
       return hasContent;
-    };
-    const renderLegacy = () => {
+    }
+
+    function renderLegacy() {
       const hasContent = renderPlainText();
       clearDescriptionPlaceholder(preview);
       applyState(hasContent);
       updateTaskCheckAvailability(preview);
       return markRendered(hasContent);
-    };
+    }
+
     const token = ++lastDescriptionRenderToken;
-    const renderWith = renderer => {
-      if (!renderer || token !== lastDescriptionRenderToken) return;
-      try {
-        const hasContent = !!renderer.renderInto(preview, stringValue);
-        if (hasContent) {
-          clearDescriptionPlaceholder(preview);
+
+      function renderWith(renderer) {
+        if (!renderer || token !== lastDescriptionRenderToken) return;
+        try {
+          const hasContent = !!renderer.renderInto(preview, stringValue);
+          if (hasContent) {
+            clearDescriptionPlaceholder(preview);
           applyState(hasContent);
           markRendered(hasContent);
         } else if (!preview.childNodes || preview.childNodes.length === 0) {
@@ -5601,11 +5606,11 @@ initExamples();
         }
         updateTaskCheckAvailability(preview);
       } catch (error) {
-        if (token === lastDescriptionRenderToken) {
-          renderLegacy();
+          if (token === lastDescriptionRenderToken) {
+            renderLegacy();
+          }
         }
       }
-    };
 
     if (window.MathVisDescriptionRenderer && typeof window.MathVisDescriptionRenderer.renderInto === 'function') {
       renderWith(window.MathVisDescriptionRenderer);
