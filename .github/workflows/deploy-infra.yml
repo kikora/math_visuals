@@ -28,6 +28,7 @@ jobs:
       # Prod-static bucket must be reused (see deployment-notes.md). Default to the
       # existing bucket so deploys don't create a new one if the secret is missing.
       STATIC_SITE_BUCKET_NAME: ${{ secrets.STATIC_SITE_BUCKET_NAME || 'math-visuals-static-site-796063593326-202512172100921' }}
+      EXPECTED_STATIC_SITE_BUCKET_NAME: math-visuals-static-site-796063593326-202512172100921
       STATIC_SITE_CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.STATIC_SITE_CLOUDFRONT_DISTRIBUTION_ID }}
       STATIC_SITE_API_DOMAIN: ${{ secrets.STATIC_SITE_API_DOMAIN }}
       STATIC_SITE_API_ORIGIN_PATH: ${{ secrets.STATIC_SITE_API_ORIGIN_PATH }}
@@ -69,6 +70,14 @@ jobs:
         with:
           role-to-assume: ${{ env.AWS_IAC_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
+
+      - name: Ensure prod static site bucket name
+        run: |
+          set -euo pipefail
+          if [ "$STATIC_SITE_BUCKET_NAME" != "$EXPECTED_STATIC_SITE_BUCKET_NAME" ]; then
+            echo "Overriding STATIC_SITE_BUCKET_NAME='$STATIC_SITE_BUCKET_NAME' with expected prod bucket '$EXPECTED_STATIC_SITE_BUCKET_NAME'." >&2
+            echo "STATIC_SITE_BUCKET_NAME=$EXPECTED_STATIC_SITE_BUCKET_NAME" >> "$GITHUB_ENV"
+          fi
 
       - name: Ensure App Runner service-linked role exists
         run: |
