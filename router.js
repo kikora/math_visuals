@@ -366,6 +366,7 @@ const CAMPUS_VISIBLE_LABELS = new Set([
   'Diagram',
   'Eksempelarkiv',
   'Graftegner',
+  'Brøkfigurer',
   'Settings',
   'nKant'
 ]);
