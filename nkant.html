@@ -19,9 +19,9 @@
     }
     .card--figure {
       padding: 14px;
-      width: fit-content;
+      width: 100%;
       max-width: 100%;
-      justify-self: start;
+      justify-self: stretch;
       align-items: center;
     }
     .card--figure .figure {
@@ -36,7 +36,7 @@
       justify-content: center;
       align-items: center;
       padding: 12px;
-      width: fit-content;
+      width: 100%;
       max-width: 100%;
     }
     .figure svg {
@@ -50,6 +50,9 @@
       height: auto;
       max-height: 100%;
       display: block;
+    }
+    .wrap {
+      max-width: min(1400px, 100%);
     }
     .specs-row { display:flex; gap:10px; align-items:flex-start; }
     .specs-row textarea { flex:1; width:auto; }
