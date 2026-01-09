@@ -291,16 +291,13 @@ jobs:
           set -euo pipefail
           bash scripts/helpers/recover-stack-from-rollback.sh "$STATIC_STACK_NAME"
 
-      - name: Detect static site bucket
+      - name: Verify static site bucket exists
         run: |
           set -euo pipefail
 
-          if aws s3api head-bucket --bucket "$STATIC_SITE_BUCKET_NAME" >/dev/null 2>&1; then
-            echo "Bucket $STATIC_SITE_BUCKET_NAME already exists; reusing it."
-            echo "CREATE_SITE_BUCKET=false" >> "$GITHUB_ENV"
-          else
-            echo "Bucket $STATIC_SITE_BUCKET_NAME does not exist; creating it via CloudFormation."
-            echo "CREATE_SITE_BUCKET=true" >> "$GITHUB_ENV"
+          if ! aws s3api head-bucket --bucket "$STATIC_SITE_BUCKET_NAME" >/dev/null 2>&1; then
+            echo "Fant ikke eksisterende bucket '$STATIC_SITE_BUCKET_NAME'. Opprett den før statisk-side deployen." >&2
+            exit 1
           fi
 
       - name: Deploy static site stack
@@ -343,14 +340,13 @@ jobs:
           if [ -z "$api_origin_path" ] || [ "$api_origin_path" == "/" ]; then
             api_origin_path=""
           fi
-          create_site_bucket="${CREATE_SITE_BUCKET:-false}"
           aws cloudformation deploy \
             --stack-name "$STATIC_STACK_NAME" \
             --template-file infra/static-site/template.yaml \
             --capabilities CAPABILITY_IAM \
             --parameter-overrides \
               SiteBucketName=$STATIC_SITE_BUCKET_NAME \
-              CreateSiteBucket=$create_site_bucket \
+              CreateSiteBucket=false \
               SiteEnvironmentName=$DATA_ENVIRONMENT_NAME \
               ApiGatewayDomainName=$api_domain \
               ApiGatewayOriginPath=$api_origin_path \
