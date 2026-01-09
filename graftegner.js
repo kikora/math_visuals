@@ -10275,8 +10275,8 @@ function setupSettingsForm() {
       updateSnapAvailability();
     });
   }
+  let scheduleExampleHydration = null;
   if (typeof window !== 'undefined') {
-    let scheduleExampleHydration = null;
     const runExampleHydration = () => {
       // 1. Ta backup av utsnitt som ble lastet inn fra eksempelet
       const loadedScreen = (EXAMPLE_STATE && Array.isArray(EXAMPLE_STATE.screen)) ? EXAMPLE_STATE.screen.slice() : null;
@@ -10933,4 +10933,3 @@ function setupSettingsForm() {
     if (e.key === 'Enter') apply();
   });
 }
-
