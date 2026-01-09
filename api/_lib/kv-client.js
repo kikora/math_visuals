@@ -13,6 +13,7 @@ const globalScope = typeof globalThis === 'object' && globalThis ? globalThis : 
 const HOST_ENV_KEYS = ['REDIS_HOST', 'REDIS_ENDPOINT', 'REDIS_SERVER', 'REDIS_ADDRESS'];
 const URL_ENV_KEYS = ['REDIS_URL', 'REDIS_URI'];
 const PORT_ENV_KEYS = ['REDIS_PORT'];
+const USERNAME_ENV_KEYS = ['REDIS_USERNAME', 'REDIS_USER'];
 const PASSWORD_ENV_KEYS = ['REDIS_PASSWORD', 'REDIS_AUTH_TOKEN', 'REDIS_SECRET', 'REDIS_PASS'];
 const DB_ENV_KEYS = ['REDIS_DB', 'REDIS_DATABASE'];
 const TLS_ENV_KEYS = ['REDIS_TLS', 'REDIS_USE_TLS'];
@@ -73,6 +74,7 @@ function collectRawRedisBindings() {
   return {
     host: gatherEnvValue(HOST_ENV_KEYS),
     port: gatherEnvValue(PORT_ENV_KEYS),
+    username: gatherEnvValue(USERNAME_ENV_KEYS),
     password: gatherEnvValue(PASSWORD_ENV_KEYS),
   };
 }
@@ -129,6 +131,7 @@ function getRedisEnvironment() {
 
   let host = parsedUrl ? parsedUrl.hostname : null;
   let port = parsedUrl ? parsePort(parsedUrl.port) : null;
+  let username = parsedUrl && parsedUrl.username ? parsedUrl.username : null;
   let password = parsedUrl && parsedUrl.password ? parsedUrl.password : null;
   let db = parsedUrl && parsedUrl.pathname ? parsePort(parsedUrl.pathname.replace(/^\//, '')) : null;
 
@@ -156,6 +159,11 @@ function getRedisEnvironment() {
     port = parsePort(portCandidate) || port;
   }
 
+  const usernameCandidate = gatherEnvValue(USERNAME_ENV_KEYS);
+  if (usernameCandidate) {
+    username = usernameCandidate;
+  }
+
   const passwordCandidate = gatherEnvValue(PASSWORD_ENV_KEYS);
   if (passwordCandidate) {
     password = passwordCandidate;
@@ -177,6 +185,9 @@ function getRedisEnvironment() {
   const env = { host };
   if (Number.isInteger(port)) {
     env.port = port;
+  }
+  if (username) {
+    env.username = username;
   }
   if (password) {
     env.password = password;
@@ -277,6 +288,16 @@ async function resolveRedisEnvironment() {
     resolved.port = parsePort(bindings.port);
   }
 
+  if (!resolved.username && bindings.username) {
+    if (looksLikeSecretIdentifier(bindings.username)) {
+      resolved.username = await fetchSecretValue(bindings.username);
+    } else if (looksLikeSsmParameter(bindings.username)) {
+      resolved.username = await fetchSsmParameter(bindings.username);
+    } else {
+      resolved.username = bindings.username;
+    }
+  }
+
   if (!resolved.password && bindings.password) {
     if (looksLikeSecretIdentifier(bindings.password)) {
       resolved.password = await fetchSecretValue(bindings.password);
@@ -338,6 +359,9 @@ function createRedisClient(env) {
   }
   if (env.password) {
     options.password = env.password;
+  }
+  if (env.username) {
+    options.username = env.username;
   }
   if (env.tls) {
     options.tls = env.tls;

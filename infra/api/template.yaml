@@ -136,7 +136,11 @@ Resources:
             - RedisPortParameterName: !ImportValue
                 Fn::Sub: '${DataStackName}-RedisPortParameterName'
           REDIS_PASSWORD: !Sub
-            - '{{resolve:secretsmanager:${RedisPasswordSecretName}:SecretString:authToken}}'
+            - '{{resolve:secretsmanager:${RedisPasswordSecretName}:SecretString:vkPassword}}'
+            - RedisPasswordSecretName: !ImportValue
+                Fn::Sub: '${DataStackName}-RedisPasswordSecretName'
+          REDIS_USERNAME: !Sub
+            - '{{resolve:secretsmanager:${RedisPasswordSecretName}:SecretString:vkUser}}'
             - RedisPasswordSecretName: !ImportValue
                 Fn::Sub: '${DataStackName}-RedisPasswordSecretName'
           EXAMPLES_ALLOWED_ORIGINS: !Sub
