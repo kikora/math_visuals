@@ -420,6 +420,20 @@ jobs:
             --exclude "**/node_modules/*" \
             --exclude "node_modules/*"
 
+      - name: Resolve CloudFront distribution ID
+        if: ${{ env.STATIC_SITE_CLOUDFRONT_DISTRIBUTION_ID == '' }}
+        run: |
+          set -euo pipefail
+          distribution_id=$(aws cloudformation describe-stacks \
+            --stack-name "$STATIC_STACK_NAME" \
+            --query "Stacks[0].Outputs[?OutputKey=='CloudFrontDistributionId'].OutputValue" \
+            --output text)
+          if [ -z "$distribution_id" ] || [ "$distribution_id" = "None" ]; then
+            echo "Fant ikke CloudFrontDistributionId-output for $STATIC_STACK_NAME" >&2
+            exit 1
+          fi
+          echo "STATIC_SITE_CLOUDFRONT_DISTRIBUTION_ID=$distribution_id" >> "$GITHUB_ENV"
+
       - name: Invalidate CloudFront cache
         if: ${{ env.STATIC_SITE_CLOUDFRONT_DISTRIBUTION_ID != '' }}
         run: |
