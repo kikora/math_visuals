@@ -46,7 +46,7 @@ jobs:
       API_STACK_NAME: math-visuals-api-dev
       DATA_STACK_NAME: math-visuals-redis-dev
       DATA_ENVIRONMENT_NAME: dev
-      SHARED_PARAMETERS_STACK_NAME: ${{ secrets.SHARED_PARAMETERS_STACK_NAME_DEV || 'math-visuals-shared-dev' }}
+      SHARED_PARAMETERS_STACK_NAME: ${{ secrets.SHARED_PARAMETERS_STACK_NAME_DEV || secrets.SHARED_PARAMETERS_STACK_NAME || 'math-visuals-shared-dev' }}
       SKIP_EXAMPLES_SEEDING: "true"
       USE_EXTERNAL_REDIS: ${{ secrets.USE_EXTERNAL_REDIS_DEV || 'true' }}
     steps:
