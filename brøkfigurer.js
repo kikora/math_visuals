@@ -2368,6 +2368,29 @@ function isValidColor(value) {
       }
     }
     function drawRect(n, division, colorFor) {
+      if (showOutlineGlobal) {
+        board.create('polygon', [[0, 0], [1, 0], [1, 1], [0, 1]], {
+          borders: {
+            strokeColor: 'none',
+            strokeWidth: 0
+          },
+          vertices: {
+            visible: false,
+            name: '',
+            fixed: true,
+            label: {
+              visible: false
+            }
+          },
+          fillColor: '#fff',
+          fillOpacity: 1,
+          highlight: false,
+          fixed: true,
+          hasInnerPoints: false,
+          cssStyle: 'pointer-events:none;',
+          layer: 1
+        });
+      }
       if (division === 'diagonal') {
         const c = [0.5, 0.5];
         const corners = [[0, 0], [1, 0], [1, 1], [0, 1]];
@@ -2516,6 +2539,30 @@ function isValidColor(value) {
       const h = Math.sqrt(3) / 2;
       const toEq = ([x, y]) => [x + 0.5 * y, y * h];
       const toEqTri = ([x, y]) => [x, (1 - y) * h];
+      if (showOutlineGlobal) {
+        const framePoints = division === 'triangular' ? [toEqTri([0, 1]), toEqTri([1, 1]), toEqTri([0.5, 0])] : [toEq([0, 0]), toEq([1, 0]), toEq([0, 1])];
+        board.create('polygon', framePoints, {
+          borders: {
+            strokeColor: 'none',
+            strokeWidth: 0
+          },
+          vertices: {
+            visible: false,
+            name: '',
+            fixed: true,
+            label: {
+              visible: false
+            }
+          },
+          fillColor: '#fff',
+          fillOpacity: 1,
+          highlight: false,
+          fixed: true,
+          hasInnerPoints: false,
+          cssStyle: 'pointer-events:none;',
+          layer: 1
+        });
+      }
       if (division === 'triangular') {
         const m = Math.round(Math.sqrt(n));
         const rows = [];
