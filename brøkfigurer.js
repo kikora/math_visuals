@@ -283,6 +283,7 @@ function isValidColor(value) {
   const CLIP_PAD_PERCENT = CLIP_PADDING_PERCENT + CLIP_PAD_EXTRA_PERCENT;
   const CIRCLE_RADIUS = 0.45;
   const OUTLINE_STROKE_WIDTH = 6;
+  const RECT_CORNER_RADIUS_RATIO = 0.04;
   const DIVISION_SEGMENT_EXTENSION = 0;
   const colorCountInp = document.getElementById('colorCount');
   const allowWrongInp = document.getElementById('allowWrong');
@@ -2098,6 +2099,85 @@ function isValidColor(value) {
         }
       }
     }
+    function getRoundedRectScreenBox() {
+      if (!board || typeof JXG === 'undefined' || !JXG.Coords) return null;
+      const topLeft = new JXG.Coords(JXG.COORDS_BY_USER, [0, 1], board);
+      const bottomRight = new JXG.Coords(JXG.COORDS_BY_USER, [1, 0], board);
+      const x = topLeft.scrCoords[1];
+      const y = topLeft.scrCoords[2];
+      const width = bottomRight.scrCoords[1] - topLeft.scrCoords[1];
+      const height = bottomRight.scrCoords[2] - topLeft.scrCoords[2];
+      if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(width) || !Number.isFinite(height)) return null;
+      return {
+        x,
+        y,
+        width,
+        height
+      };
+    }
+    function ensureRoundedRectElement(rectId, insertBeforeElements) {
+      var _board$renderer, _board$renderer$svgR;
+      const svg = (_board$renderer = board == null ? void 0 : board.renderer) === null || _board$renderer === void 0 || (_board$renderer$svgR = _board$renderer.svgRoot) === null || _board$renderer$svgR === void 0 ? void 0 : _board$renderer$svgR;
+      if (!svg) return null;
+      let rect = svg.querySelector(`#${rectId}`);
+      if (!rect) {
+        rect = document.createElementNS(SVG_NS, 'rect');
+        rect.setAttribute('id', rectId);
+        rect.setAttribute('data-brok-frame', String(id));
+      }
+      if (!rect.parentNode) {
+        const defs = svg.querySelector('defs');
+        const fallback = insertBeforeElements ? (defs ? defs.nextSibling : svg.firstChild) : null;
+        if (insertBeforeElements && fallback) {
+          svg.insertBefore(rect, fallback);
+        } else {
+          svg.appendChild(rect);
+        }
+      }
+      return rect;
+    }
+    function clearRoundedRectFrame() {
+      var _board$renderer2, _board$renderer2$svg;
+      const svg = (_board$renderer2 = board == null ? void 0 : board.renderer) === null || _board$renderer2 === void 0 || (_board$renderer2$svg = _board$renderer2.svgRoot) === null || _board$renderer2$svg === void 0 ? void 0 : _board$renderer2$svg;
+      if (!svg) return;
+      const background = svg.querySelector(`#brok-rect-bg-${id}`);
+      if (background) background.remove();
+      const outline = svg.querySelector(`#brok-rect-outline-${id}`);
+      if (outline) outline.remove();
+    }
+    function updateRoundedRectFrame() {
+      const rectBox = getRoundedRectScreenBox();
+      if (!showOutlineGlobal || !rectBox) {
+        clearRoundedRectFrame();
+        return;
+      }
+      const radius = Math.max(0, Math.min(rectBox.width, rectBox.height) * RECT_CORNER_RADIUS_RATIO);
+      const background = ensureRoundedRectElement(`brok-rect-bg-${id}`, true);
+      if (background) {
+        background.setAttribute('x', rectBox.x.toFixed(3));
+        background.setAttribute('y', rectBox.y.toFixed(3));
+        background.setAttribute('width', rectBox.width.toFixed(3));
+        background.setAttribute('height', rectBox.height.toFixed(3));
+        background.setAttribute('rx', radius.toFixed(3));
+        background.setAttribute('ry', radius.toFixed(3));
+        background.setAttribute('fill', '#fff');
+        background.setAttribute('stroke', 'none');
+        background.setAttribute('pointer-events', 'none');
+      }
+      const outline = ensureRoundedRectElement(`brok-rect-outline-${id}`, false);
+      if (outline) {
+        outline.setAttribute('x', rectBox.x.toFixed(3));
+        outline.setAttribute('y', rectBox.y.toFixed(3));
+        outline.setAttribute('width', rectBox.width.toFixed(3));
+        outline.setAttribute('height', rectBox.height.toFixed(3));
+        outline.setAttribute('rx', radius.toFixed(3));
+        outline.setAttribute('ry', radius.toFixed(3));
+        outline.setAttribute('fill', 'none');
+        outline.setAttribute('stroke', '#000');
+        outline.setAttribute('stroke-width', String(OUTLINE_STROKE_WIDTH));
+        outline.setAttribute('pointer-events', 'none');
+      }
+    }
     function createDivisionSegment(start, end, options = {}, extend = true) {
       if (!showDivisionLinesGlobal) return null;
       const [p1, p2] = extend ? extendSegmentEndpoints(start, end) : [clonePoint(start), clonePoint(end)];
@@ -2368,29 +2448,7 @@ function isValidColor(value) {
       }
     }
     function drawRect(n, division, colorFor) {
-      if (showOutlineGlobal) {
-        board.create('polygon', [[0, 0], [1, 0], [1, 1], [0, 1]], {
-          borders: {
-            strokeColor: 'none',
-            strokeWidth: 0
-          },
-          vertices: {
-            visible: false,
-            name: '',
-            fixed: true,
-            label: {
-              visible: false
-            }
-          },
-          fillColor: '#fff',
-          fillOpacity: 1,
-          highlight: false,
-          fixed: true,
-          hasInnerPoints: false,
-          cssStyle: 'pointer-events:none;',
-          layer: 1
-        });
-      }
+      clearRoundedRectFrame();
       if (division === 'diagonal') {
         const c = [0.5, 0.5];
         const corners = [[0, 0], [1, 0], [1, 1], [0, 1]];
@@ -2513,27 +2571,7 @@ function isValidColor(value) {
           }
         }
       }
-      if (showOutlineGlobal) {
-        board.create('polygon', [[0, 0], [1, 0], [1, 1], [0, 1]], {
-          borders: {
-            strokeColor: '#000',
-            strokeWidth: 6
-          },
-          vertices: {
-            visible: false,
-            name: '',
-            fixed: true,
-            label: {
-              visible: false
-            }
-          },
-          fillColor: 'none',
-          highlight: false,
-          fixed: true,
-          hasInnerPoints: false,
-          cssStyle: 'pointer-events:none;'
-        });
-      }
+      updateRoundedRectFrame();
     }
     function drawTriangle(n, division, allowWrong, colorFor) {
       const h = Math.sqrt(3) / 2;
@@ -2768,7 +2806,19 @@ function isValidColor(value) {
       if (shape === 'triangle') {
         clipValue = `polygon(50% -${padStr}%, -${padStr}% ${maxStr}%, ${maxStr}% ${maxStr}%)`;
       } else if (shape === 'rectangle' || shape === 'square') {
-        clipValue = `polygon(-${padStr}% ${maxStr}%, ${maxStr}% ${maxStr}%, ${maxStr}% -${padStr}%, -${padStr}% -${padStr}%)`;
+        clipUpdater = clipPath => {
+          clipPath.setAttribute('clipPathUnits', 'objectBoundingBox');
+          while (clipPath.firstChild) clipPath.removeChild(clipPath.firstChild);
+          const rect = document.createElementNS(SVG_NS, 'rect');
+          const pad = CLIP_PAD_PERCENT / 100;
+          rect.setAttribute('x', (-pad).toFixed(4));
+          rect.setAttribute('y', (-pad).toFixed(4));
+          rect.setAttribute('width', (1 + pad * 2).toFixed(4));
+          rect.setAttribute('height', (1 + pad * 2).toFixed(4));
+          rect.setAttribute('rx', RECT_CORNER_RADIUS_RATIO.toFixed(4));
+          rect.setAttribute('ry', RECT_CORNER_RADIUS_RATIO.toFixed(4));
+          clipPath.appendChild(rect);
+        };
       } else if (shape === 'circle') {
         var _svg$viewBox, _svg$viewBox2;
         const circleBase = CIRCLE_RADIUS / BOARD_SIZE;
