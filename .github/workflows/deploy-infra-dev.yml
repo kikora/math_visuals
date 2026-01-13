@@ -30,6 +30,12 @@ jobs:
       STATIC_SITE_CLOUDFRONT_PRICE_CLASS: ${{ secrets.STATIC_SITE_CLOUDFRONT_PRICE_CLASS_DEV || 'PriceClass_100' }}
       API_ARTIFACT_BUCKET: ${{ secrets.API_ARTIFACT_BUCKET_DEV }}
       API_ARTIFACT_KEY: ${{ secrets.API_ARTIFACT_KEY_DEV }}
+      REDIS_ENDPOINT: ${{ secrets.REDIS_ENDPOINT || '' }}
+      REDIS_PORT: ${{ secrets.REDIS_PORT || '' }}
+      REDIS_PASSWORD_SECRET_ARN: ${{ secrets.REDIS_PASSWORD_SECRET_ARN || '' }}
+      PRIVATE_SUBNET_1_ID: ${{ secrets.PRIVATE_SUBNET_1_ID || '' }}
+      PRIVATE_SUBNET_2_ID: ${{ secrets.PRIVATE_SUBNET_2_ID || '' }}
+      LAMBDA_SECURITY_GROUP_ID: ${{ secrets.LAMBDA_SECURITY_GROUP_ID || '' }}
       REDIS_KEY_PREFIX: ${{ secrets.REDIS_KEY_PREFIX_DEV || 'dev' }}
       # Default to the template's dev stage when the secret is missing so the
       # deploy step doesn't fail with an empty StageName parameter.
@@ -40,7 +46,7 @@ jobs:
       API_STACK_NAME: math-visuals-api-dev
       DATA_STACK_NAME: math-visuals-redis-dev
       DATA_ENVIRONMENT_NAME: dev
-      SHARED_PARAMETERS_STACK_NAME: math-visuals-shared-dev
+      SHARED_PARAMETERS_STACK_NAME: ${{ secrets.SHARED_PARAMETERS_STACK_NAME_DEV || 'math-visuals-shared-dev' }}
       SKIP_EXAMPLES_SEEDING: "true"
       USE_EXTERNAL_REDIS: ${{ secrets.USE_EXTERNAL_REDIS_DEV || 'true' }}
     steps:
@@ -73,10 +79,30 @@ jobs:
           echo "Ensuring $SHARED_PARAMETERS_STACK_NAME is ready for an update..."
           scripts/helpers/wait-for-stable-stack.sh "$SHARED_PARAMETERS_STACK_NAME"
 
+          PARAM_OVERRIDES="EnvironmentName=$DATA_ENVIRONMENT_NAME"
+          if [ -n "${REDIS_ENDPOINT:-}" ]; then
+            PARAM_OVERRIDES="$PARAM_OVERRIDES RedisEndpoint=$REDIS_ENDPOINT"
+          fi
+          if [ -n "${REDIS_PORT:-}" ]; then
+            PARAM_OVERRIDES="$PARAM_OVERRIDES RedisPort=$REDIS_PORT"
+          fi
+          if [ -n "${REDIS_PASSWORD_SECRET_ARN:-}" ]; then
+            PARAM_OVERRIDES="$PARAM_OVERRIDES RedisPasswordSecretName=$REDIS_PASSWORD_SECRET_ARN"
+          fi
+          if [ -n "${PRIVATE_SUBNET_1_ID:-}" ]; then
+            PARAM_OVERRIDES="$PARAM_OVERRIDES PrivateSubnet1Id=$PRIVATE_SUBNET_1_ID"
+          fi
+          if [ -n "${PRIVATE_SUBNET_2_ID:-}" ]; then
+            PARAM_OVERRIDES="$PARAM_OVERRIDES PrivateSubnet2Id=$PRIVATE_SUBNET_2_ID"
+          fi
+          if [ -n "${LAMBDA_SECURITY_GROUP_ID:-}" ]; then
+            PARAM_OVERRIDES="$PARAM_OVERRIDES LambdaSecurityGroupId=$LAMBDA_SECURITY_GROUP_ID"
+          fi
+
           aws cloudformation deploy \
             --stack-name "$SHARED_PARAMETERS_STACK_NAME" \
             --template-file infra/shared-parameters.yaml \
-            --parameter-overrides EnvironmentName=$DATA_ENVIRONMENT_NAME
+            --parameter-overrides $PARAM_OVERRIDES
 
       - name: Compute Lambda artefact key
         run: |
@@ -102,16 +128,19 @@ jobs:
           fi
 
       - name: Recover data stack from ROLLBACK_COMPLETE
+        if: env.USE_EXTERNAL_REDIS != 'true'
         run: |
           set -euo pipefail
-          bash scripts/helpers/delete-rollback-complete-stack.sh "$DATA_STACK_NAME"
+          aws cloudformation describe-stacks --stack-name "$DATA_STACK_NAME" >/dev/null 2>&1 \
+            && bash scripts/helpers/delete-rollback-complete-stack.sh "$DATA_STACK_NAME" \
+            || echo "Data stack not found; skipping cleanup."
 
       - name: Sync shared Redis connection parameters
         if: env.USE_EXTERNAL_REDIS != 'true'
         env:
-          REDIS_ENDPOINT: ${{ secrets.REDIS_ENDPOINT_DEV }}
-          REDIS_PORT: ${{ secrets.REDIS_PORT_DEV }}
-          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD_DEV }}
+          REDIS_ENDPOINT: ${{ secrets.REDIS_ENDPOINT }}
+          REDIS_PORT: ${{ secrets.REDIS_PORT }}
+          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
         run: |
           set -euo pipefail
           
@@ -221,9 +250,15 @@ jobs:
 
           if [ "$data_exports_stack" = "$SHARED_PARAMETERS_STACK_NAME" ]; then
             network_params="true"
+          elif [ -n "${PRIVATE_SUBNET_1_ID:-}" ] || [ -n "${PRIVATE_SUBNET_2_ID:-}" ] || [ -n "${LAMBDA_SECURITY_GROUP_ID:-}" ]; then
+            # Shared stack writes the provided VPC IDs into SSM parameters and exports the parameter names
+            network_params="true"
           fi
 
           PARAM_OVERRIDES="$PARAM_OVERRIDES DataStackName=$data_exports_stack SharedParametersStackName=$SHARED_PARAMETERS_STACK_NAME ResolveNetworkFromParameters=$network_params"
+          if [ -n "${LAMBDA_SECURITY_GROUP_ID:-}" ]; then
+            PARAM_OVERRIDES="$PARAM_OVERRIDES LambdaSecurityGroupIdOverride=$LAMBDA_SECURITY_GROUP_ID"
+          fi
           aws cloudformation deploy \
             --stack-name "$API_STACK_NAME" \
             --template-file infra/api/template.yaml \
