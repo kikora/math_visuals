@@ -725,7 +725,7 @@
 
     if (pngError) {
       const message = pngError && pngError.message ? pngError.message : 'Ukjent feil';
-      showToast(`PNG ble ikke generert: ${message}.`, 'error');
+      showToast(`PNG feilet: ${message}.`, 'error');
     }
 
     const slugOverride = typeof options.slug === 'string' ? options.slug.trim() : '';
@@ -817,8 +817,16 @@
     }
 
     let uploadPromise = null;
-    const canUpload = typeof payload.png === 'string' && payload.png.trim().length > 0;
+    const canUpload = typeof payload.svg === 'string' && payload.svg.trim().length > 0;
+    const hasPng = typeof payload.png === 'string' && payload.png.trim().length > 0;
     if (typeof global.fetch === 'function' && canUpload) {
+      if (!hasPng && typeof global.console !== 'undefined' && typeof global.console.warn === 'function') {
+        global.console.warn('PNG mangler, men SVG blir fortsatt lastet opp til /api/svg.', {
+          tool,
+          slug,
+          baseName
+        });
+      }
       uploadPromise = global.fetch('/api/svg', {
         method: 'POST',
         headers: {
@@ -828,7 +836,11 @@
       })
         .then(response => {
           if (response && response.ok) {
-            showToast(`Grafikk lastet ned og arkivert som ${baseName}.`, 'success');
+            if (hasPng) {
+              showToast(`Grafikk lastet ned og arkivert som ${baseName}.`, 'success');
+            } else {
+              showToast(`Grafikk lastet ned og arkivert som ${baseName} (uten PNG).`, 'success');
+            }
             return response;
           }
           const status = response ? response.status : 'ukjent';
@@ -843,7 +855,7 @@
     } else if (typeof global.fetch !== 'function') {
       showToast(`Grafikk lastet ned som ${svgFilename} og ${pngFilename}. (Arkivopplasting ikke tilgjengelig.)`, 'info');
     } else if (!canUpload) {
-      showToast(`Grafikk lastet ned, men PNG-forhåndsvisning manglet. Arkivopplasting ble hoppet over.`, 'warning');
+      showToast(`Grafikk lastet ned, men SVG-data manglet. Arkivopplasting ble hoppet over.`, 'warning');
     }
 
     const metadataFilename = `${slugSegment || sanitizeBaseName(baseName, 'export')}.json`;
