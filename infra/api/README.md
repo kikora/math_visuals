@@ -79,6 +79,7 @@ aws cloudformation deploy \
           StageName=prod \
           DataStackName=math-visuals-data \
           SharedParametersStackName=math-visuals-shared \
+          RedisKeyPrefix="" \
           LambdaCodeS3ObjectVersion=""
 
 # Hvis du bruker versjonerte objekter i S3 kan du sette `LambdaCodeS3ObjectVersion`
@@ -97,6 +98,7 @@ aws cloudformation deploy \
 #           StageName=prod \
 #           DataStackName=math-visuals-data \
 #           SharedParametersStackName=math-visuals-shared
+#           RedisKeyPrefix=""
 ```
 
 > **Merk:** Erstatt alle plassholdere (inkludert hakeparenteser) med faktiske verdier før du kjører kommandoene, og pass på at `LambdaCodeS3Bucket` og `LambdaCodeS3Key` peker til samme artefakt som ble lastet opp i første steg.
@@ -141,6 +143,10 @@ speile Redis-verdier inn i Secrets Manager/SSM.
 `SharedParametersStackName` gjør at malen kan importere Secrets Manager- og
 Parameter Store-navn fra `infra/shared-parameters.yaml`. Sørg for at
 shared-stacken er deployet og at verdiene er oppdatert før du kjører kommandoen.
+
+`RedisKeyPrefix` er valgfri og prepender alle Redis-keys som API-et skriver og
+leser. Bruk tom streng i prod og `dev:` i dev dersom prod/dev deler samme
+Redis-instans, slik at nøklene ikke kolliderer.
 
 ### Manuell verifisering av Lambda-konfigurasjonen
 

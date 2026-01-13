@@ -45,6 +45,10 @@ Parameters:
     Type: String
     Default: ''
     Description: Optional SNS topic ARN (or PagerDuty HTTPS endpoint ARN) that should receive CloudWatch alarm notifications.
+  RedisKeyPrefix:
+    Type: String
+    Default: ''
+    Description: Optional Redis key prefix (e.g. "dev:") to namespace data in shared Redis.
 
 Globals:
   Function:
@@ -143,6 +147,7 @@ Resources:
             - '{{resolve:secretsmanager:${RedisPasswordSecretName}:SecretString:vkUser}}'
             - RedisPasswordSecretName: !ImportValue
                 Fn::Sub: '${DataStackName}-RedisPasswordSecretName'
+          REDIS_KEY_PREFIX: !Ref RedisKeyPrefix
           EXAMPLES_ALLOWED_ORIGINS: !Sub
             - '{{resolve:ssm:${ExamplesAllowedOriginsParameterName}}}'
             - ExamplesAllowedOriginsParameterName: !ImportValue
