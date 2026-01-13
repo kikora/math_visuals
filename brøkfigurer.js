@@ -2686,7 +2686,9 @@ function isValidColor(value) {
           board.create('polygon', [toEqTri([0, 1]), toEqTri([1, 1]), toEqTri([0.5, 0])], {
             borders: {
               strokeColor: '#000',
-              strokeWidth: 6
+              strokeWidth: 6,
+              linecap: 'round',
+              linejoin: 'round'
             },
             vertices: {
               visible: false,
@@ -2782,7 +2784,9 @@ function isValidColor(value) {
         board.create('polygon', [toEq([0, 0]), toEq([1, 0]), toEq([0, 1])], {
           borders: {
             strokeColor: '#000',
-            strokeWidth: 6
+            strokeWidth: 6,
+            linecap: 'round',
+            linejoin: 'round'
           },
           vertices: {
             visible: false,
