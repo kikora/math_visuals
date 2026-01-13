@@ -1011,6 +1011,18 @@ function isValidColor(value) {
   const FIGURE_MIN_SIZE = 160;
   const FIGURE_MAX_SIZE = 720;
   let pendingFigureSizeFrame = null;
+  let pendingBoardResizeFrame = null;
+  let lastFigureSize = null;
+  function scheduleFigureBoardResize() {
+    if (pendingBoardResizeFrame != null) return;
+    pendingBoardResizeFrame = requestAnimationFrame(() => {
+      pendingBoardResizeFrame = null;
+      for (const id of getActiveFigureIds()) {
+        const fig = figures[id];
+        if (fig && typeof fig.resize === 'function') fig.resize();
+      }
+    });
+  }
   function updateFigureSize() {
     if (!gridEl) return;
     const rect = gridEl.getBoundingClientRect();
@@ -1031,7 +1043,12 @@ function isValidColor(value) {
     const perFigureHeight = availableHeight / Math.max(rows, 1);
     const baseSize = Math.min(perFigureWidth, perFigureHeight);
     const size = Math.max(FIGURE_MIN_SIZE, Math.min(FIGURE_MAX_SIZE, baseSize));
-    gridEl.style.setProperty('--figure-size', `${size}px`);
+    const nextSize = `${size}px`;
+    if (nextSize !== lastFigureSize) {
+      lastFigureSize = nextSize;
+      gridEl.style.setProperty('--figure-size', nextSize);
+      scheduleFigureBoardResize();
+    }
   }
   function scheduleFigureSizeUpdate() {
     if (pendingFigureSizeFrame != null) return;
@@ -1805,6 +1822,15 @@ function isValidColor(value) {
         showNavigation: false,
         keepaspectratio: true
       });
+    }
+    function resizeBoard() {
+      if (!board || !board.containerObj || typeof board.resizeContainer !== 'function') return;
+      const width = board.containerObj.clientWidth;
+      const height = board.containerObj.clientHeight;
+      if (!width || !height) return;
+      board.resizeContainer(width, height);
+      board.update();
+      updateRoundedRectFrame();
     }
     function disableHitDetection(element) {
       if (element && typeof element.hasPoint === 'function') {
@@ -2959,6 +2985,7 @@ function isValidColor(value) {
     updateDenominatorControls();
     return {
       draw,
+      resize: resizeBoard,
       panel,
       getSvgElement,
       getFilled,
