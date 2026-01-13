@@ -140,12 +140,14 @@ jobs:
         env:
           REDIS_ENDPOINT: ${{ secrets.REDIS_ENDPOINT }}
           REDIS_PORT: ${{ secrets.REDIS_PORT }}
+          REDIS_VK_USER: ${{ secrets.REDIS_VK_USER }}
+          REDIS_VK_PASSWORD: ${{ secrets.REDIS_VK_PASSWORD }}
           REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
         run: |
           set -euo pipefail
           
-          if [ -z "${REDIS_ENDPOINT:-}" ] || [ -z "${REDIS_PORT:-}" ] || [ -z "${REDIS_PASSWORD:-}" ]; then
-            echo "Missing REDIS_* secrets. Make sure REDIS_ENDPOINT, REDIS_PORT and REDIS_PASSWORD are configured." >&2
+          if [ -z "${REDIS_ENDPOINT:-}" ] || [ -z "${REDIS_PORT:-}" ] || [ -z "${REDIS_VK_USER:-}" ] || [ -z "${REDIS_VK_PASSWORD:-}" ]; then
+            echo "Missing REDIS_* secrets. Make sure REDIS_ENDPOINT, REDIS_PORT, REDIS_VK_USER, and REDIS_VK_PASSWORD are configured." >&2
             exit 1
           fi
           
@@ -179,7 +181,13 @@ jobs:
           
           SECRET_STRING=$(python - <<'PY'
           import json, os
-          print(json.dumps({"authToken": os.environ["REDIS_PASSWORD"]}))
+          payload = {
+              "vkUser": os.environ["REDIS_VK_USER"],
+              "vkPassword": os.environ["REDIS_VK_PASSWORD"],
+          }
+          if os.environ.get("REDIS_PASSWORD"):
+              payload["authToken"] = os.environ["REDIS_PASSWORD"]
+          print(json.dumps(payload))
           PY
           )
           

@@ -151,7 +151,7 @@ Resources:
       Name:
         Fn::ImportValue: !Sub '${SharedParametersStackName}-RedisPasswordSecretName'
       Description: Auth token for the ElastiCache replication group.
-      SecretString: !Sub '{"authToken":"${RedisAuthToken}"}'
+      SecretString: !Sub '{"authToken":"${RedisAuthToken}","vkUser":"default","vkPassword":"${RedisAuthToken}"}'
 
   RedisReplicationGroup:
     Type: AWS::ElastiCache::ReplicationGroup
