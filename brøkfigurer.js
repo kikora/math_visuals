@@ -278,6 +278,7 @@ function isValidColor(value) {
   const BOARD_MARGIN = 0.05;
   const BOARD_SIZE = 1 + BOARD_MARGIN * 2;
   const BOARD_BOUNDING_BOX = [-BOARD_MARGIN, 1 + BOARD_MARGIN, 1 + BOARD_MARGIN, -BOARD_MARGIN];
+  const RECTANGLE_ASPECT_RATIO = 1.2;
   const CLIP_PADDING_PERCENT = BOARD_MARGIN / BOARD_SIZE * 100;
   const CLIP_PAD_EXTRA_PERCENT = 2;
   const CLIP_PAD_PERCENT = CLIP_PADDING_PERCENT + CLIP_PAD_EXTRA_PERCENT;
@@ -1790,14 +1791,15 @@ function isValidColor(value) {
         solution.denominator = Number.isFinite(den) && den > 0 ? den : null;
       }
     }
-    function initBoard() {
+    function initBoard(shape) {
       if (board) {
         var _board$stopResizeObse;
         (_board$stopResizeObse = board.stopResizeObserver) === null || _board$stopResizeObse === void 0 ? void 0 : _board$stopResizeObse.call(board);
         JXG.JSXGraph.freeBoard(board);
       }
+      const boundingBox = shape === 'rectangle' ? [-BOARD_MARGIN, RECTANGLE_ASPECT_RATIO + BOARD_MARGIN, 1 + BOARD_MARGIN, -BOARD_MARGIN] : BOARD_BOUNDING_BOX;
       board = JXG.JSXGraph.initBoard(`box${id}`, {
-        boundingbox: BOARD_BOUNDING_BOX,
+        boundingbox: boundingBox,
         axis: false,
         showCopyright: false,
         showNavigation: false,
@@ -2109,7 +2111,7 @@ function isValidColor(value) {
     function getRoundedRectScreenBox() {
       if (!board || typeof JXG === 'undefined' || !JXG.Coords) return null;
       const topLeft = new JXG.Coords(JXG.COORDS_BY_USER, [0, 1], board);
-      const bottomRight = new JXG.Coords(JXG.COORDS_BY_USER, [1, 0], board);
+      const bottomRight = new JXG.Coords(JXG.COORDS_BY_USER, [rectWidthScale, 0], board);
       const x = topLeft.scrCoords[1];
       const y = topLeft.scrCoords[2];
       const width = bottomRight.scrCoords[1] - topLeft.scrCoords[1];
@@ -2292,20 +2294,33 @@ function isValidColor(value) {
       }
       return false;
     }
+    let rectWidthScale = 1;
+    function updateBoxLayout(shape) {
+      if (!panel) return;
+      const box = panel.querySelector('.box');
+      if (!box) return;
+      if (shape) {
+        box.dataset.shape = shape;
+      } else {
+        delete box.dataset.shape;
+      }
+    }
     function draw() {
       var _ref, _partsInp$value;
       if (!panel || !panel.isConnected || panel.style.display === 'none') return;
       const figState = ensureFigureState(id);
       updateDenominatorControls(figState.allowDenominatorChange, figState);
       setFilled(figState.filled);
-      initBoard();
-      divisionSegmentIds.clear();
-      divisionSegmentNodes.clear();
-      ensureDivisionGuard();
       let n = clampInt((_ref = (_partsInp$value = partsInp === null || partsInp === void 0 ? void 0 : partsInp.value) !== null && _partsInp$value !== void 0 ? _partsInp$value : figState.parts) !== null && _ref !== void 0 ? _ref : 1, 1);
       const shape = (shapeSel === null || shapeSel === void 0 ? void 0 : shapeSel.value) || figState.shape || 'rectangle';
       let division = (divSel === null || divSel === void 0 ? void 0 : divSel.value) || figState.division || 'horizontal';
       const allowWrong = allowWrongGlobal;
+      rectWidthScale = shape === 'rectangle' ? RECTANGLE_ASPECT_RATIO : 1;
+      updateBoxLayout(shape);
+      initBoard(shape);
+      divisionSegmentIds.clear();
+      divisionSegmentNodes.clear();
+      ensureDivisionGuard();
       if ((shape === 'rectangle' || shape === 'square') && division === 'diagonal') n = 4;
       const gridOpt = divSel === null || divSel === void 0 ? void 0 : divSel.querySelector('option[value="grid"]');
       const vertOpt = divSel === null || divSel === void 0 ? void 0 : divSel.querySelector('option[value="vertical"]');
@@ -2455,10 +2470,11 @@ function isValidColor(value) {
       }
     }
     function drawRect(n, division, colorFor) {
+      const width = rectWidthScale;
       clearRoundedRectFrame();
       if (division === 'diagonal') {
-        const c = [0.5, 0.5];
-        const corners = [[0, 0], [1, 0], [1, 1], [0, 1]];
+        const c = [width / 2, 0.5];
+        const corners = [[0, 0], [width, 0], [width, 1], [0, 1]];
         for (let i = 0; i < 4; i++) {
           const pts = [corners[i], corners[(i + 1) % 4], c];
           const poly = board.create('polygon', pts, {
@@ -2495,8 +2511,8 @@ function isValidColor(value) {
         for (let rIdx = 0; rIdx < rows; rIdx++) {
           for (let cIdx = 0; cIdx < cols; cIdx++) {
             const idx = rIdx * cols + cIdx;
-            const x1 = cIdx / cols,
-              x2 = (cIdx + 1) / cols;
+            const x1 = cIdx / cols * width,
+              x2 = (cIdx + 1) / cols * width;
             const y1 = rIdx / rows,
               y2 = (rIdx + 1) / rows;
             const pts = [[x1, y1], [x2, y1], [x2, y2], [x1, y2]];
@@ -2525,25 +2541,25 @@ function isValidColor(value) {
           }
         }
         for (let i = 1; i < cols; i++) {
-          const x = i / cols;
+          const x = i / cols * width;
           createDivisionSegment([x, 0], [x, 1]);
         }
         for (let j = 1; j < rows; j++) {
           const y = j / rows;
-          createDivisionSegment([0, y], [1, y]);
+          createDivisionSegment([0, y], [width, y]);
         }
       } else {
         for (let i = 0; i < n; i++) {
           let pts;
           if (division === 'vertical') {
-            const x1 = i / n,
-              x2 = (i + 1) / n;
+            const x1 = i / n * width,
+              x2 = (i + 1) / n * width;
             pts = [[x1, 0], [x2, 0], [x2, 1], [x1, 1]];
           } else {
             // horizontal
             const y1 = i / n,
               y2 = (i + 1) / n;
-            pts = [[0, y1], [1, y1], [1, y2], [0, y2]];
+            pts = [[0, y1], [width, y1], [width, y2], [0, y2]];
           }
         const poly = board.create('polygon', pts, {
           borders: {
@@ -2570,11 +2586,11 @@ function isValidColor(value) {
         }
         for (let i = 1; i < n; i++) {
           if (division === 'vertical') {
-            const x = i / n;
+            const x = i / n * width;
             createDivisionSegment([x, 0], [x, 1]);
           } else {
             const y = i / n;
-            createDivisionSegment([0, y], [1, y]);
+            createDivisionSegment([0, y], [width, y]);
           }
         }
       }
