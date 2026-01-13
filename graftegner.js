@@ -7232,6 +7232,93 @@ function serializeBoardSvg(clone) {
     };
   }
 
+  async function downloadBoardPNG(svgExport, filename, scale = 2, bg = '#fff') {
+    if (!svgExport || !svgExport.markup) return false;
+    const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
+    const urlApi = typeof window !== 'undefined' ? window.URL || URL : null;
+    const svgBlob = new Blob([svgExport.markup], {
+      type: 'image/svg+xml;charset=utf-8'
+    });
+    const url = urlApi ? urlApi.createObjectURL(svgBlob) : null;
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const sizing =
+          helper && typeof helper.ensureMinimumPngDimensions === 'function'
+            ? helper.ensureMinimumPngDimensions(
+                { width: svgExport.width, height: svgExport.height },
+                { scale }
+              )
+            : (() => {
+                const minDimension = 100;
+                const baseScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
+                const safeWidth = Number.isFinite(svgExport.width) && svgExport.width > 0 ? svgExport.width : minDimension;
+                const safeHeight = Number.isFinite(svgExport.height) && svgExport.height > 0 ? svgExport.height : minDimension;
+                const scaledWidth = safeWidth * baseScale;
+                const scaledHeight = safeHeight * baseScale;
+                const scaleMultiplier = Math.max(
+                  1,
+                  scaledWidth > 0 ? minDimension / scaledWidth : 1,
+                  scaledHeight > 0 ? minDimension / scaledHeight : 1
+                );
+                const finalScale = baseScale * scaleMultiplier;
+                return {
+                  width: Math.max(minDimension, Math.round(safeWidth * finalScale)),
+                  height: Math.max(minDimension, Math.round(safeHeight * finalScale))
+                };
+              })();
+        canvas.width = sizing.width;
+        canvas.height = sizing.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          if (helper && typeof helper.showToast === 'function') {
+            helper.showToast('Canvas 2D-kontekst er ikke tilgjengelig', 'error');
+          }
+          if (urlApi && url) {
+            urlApi.revokeObjectURL(url);
+          }
+          resolve(false);
+          return;
+        }
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        if (urlApi && url) {
+          urlApi.revokeObjectURL(url);
+        }
+        canvas.toBlob(blob => {
+          if (!blob) {
+            if (helper && typeof helper.showToast === 'function') {
+              helper.showToast('Kunne ikke lage PNG-blob', 'error');
+            }
+            resolve(false);
+            return;
+          }
+          const pngUrl = urlApi ? urlApi.createObjectURL(blob) : '';
+          const a = document.createElement('a');
+          a.href = pngUrl;
+          a.download = filename.endsWith('.png') ? filename : `${filename}.png`;
+          a.click();
+          if (urlApi && pngUrl) {
+            urlApi.revokeObjectURL(pngUrl);
+          }
+          resolve(true);
+        }, 'image/png');
+      };
+      img.onerror = () => {
+        if (helper && typeof helper.showToast === 'function') {
+          helper.showToast('Kunne ikke laste SVG for PNG-konvertering', 'error');
+        }
+        if (urlApi && url) {
+          urlApi.revokeObjectURL(url);
+        }
+        resolve(false);
+      };
+      img.src = url || `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgExport.markup)}`;
+    });
+  }
+
   function getFilenameSanitizer(defaultName = 'figur') {
     const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
     if (helper && typeof helper.sanitizeFilename === 'function') {
@@ -7345,7 +7432,7 @@ function serializeBoardSvg(clone) {
   }
 const btnSvg = document.getElementById('btnSvg');
 if (btnSvg) {
-  btnSvg.addEventListener('click', () => {
+  btnSvg.addEventListener('click', async () => {
     const cleanState = createCleanSaveState();
     if (typeof window !== 'undefined') {
       window.STATE_V2 = cleanState;
@@ -7355,22 +7442,15 @@ if (btnSvg) {
     if (!svgExport || !svgExport.markup) return;
     const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
     const suggestedName = `${getSuggestedFilename()}.svg`;
-    if (helper && typeof helper.exportSvgWithArchive === 'function') {
-      helper.exportSvgWithArchive(svgExport.node, suggestedName, 'graftegner', {
-        svgString: svgExport.markup,
-        alt: svgExport.altText,
-        description: svgExport.altText
-      });
+    if (!helper || typeof helper.exportSvgWithArchive !== 'function') {
+      await downloadBoardPNG(svgExport, `${getSuggestedFilename()}.png`);
       return;
     }
-    const blob = new Blob([svgExport.markup], {
-      type: 'image/svg+xml;charset=utf-8'
+    helper.exportSvgWithArchive(svgExport.node, suggestedName, 'graftegner', {
+      svgString: svgExport.markup,
+      alt: svgExport.altText,
+      description: svgExport.altText
     });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = suggestedName;
-    a.click();
-    URL.revokeObjectURL(a.href);
   });
 }
 const btnPng = document.getElementById('btnPng');
@@ -7431,62 +7511,7 @@ if (btnPng) {
       }
       return;
     }
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const sizing =
-        helper && typeof helper.ensureMinimumPngDimensions === 'function'
-          ? helper.ensureMinimumPngDimensions({ width: svgExport.width, height: svgExport.height })
-          : (() => {
-              const minDimension = 100;
-              const safeWidth = Number.isFinite(svgExport.width) && svgExport.width > 0 ? svgExport.width : minDimension;
-              const safeHeight = Number.isFinite(svgExport.height) && svgExport.height > 0 ? svgExport.height : minDimension;
-              return {
-                width: Math.max(minDimension, Math.round(safeWidth)),
-                height: Math.max(minDimension, Math.round(safeHeight))
-              };
-            })();
-      canvas.width = sizing.width;
-      canvas.height = sizing.height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        if (helper && typeof helper.showToast === 'function') {
-          helper.showToast('Canvas 2D-kontekst er ikke tilgjengelig', 'error');
-        }
-        if (urlApi && url) {
-          urlApi.revokeObjectURL(url);
-        }
-        return;
-      }
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      if (urlApi && url) {
-        urlApi.revokeObjectURL(url);
-      }
-      canvas.toBlob(blob => {
-        if (!blob) {
-          if (helper && typeof helper.showToast === 'function') {
-            helper.showToast('Kunne ikke lage PNG-blob', 'error');
-          }
-          return;
-        }
-        const a = document.createElement('a');
-        a.href = urlApi ? urlApi.createObjectURL(blob) : '';
-        a.download = `${getSuggestedFilename()}.png`;
-        a.click();
-        if (urlApi && a.href) {
-          urlApi.revokeObjectURL(a.href);
-        }
-      });
-    };
-    img.onerror = () => {
-      if (helper && typeof helper.showToast === 'function') {
-        helper.showToast('Kunne ikke laste SVG for PNG-konvertering', 'error');
-      }
-      if (urlApi && url) {
-        urlApi.revokeObjectURL(url);
-      }
-    };
-    img.src = url || `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgExport.markup)}`;
+    await downloadBoardPNG(svgExport, `${getSuggestedFilename()}.png`);
   });
 }
 setupSettingsForm();
