@@ -613,11 +613,21 @@
     if ('crossOrigin' in img) {
       img.crossOrigin = 'anonymous';
     }
-    await new Promise((resolve, reject) => {
-      img.onload = () => resolve();
-      img.onerror = () => reject(new Error('Kunne ikke laste SVG for PNG-konvertering'));
-      img.src = svgUrl || `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgString)}`;
-    });
+    const dataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgString)}`;
+    const loadSvgImage = src =>
+      new Promise((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('Kunne ikke laste SVG for PNG-konvertering'));
+        img.src = src;
+      });
+    try {
+      await loadSvgImage(svgUrl || dataUrl);
+    } catch (error) {
+      if (!svgUrl) {
+        throw error;
+      }
+      await loadSvgImage(dataUrl);
+    }
     ctx.clearRect(0, 0, width, height);
     ctx.drawImage(img, 0, 0, width, height);
     const mimeType = 'image/png';
