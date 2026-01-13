@@ -17,16 +17,16 @@ const ADV_CONFIG = {
     max: 60,
     // Tekstplassering langs vinkelhalveringen:
     insideK: {
-      right: 1.5,
-      other: 1.5
+      right: 1.7,
+      other: 1.7
     },
     // vinkelverdi (innsiden)
     outsideK: {
-      right: 0.5,
-      other: 0.50
+      right: 0.65,
+      other: 0.65
     },
     // punktnavn (utsiden)
-    outsidePad: 0,
+    outsidePad: 2,
     // Hindrer at punktnavn "flyr" for langt ut
     outsideMaxFactor: 0.90,
     // maks 90% av korteste naboside
@@ -3540,7 +3540,7 @@ function renderAngle(g, Q, P, R, r, opts) {
 }
 
 /* ---------- TEKST FOR SIDER ---------- */
-function sideLabelText(g, P, Q, text, rotate, centroid, offset = 14, labelKey = null) {
+function sideLabelText(g, P, Q, text, rotate, centroid, offset = 18, labelKey = null) {
   if (!text) return;
   const M = {
     x: (P.x + Q.x) / 2,
@@ -3693,13 +3693,13 @@ function drawTriangleToGroup(g, rect, spec, adv, decorations, labelCtx) {
     const m = adv.sides.mode,
       st = adv.sides.text;
     const rotateText = shouldRotateText();
-    sideLabelText(g, B, C, buildSideText((_m$a = m.a) !== null && _m$a !== void 0 ? _m$a : m.default, fmt(sol.a), st.a), rotateText, ctr, 14, labelKey(labelCtx, 'side', 'a'));
-    sideLabelText(g, C, A, buildSideText((_m$b = m.b) !== null && _m$b !== void 0 ? _m$b : m.default, fmt(sol.b), st.b), rotateText, ctr, 14, labelKey(labelCtx, 'side', 'b'));
-    sideLabelText(g, A, B, buildSideText((_m$c = m.c) !== null && _m$c !== void 0 ? _m$c : m.default, fmt(sol.c), st.c), rotateText, ctr, 14, labelKey(labelCtx, 'side', 'c'));
+    sideLabelText(g, B, C, buildSideText((_m$a = m.a) !== null && _m$a !== void 0 ? _m$a : m.default, fmt(sol.a), st.a), rotateText, ctr, 18, labelKey(labelCtx, 'side', 'a'));
+    sideLabelText(g, C, A, buildSideText((_m$b = m.b) !== null && _m$b !== void 0 ? _m$b : m.default, fmt(sol.b), st.b), rotateText, ctr, 18, labelKey(labelCtx, 'side', 'b'));
+    sideLabelText(g, A, B, buildSideText((_m$c = m.c) !== null && _m$c !== void 0 ? _m$c : m.default, fmt(sol.c), st.c), rotateText, ctr, 18, labelKey(labelCtx, 'side', 'c'));
     if (activeHeight && heightLength !== null) {
       const heightText = buildSideText((_m$d = m.d) !== null && _m$d !== void 0 ? _m$d : m.default, fmt(heightLength), st.d);
       if (heightText) {
-        sideLabelText(g, activeHeight.vertex, heightPoint, heightText, rotateText, ctr, 12, labelKey(labelCtx, 'side', 'd'));
+        sideLabelText(g, activeHeight.vertex, heightPoint, heightText, rotateText, ctr, 16, labelKey(labelCtx, 'side', 'd'));
       }
     }
 
@@ -4296,10 +4296,10 @@ function drawQuadToGroup(g, rect, spec, adv, decorations, labelCtx) {
     const m = adv.sides.mode,
       st = adv.sides.text;
     const rotateText = shouldRotateText();
-    sideLabelText(g, A, B, buildSideText((_m$a2 = m.a) !== null && _m$a2 !== void 0 ? _m$a2 : m.default, fmt(a), st.a), rotateText, ctr, 14, labelKey(labelCtx, 'quad-side', 'a'));
-    sideLabelText(g, B, C, buildSideText((_m$b2 = m.b) !== null && _m$b2 !== void 0 ? _m$b2 : m.default, fmt(b), st.b), rotateText, ctr, 14, labelKey(labelCtx, 'quad-side', 'b'));
-    sideLabelText(g, C, D, buildSideText((_m$c2 = m.c) !== null && _m$c2 !== void 0 ? _m$c2 : m.default, fmt(c), st.c), rotateText, ctr, 14, labelKey(labelCtx, 'quad-side', 'c'));
-    sideLabelText(g, D, A, buildSideText((_m$d = m.d) !== null && _m$d !== void 0 ? _m$d : m.default, fmt(d), st.d), rotateText, ctr, 14, labelKey(labelCtx, 'quad-side', 'd'));
+    sideLabelText(g, A, B, buildSideText((_m$a2 = m.a) !== null && _m$a2 !== void 0 ? _m$a2 : m.default, fmt(a), st.a), rotateText, ctr, 18, labelKey(labelCtx, 'quad-side', 'a'));
+    sideLabelText(g, B, C, buildSideText((_m$b2 = m.b) !== null && _m$b2 !== void 0 ? _m$b2 : m.default, fmt(b), st.b), rotateText, ctr, 18, labelKey(labelCtx, 'quad-side', 'b'));
+    sideLabelText(g, C, D, buildSideText((_m$c2 = m.c) !== null && _m$c2 !== void 0 ? _m$c2 : m.default, fmt(c), st.c), rotateText, ctr, 18, labelKey(labelCtx, 'quad-side', 'c'));
+    sideLabelText(g, D, A, buildSideText((_m$d = m.d) !== null && _m$d !== void 0 ? _m$d : m.default, fmt(d), st.d), rotateText, ctr, 18, labelKey(labelCtx, 'quad-side', 'd'));
 
     // vinkler/punkter
     const am = adv.angles.mode,
@@ -4572,7 +4572,7 @@ function drawRegularPolygonToGroup(g, rect, spec, adv, labelCtx) {
       label = customText;
     }
     if (label) {
-      sideLabelText(g, P, Q, label, rotateText, ctr, 18, labelKey(labelCtx, 'polygon-side', sideKey));
+      sideLabelText(g, P, Q, label, rotateText, ctr, 20, labelKey(labelCtx, 'polygon-side', sideKey));
     }
   }
   for (let i = 0; i < count; i++) {
@@ -4641,7 +4641,7 @@ function drawPolygonWithArcToGroup(g, rect, spec, adv, decorations, labelCtx) {
       label = customText;
     }
     if (label) {
-      sideLabelText(g, P, Q, label, rotateText, ctr, 18, labelKey(labelCtx, 'polygon-side', sideKey));
+      sideLabelText(g, P, Q, label, rotateText, ctr, 20, labelKey(labelCtx, 'polygon-side', sideKey));
     }
   }
   for (let i = 0; i < count; i++) {
