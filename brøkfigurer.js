@@ -297,7 +297,7 @@ function isValidColor(value) {
   const LEGACY_COLOR_PALETTE = ['#B25FE3', '#6C1BA2', '#534477', '#873E79', '#BF4474', '#E31C3D'];
   const FRACTION_GROUP_ID = 'fractions';
   const FILL_COLOR_COUNT = 3;
-  const fillColorPicker = typeof document !== 'undefined' ? document.querySelector('[data-fill-color-picker]') : null;
+  const fillColorPickersSelector = '[data-fill-color-picker]';
   function getThemeApi() {
     const theme = typeof window !== 'undefined' ? window.MathVisualsTheme : null;
     return theme && typeof theme === 'object' ? theme : null;
@@ -819,14 +819,39 @@ function isValidColor(value) {
     if (!Number.isFinite(numeric) || numeric < 1) return 1;
     return Math.min(numeric, max);
   }
-  function updateFillPickerSelection(palette) {
-    if (!fillColorPicker) return;
-    const activeButton = fillColorPicker.querySelector('.color-swatch--active');
-    const optionsPanel = fillColorPicker.querySelector('.color-options');
+  function getFillColorPickers() {
+    if (typeof document === 'undefined') return [];
+    return Array.from(document.querySelectorAll(fillColorPickersSelector));
+  }
+  function getPickerFigureId(picker) {
+    if (!picker || !picker.dataset) return null;
+    const raw = picker.dataset.figureId;
+    const parsed = Number.parseInt(raw, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }
+  function getFigureFillIndex(id) {
+    const figState = ensureFigureState(id);
+    const fallback = Number.isFinite(figState.fillColorIndex) ? figState.fillColorIndex : activeFillColorIndex;
+    return sanitizeFillIndex(fallback, FILL_COLOR_COUNT);
+  }
+  function setFigureFillIndex(id, value) {
+    const figState = ensureFigureState(id);
+    const safeIndex = sanitizeFillIndex(value, FILL_COLOR_COUNT);
+    figState.fillColorIndex = safeIndex;
+    if (activeFillColorIndex !== safeIndex) {
+      activeFillColorIndex = safeIndex;
+      STATE.activeFillColorIndex = activeFillColorIndex;
+    }
+    return safeIndex;
+  }
+  function updateFillPickerSelection(picker, palette) {
+    if (!picker) return;
+    const activeButton = picker.querySelector('.color-swatch--active');
+    const optionsPanel = picker.querySelector('.color-options');
     const colors = Array.isArray(palette) ? palette : getFillPalette();
     if (!optionsPanel || !activeButton) return;
-    const safeIndex = sanitizeFillIndex(activeFillColorIndex, colors.length);
-    activeFillColorIndex = safeIndex;
+    const figureId = getPickerFigureId(picker);
+    const safeIndex = figureId ? getFigureFillIndex(figureId) : sanitizeFillIndex(activeFillColorIndex, colors.length);
     const activeColor = colors[safeIndex - 1] || colors[0] || '#000';
     activeButton.style.backgroundColor = activeColor;
     optionsPanel.querySelectorAll('.color-option-btn').forEach(btn => {
@@ -834,40 +859,51 @@ function isValidColor(value) {
       btn.classList.toggle('is-selected', btnIndex === safeIndex);
     });
   }
-  function renderFillColorPicker() {
-    if (!fillColorPicker) return;
-    const activeButton = fillColorPicker.querySelector('.color-swatch--active');
-    const optionsPanel = fillColorPicker.querySelector('.color-options');
-    if (!activeButton || !optionsPanel) return;
+  function renderFillColorPickers() {
+    const pickers = getFillColorPickers();
+    if (!pickers.length) return;
     const colors = getFillPalette();
-    optionsPanel.innerHTML = '';
-    colors.forEach((color, index) => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'color-option-btn';
-      btn.dataset.colorIndex = String(index + 1);
-      btn.dataset.colorValue = color;
-      btn.style.backgroundColor = color;
-      btn.setAttribute('aria-label', `Velg farge ${index + 1}`);
-      btn.addEventListener('click', event => {
-        event.stopPropagation();
-        activeFillColorIndex = sanitizeFillIndex(index + 1, colors.length);
-        STATE.activeFillColorIndex = activeFillColorIndex;
-        updateFillPickerSelection(colors);
-        optionsPanel.hidden = true;
+    pickers.forEach(picker => {
+      const activeButton = picker.querySelector('.color-swatch--active');
+      const optionsPanel = picker.querySelector('.color-options');
+      if (!activeButton || !optionsPanel) return;
+      optionsPanel.innerHTML = '';
+      colors.forEach((color, index) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'color-option-btn';
+        btn.dataset.colorIndex = String(index + 1);
+        btn.dataset.colorValue = color;
+        btn.style.backgroundColor = color;
+        btn.setAttribute('aria-label', `Velg farge ${index + 1}`);
+        btn.addEventListener('click', event => {
+          event.stopPropagation();
+          const figureId = getPickerFigureId(picker);
+          if (figureId) {
+            setFigureFillIndex(figureId, index + 1);
+          } else {
+            activeFillColorIndex = sanitizeFillIndex(index + 1, colors.length);
+            STATE.activeFillColorIndex = activeFillColorIndex;
+          }
+          updateFillPickerSelection(picker, colors);
+          optionsPanel.hidden = true;
+        });
+        optionsPanel.appendChild(btn);
       });
-      optionsPanel.appendChild(btn);
-    });
-    activeButton.addEventListener('click', event => {
-      event.stopPropagation();
-      optionsPanel.hidden = !optionsPanel.hidden;
-    });
-    document.addEventListener('click', event => {
-      if (!fillColorPicker.contains(event.target)) {
-        optionsPanel.hidden = true;
+      if (!picker.dataset.bound) {
+        picker.dataset.bound = 'true';
+        activeButton.addEventListener('click', event => {
+          event.stopPropagation();
+          optionsPanel.hidden = !optionsPanel.hidden;
+        });
+        document.addEventListener('click', event => {
+          if (!picker.contains(event.target)) {
+            optionsPanel.hidden = true;
+          }
+        });
       }
+      updateFillPickerSelection(picker, colors);
     });
-    updateFillPickerSelection(colors);
   }
   const boardEl = document.getElementById('figureBoard');
   const gridEl = document.getElementById('figureGrid');
@@ -1024,6 +1060,12 @@ function isValidColor(value) {
     } else if (typeof fig.allowDenominatorChange !== 'boolean') {
       fig.allowDenominatorChange = false;
     }
+    if (typeof fig.fillColorIndex === 'string') {
+      fig.fillColorIndex = Number.parseInt(fig.fillColorIndex, 10);
+    }
+    if (!Number.isFinite(fig.fillColorIndex)) {
+      fig.fillColorIndex = activeFillColorIndex;
+    }
     const solution = fig.solution && typeof fig.solution === 'object' ? fig.solution : {};
     const rawNum = parseInt(solution.numerator, 10);
     const rawDen = parseInt(solution.denominator, 10);
@@ -1097,7 +1139,7 @@ function isValidColor(value) {
         }
       }
     });
-    renderFillColorPicker();
+    renderFillColorPickers();
   }
   function getColors() {
     ensureColorDefaults(colorCount);
@@ -1163,7 +1205,7 @@ function isValidColor(value) {
       const color = STATE.colors[idx];
       if (typeof color === 'string') inp.value = color;
     });
-    renderFillColorPicker();
+    renderFillColorPickers();
     for (const id of getActiveFigureIds()) {
       const figState = ensureFigureState(id);
       figState.allowWrong = allowWrongGlobal;
@@ -1295,6 +1337,13 @@ function isValidColor(value) {
         <div class="field">
           <label for="solutionNumerator${id}">Fasit teller</label>
           <input id="solutionNumerator${id}" class="input--digit" type="number" min="0" step="1" />
+        </div>
+      </div>
+      <div class="fill-color-picker" data-fill-color-picker data-figure-id="${id}">
+        <span class="fill-color-picker__label">Fyllfarge</span>
+        <div class="color-picker">
+          <button type="button" class="color-swatch color-swatch--active" aria-label="Velg fyllfarge"></button>
+          <div class="color-options" hidden></div>
         </div>
       </div>
       <div class="checkbox-row">
@@ -2120,7 +2169,7 @@ function isValidColor(value) {
       }
       const colors = getColors();
       const current = filled.get(i) || 0;
-      const targetIndex = sanitizeFillIndex(activeFillColorIndex, colors.length);
+      const targetIndex = getFigureFillIndex(id);
       const next = current === targetIndex ? 0 : targetIndex;
       if (next === 0) {
         filled.delete(i);
@@ -2959,6 +3008,7 @@ function isValidColor(value) {
         division: VALID_DIVISIONS.has(figState.division) ? figState.division : 'horizontal',
         parts: clampInt(figState.parts, 1),
         allowDenominatorChange: !!figState.allowDenominatorChange,
+        fillColorIndex: sanitizeFillIndex(figState.fillColorIndex, FILL_COLOR_COUNT),
         filled: sanitizeFilledEntries(figState.filled),
         solution: {
           numerator: Number.isFinite(rawNum) && rawNum >= 0 ? rawNum : null,
@@ -3034,6 +3084,7 @@ function isValidColor(value) {
       const parsedParts = Number.parseInt(entry.parts, 10);
       figState.parts = clampInt(Number.isFinite(parsedParts) && parsedParts > 0 ? parsedParts : figState.parts, 1);
       figState.allowDenominatorChange = entry.allowDenominatorChange === true;
+      figState.fillColorIndex = sanitizeFillIndex(entry.fillColorIndex, FILL_COLOR_COUNT);
       figState.filled = sanitizeFilledEntries(entry.filled);
       const rawSolution = entry.solution && typeof entry.solution === 'object' ? entry.solution : {};
       const solNum = Number.parseInt(rawSolution.numerator, 10);
