@@ -90,6 +90,8 @@ function isValidColor(value) {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
+const DEFAULT_FILL_COLOR_INDEX = 1;
+
 const DEFAULT_BLOCKS = [{
   total: 1,
   n: 1,
@@ -156,7 +158,6 @@ const UNION_BRACE_INNER_HEIGHT = UNION_BRACE_BOUNDS.bottom - UNION_BRACE_BOUNDS.
 const FRACTION_GROUP_ID = 'fractions';
 const FILL_COLOR_COUNT = 3;
 const FRACTION_FALLBACK_COLORS = Object.freeze(['#dbe7ff', '#c7d2fe', '#fcd34d']);
-const DEFAULT_FILL_COLOR_INDEX = 1;
 
 function getSegmentTextColor(isFilled, textColor) {
   if (isFilled) {
