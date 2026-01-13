@@ -18,6 +18,7 @@ const PASSWORD_ENV_KEYS = ['REDIS_PASSWORD', 'REDIS_AUTH_TOKEN', 'REDIS_SECRET',
 const DB_ENV_KEYS = ['REDIS_DB', 'REDIS_DATABASE'];
 const TLS_ENV_KEYS = ['REDIS_TLS', 'REDIS_USE_TLS'];
 const TLS_HOST_PATTERNS = [/\.amazonaws\.com$/i, /memorydb/i];
+const KEY_PREFIX_ENV_KEY = 'REDIS_KEY_PREFIX';
 
 let sharedClientPromise = null;
 const injectionPromises = new Map();
@@ -25,6 +26,7 @@ let ssmClient = null;
 let secretsManagerClient = null;
 const parameterCache = new Map();
 const secretCache = new Map();
+let cachedKeyPrefix = null;
 
 class KvOperationError extends Error {
   constructor(message, options) {
@@ -49,6 +51,34 @@ function readEnvValue(key) {
   if (typeof raw !== 'string') return null;
   const trimmed = raw.trim();
   return trimmed ? trimmed : null;
+}
+
+function normalizeKeyPrefix(prefix) {
+  if (!prefix) return '';
+  const trimmed = String(prefix).trim();
+  if (!trimmed) return '';
+  return trimmed.endsWith(':') ? trimmed : `${trimmed}:`;
+}
+
+function getKeyPrefix() {
+  if (cachedKeyPrefix !== null) {
+    return cachedKeyPrefix;
+  }
+  const prefix = readEnvValue(KEY_PREFIX_ENV_KEY);
+  cachedKeyPrefix = normalizeKeyPrefix(prefix);
+  return cachedKeyPrefix;
+}
+
+function applyKeyPrefix(key) {
+  const prefix = getKeyPrefix();
+  if (!prefix) {
+    return key;
+  }
+  const keyString = typeof key === 'string' ? key : String(key);
+  if (keyString.startsWith(prefix)) {
+    return keyString;
+  }
+  return `${prefix}${keyString}`;
 }
 
 function parseBoolean(value) {
@@ -413,31 +443,31 @@ function wrapRedisClient(redis) {
     __redis: redis,
     async set(key, value) {
       const payload = serializeValue(value);
-      await redis.set(key, payload);
+      await redis.set(applyKeyPrefix(key), payload);
       return 'OK';
     },
     async get(key) {
-      const raw = await redis.get(key);
+      const raw = await redis.get(applyKeyPrefix(key));
       if (raw == null) {
         return null;
       }
       return deserializeValue(raw);
     },
     async del(key) {
-      return redis.del(key);
+      return redis.del(applyKeyPrefix(key));
     },
     async sadd(key, ...members) {
       const flat = flattenMembers(members);
       if (!flat.length) return 0;
-      return redis.sadd(key, ...flat);
+      return redis.sadd(applyKeyPrefix(key), ...flat);
     },
     async srem(key, ...members) {
       const flat = flattenMembers(members);
       if (!flat.length) return 0;
-      return redis.srem(key, ...flat);
+      return redis.srem(applyKeyPrefix(key), ...flat);
     },
     async smembers(key) {
-      const values = await redis.smembers(key);
+      const values = await redis.smembers(applyKeyPrefix(key));
       return Array.isArray(values) ? values : [];
     }
   };
