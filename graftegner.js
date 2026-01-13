@@ -7319,6 +7319,75 @@ function serializeBoardSvg(clone) {
     });
   }
 
+  async function downloadBoardPngWithHtml2Canvas(filename, scale = 2, bg = '#fff') {
+    const html2canvas = typeof window !== 'undefined' ? window.html2canvas : null;
+    if (typeof html2canvas !== 'function') return false;
+    const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
+    const target =
+      document.querySelector('.figure') ||
+      document.getElementById('board');
+    if (!target) return false;
+    const ratio = typeof window !== 'undefined' && window.devicePixelRatio ? window.devicePixelRatio : 1;
+    const renderScale = Math.max(Number.isFinite(scale) && scale > 0 ? scale : 2, ratio);
+    try {
+      const canvas = await html2canvas(target, {
+        backgroundColor: bg,
+        scale: renderScale,
+        useCORS: true,
+        logging: false
+      });
+      if (!canvas) return false;
+      let blob = null;
+      if (typeof canvas.toBlob === 'function') {
+        blob = await new Promise(resolve => {
+          try {
+            canvas.toBlob(result => resolve(result || null), 'image/png');
+          } catch (error) {
+            resolve(null);
+          }
+        });
+      }
+      let dataUrl = null;
+      if (!blob) {
+        try {
+          dataUrl = canvas.toDataURL('image/png');
+        } catch (error) {
+          dataUrl = null;
+        }
+      }
+      if (!blob && !dataUrl) {
+        if (helper && typeof helper.showToast === 'function') {
+          helper.showToast('Kunne ikke lage PNG via html2canvas.', 'error');
+        }
+        return false;
+      }
+      const urlApi = typeof window !== 'undefined' ? window.URL || URL : null;
+      if (blob && urlApi) {
+        const pngUrl = urlApi.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = pngUrl;
+        a.download = filename.endsWith('.png') ? filename : `${filename}.png`;
+        a.click();
+        urlApi.revokeObjectURL(pngUrl);
+        return true;
+      }
+      if (dataUrl) {
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = filename.endsWith('.png') ? filename : `${filename}.png`;
+        a.click();
+        return true;
+      }
+      return false;
+    } catch (error) {
+      if (helper && typeof helper.showToast === 'function') {
+        const message = error && error.message ? error.message : 'Ukjent feil';
+        helper.showToast(`html2canvas feilet: ${message}.`, 'error');
+      }
+      return false;
+    }
+  }
+
   function getFilenameSanitizer(defaultName = 'figur') {
     const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
     if (helper && typeof helper.sanitizeFilename === 'function') {
@@ -7463,6 +7532,8 @@ if (btnPng) {
     }
     const svgExport = buildBoardSvgExport();
     if (!svgExport || !svgExport.markup) return;
+    const html2CanvasDidDownload = await downloadBoardPngWithHtml2Canvas(`${getSuggestedFilename()}.png`);
+    if (html2CanvasDidDownload) return;
     const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
     const urlApi = typeof window !== 'undefined' ? window.URL || URL : null;
     const svgBlob = new Blob([svgExport.markup], {
