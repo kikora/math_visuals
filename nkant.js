@@ -3551,7 +3551,7 @@ function sideLabelText(g, P, Q, text, rotate, centroid, offset = 14, labelKey = 
   const nx = -vy,
     ny = vx;
   const dot = (centroid.x - M.x) * nx + (centroid.y - M.y) * ny;
-  const sgn = dot > 0 ? 1 : -1;
+  const sgn = dot > 0 ? -1 : 1;
   const nlen = Math.hypot(nx, ny) || 1;
   const adj = Math.max(offset, Math.min(22, dist(P, Q) * 0.18));
   const x = M.x + sgn * adj * nx / nlen;
