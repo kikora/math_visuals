@@ -1001,6 +1001,7 @@ function isValidColor(value) {
   const MIN_DIMENSION = 1;
   const figurePanels = new Map();
   const figureFieldsets = new Map();
+  const figureSetupCounts = new Map();
   let activeFigureIds = [];
   let rows = clampInt(STATE.rows != null ? STATE.rows : 1, MIN_DIMENSION, MAX_ROWS);
   let cols = clampInt(STATE.cols != null ? STATE.cols : 1, MIN_DIMENSION, MAX_COLS);
@@ -1066,6 +1067,9 @@ function isValidColor(value) {
     }
     if (!Number.isFinite(fig.fillColorIndex)) {
       fig.fillColorIndex = activeFillColorIndex;
+    }
+    if (!Array.isArray(fig.filled)) {
+      fig.filled = sanitizeFilledEntries(fig.filled);
     }
     const solution = fig.solution && typeof fig.solution === 'object' ? fig.solution : {};
     const rawNum = parseInt(solution.numerator, 10);
@@ -1674,6 +1678,9 @@ function isValidColor(value) {
   }
   window.render = renderAll;
   function setupFigure(id) {
+    const previousSetupCount = figureSetupCounts.get(id) || 0;
+    figureSetupCounts.set(id, previousSetupCount + 1);
+    const shouldResetFilled = previousSetupCount > 0;
     const shapeSel = document.getElementById(`shape${id}`);
     const partsInp = document.getElementById(`parts${id}`);
     const divSel = document.getElementById(`division${id}`);
@@ -2921,6 +2928,9 @@ function isValidColor(value) {
       const normalized = normalizeFilledEntries(next);
       filled = new Map(normalized);
       syncFilledState(normalized, true);
+    }
+    if (shouldResetFilled) {
+      setFilled(new Map());
     }
     function getSvgElement() {
       var _board2;
