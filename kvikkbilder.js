@@ -3,6 +3,7 @@
   const klosserConfig = document.getElementById('klosserConfig');
   const monsterConfig = document.getElementById('monsterConfig');
   const rectangleConfig = document.getElementById('rectangleConfig');
+  const figuresConfig = document.getElementById('figuresConfig');
   const cfgAntallX = document.getElementById('cfg-antallX');
   const cfgAntallY = document.getElementById('cfg-antallY');
   const cfgBredde = document.getElementById('cfg-bredde');
@@ -24,6 +25,11 @@
   const cfgRectSpacingX = document.getElementById('cfg-rect-spacingX');
   const cfgRectSpacingY = document.getElementById('cfg-rect-spacingY');
   const cfgRectPatternGap = document.getElementById('cfg-rect-patternGap');
+  const cfgFiguresAntallX = document.getElementById('cfg-figures-antallX');
+  const cfgFiguresAntallY = document.getElementById('cfg-figures-antallY');
+  const cfgFiguresCategory = document.getElementById('cfg-figures-category');
+  const cfgFiguresFigure = document.getElementById('cfg-figures-figure');
+  const cfgFiguresPatternGap = document.getElementById('cfg-figures-patternGap');
   const brickContainer = document.getElementById('brickContainer');
   const patternContainer = document.getElementById('patternContainer');
   const rectangleContainer = document.getElementById('rectangleContainer');
@@ -48,6 +54,15 @@
     rectangles: '#534477',
     klosser: '#534477',
     blocks: '#534477'
+  };
+  const FIGURE_LIBRARY_APP_KEY = 'kvikkbilder';
+  let figureLibraryModule = null;
+  let figureData = null;
+  let figurePicker = null;
+  const figureLibraryState = {
+    loaded: false,
+    loading: null,
+    error: false
   };
   let activeFillColorIndex = 1;
   function getThemeApi() {
@@ -201,6 +216,129 @@
       right,
       top
     };
+  }
+  function getFigureValue(figure) {
+    if (!figure || typeof figure !== 'object') {
+      return '';
+    }
+    const candidates = [
+      figure.slug,
+      figure.id,
+      figure.fileName,
+      figure.image,
+      figure.asset
+    ];
+    for (const candidate of candidates) {
+      if (typeof candidate === 'string' && candidate.trim()) {
+        return candidate.trim();
+      }
+    }
+    return '';
+  }
+  function getFigureAliases(figure) {
+    const aliases = [];
+    if (!figure || typeof figure !== 'object') {
+      return aliases;
+    }
+    const candidates = [
+      figure.slug,
+      figure.id,
+      figure.fileName,
+      figure.image,
+      figure.asset
+    ];
+    candidates.forEach(candidate => {
+      if (typeof candidate === 'string' && candidate.trim()) {
+        aliases.push(candidate.trim());
+      }
+    });
+    return aliases;
+  }
+  function setSelectPlaceholder(selectEl, label, disabled = true) {
+    if (!selectEl) return;
+    selectEl.textContent = '';
+    const option = document.createElement('option');
+    option.value = '';
+    option.textContent = label;
+    selectEl.appendChild(option);
+    selectEl.disabled = disabled;
+  }
+  function rebuildFigureLibraryData() {
+    if (!figureLibraryModule || !figureLibraryModule.buildFigureData || !figureLibraryModule.createFigurePickerHelpers) {
+      return;
+    }
+    const nextData = figureLibraryModule.buildFigureData({ app: FIGURE_LIBRARY_APP_KEY });
+    figureData = nextData;
+    const fallbackCategoryId = (nextData.categories[0] && nextData.categories[0].id) || '';
+    figurePicker = figureLibraryModule.createFigurePickerHelpers({
+      doc: document,
+      figureData: nextData,
+      fallbackCategoryId,
+      getFigureValue,
+      getFigureAliases
+    });
+  }
+  function updateFigurePickerControls() {
+    if (!cfgFiguresCategory || !cfgFiguresFigure) return;
+    if (!CFG.figures || typeof CFG.figures !== 'object') {
+      CFG.figures = { ...DEFAULT_CFG.figures };
+    }
+    if (!figurePicker) {
+      setSelectPlaceholder(cfgFiguresCategory, figureLibraryState.loading ? 'Laster figurer …' : 'Ingen figurer tilgjengelig', true);
+      setSelectPlaceholder(cfgFiguresFigure, 'Velg figur', true);
+      return;
+    }
+    const categoryResult = figurePicker.renderCategorySelect(cfgFiguresCategory, CFG.figures && CFG.figures.categoryId);
+    CFG.figures.categoryId = categoryResult.selectedId;
+    const figureResult = figurePicker.renderFigureSelect(cfgFiguresFigure, categoryResult.selectedId, CFG.figures.figureValue, {
+      placeholderLabel: 'Velg figur',
+      disableWhenEmpty: true
+    });
+    CFG.figures.figureValue = figureResult.selectedValue;
+    if (figureResult.match && figureResult.match.figure) {
+      CFG.figures.figureLabel =
+        figurePicker.buildFigureOptionLabel(figureResult.match.figure) ||
+        figureResult.match.label ||
+        figureResult.match.value ||
+        '';
+    }
+  }
+  function loadFigureLibrary(options = {}) {
+    if (figureLibraryState.loading) {
+      return figureLibraryState.loading;
+    }
+    figureLibraryState.error = false;
+    const request = import('./figure-library/all.js')
+      .then(module => {
+        figureLibraryModule = module;
+        if (typeof module.loadFigureLibrary === 'function') {
+          return module.loadFigureLibrary({
+            app: FIGURE_LIBRARY_APP_KEY,
+            force: options.force || undefined,
+            refresh: options.refresh || undefined
+          });
+        }
+        return null;
+      })
+      .then(() => {
+        figureLibraryState.loaded = true;
+        rebuildFigureLibraryData();
+        updateFigurePickerControls();
+        if (CFG.type === 'figurer') {
+          renderView();
+        }
+        return figureData;
+      })
+      .catch(error => {
+        figureLibraryState.error = true;
+        console.warn('Kunne ikke laste figurbiblioteket', error);
+        updateFigurePickerControls();
+      })
+      .finally(() => {
+        figureLibraryState.loading = null;
+      });
+    figureLibraryState.loading = request;
+    return request;
   }
   function getKvikkbilderBaseColor() {
     const fallback = DEFAULT_BRICK_PALETTE.left;
@@ -437,8 +575,24 @@
     const totalDots = totalFigures * perFigure;
     return `${describePlural(totalFigures, 'punktrektangel', 'punktrektangler')}. ${arrangement} Hver figur har ${innerRows} rader og ${innerCols} kolonner av prikker (${perFigure} prikker), totalt ${totalDots} prikker.`.trim();
   }
+  function buildFiguresAltText(figRows, figCols, figureLabel, hasPattern) {
+    const outerRows = Math.max(0, Math.trunc(figRows));
+    const outerCols = Math.max(0, Math.trunc(figCols));
+    const totalFigures = outerRows * outerCols;
+    if (!hasPattern || totalFigures <= 0) {
+      return 'Ingen figurer vist.';
+    }
+    const resolvedLabel = typeof figureLabel === 'string' && figureLabel.trim()
+      ? figureLabel.trim()
+      : 'valgt figur';
+    if (totalFigures === 1) {
+      return `1 figur (${resolvedLabel}).`;
+    }
+    const arrangement = describeArrangement(outerRows, outerCols);
+    return `${describePlural(totalFigures, 'figur', 'figurer')}. ${arrangement} Valgt figur: ${resolvedLabel}.`.trim();
+  }
   function buildAltTextForType(type) {
-    const normalizedType = type === 'monster' || type === 'rectangles' ? type : 'klosser';
+    const normalizedType = type === 'monster' || type === 'rectangles' || type === 'figurer' ? type : 'klosser';
     if (!CFG) return '';
     if (normalizedType === 'monster') {
       const {
@@ -468,6 +622,17 @@
       const hasPattern = figCols > 0 && figRows > 0 && colsCount > 0 && rowsCount > 0;
       return buildRectanglesAltText(figRows, figCols, rowsCount, colsCount, hasPattern);
     }
+    if (normalizedType === 'figurer') {
+      const {
+        antallX = 0,
+        antallY = 0,
+        figureLabel = ''
+      } = CFG.figures || {};
+      const figCols = Math.max(0, Math.trunc(antallX));
+      const figRows = Math.max(0, Math.trunc(antallY));
+      const hasPattern = figCols > 0 && figRows > 0;
+      return buildFiguresAltText(figRows, figCols, figureLabel, hasPattern);
+    }
     const {
       antallX = 0,
       antallY = 0,
@@ -487,6 +652,8 @@
     if (!CFG) return base;
     const suffix = CFG.type === 'monster'
       ? 'Numbervisuals'
+      : CFG.type === 'figurer'
+      ? 'Figurer'
       : CFG.type === 'rectangles'
       ? 'Rektangler'
       : CFG.type === 'blocks'
@@ -552,6 +719,16 @@
       patternGap: 18,
       duration: 3,
       showBtn: false
+    },
+    figures: {
+      antallX: 2,
+      antallY: 2,
+      patternGap: 18,
+      categoryId: '',
+      figureValue: '',
+      figureLabel: '',
+      duration: 3,
+      showBtn: false
     }
   };
   function deepClone(value) {
@@ -571,7 +748,7 @@
     const base = deepClone(DEFAULT_CFG) || {};
     const normalized = overrides && typeof overrides === 'object' ? overrides : {};
     if (typeof normalized.type === 'string') {
-      base.type = ['monster', 'rectangles', 'blocks'].includes(normalized.type) ? normalized.type : 'klosser';
+      base.type = ['monster', 'rectangles', 'blocks', 'figurer'].includes(normalized.type) ? normalized.type : 'klosser';
     }
     if (Object.prototype.hasOwnProperty.call(normalized, 'showExpression')) {
       base.showExpression = normalized.showExpression !== false;
@@ -588,6 +765,9 @@
     }
     if (normalized.rectangles && typeof normalized.rectangles === 'object') {
       base.rectangles = Object.assign({}, base.rectangles, normalized.rectangles);
+    }
+    if (normalized.figures && typeof normalized.figures === 'object') {
+      base.figures = Object.assign({}, base.figures, normalized.figures);
     }
     return base;
   }
@@ -1108,6 +1288,126 @@
       rectangleContainer.appendChild(wrapper);
     }
   }
+  function createFigurePlaceholderSvg(label) {
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('viewBox', '0 0 120 120');
+    svg.setAttribute('width', '100%');
+    svg.setAttribute('height', '100%');
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    const rect = document.createElementNS(svgNS, 'rect');
+    rect.setAttribute('x', '4');
+    rect.setAttribute('y', '4');
+    rect.setAttribute('width', '112');
+    rect.setAttribute('height', '112');
+    rect.setAttribute('rx', '12');
+    rect.setAttribute('fill', '#f3f4f6');
+    rect.setAttribute('stroke', '#cbd5f5');
+    rect.setAttribute('stroke-width', '2');
+    svg.appendChild(rect);
+    const text = document.createElementNS(svgNS, 'text');
+    text.setAttribute('x', '60');
+    text.setAttribute('y', '64');
+    text.setAttribute('text-anchor', 'middle');
+    text.setAttribute('font-size', '14');
+    text.setAttribute('fill', '#6b7280');
+    text.textContent = label || 'Figur';
+    svg.appendChild(text);
+    return svg;
+  }
+  function createFigureSvg(imageSrc, label) {
+    if (!imageSrc) {
+      return createFigurePlaceholderSvg(label);
+    }
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('viewBox', '0 0 100 100');
+    svg.setAttribute('width', '100%');
+    svg.setAttribute('height', '100%');
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    const image = document.createElementNS(svgNS, 'image');
+    image.setAttribute('href', imageSrc);
+    image.setAttributeNS('http://www.w3.org/1999/xlink', 'href', imageSrc);
+    image.setAttribute('x', '0');
+    image.setAttribute('y', '0');
+    image.setAttribute('width', '100');
+    image.setAttribute('height', '100');
+    image.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    svg.appendChild(image);
+    if (label) {
+      svg.setAttribute('aria-label', label);
+    }
+    return svg;
+  }
+  function resolveFigureSelection() {
+    if (!figurePicker) return null;
+    let match = figurePicker.findOptionByValue(CFG.figures.figureValue);
+    if (!match) {
+      const resolvedCategory = figurePicker.resolveCategoryId(CFG.figures.categoryId, CFG.figures.figureValue);
+      const options = figurePicker.buildFigureOptions(resolvedCategory);
+      if (options.length) {
+        match = figurePicker.findOptionByValue(options[0].value) || options[0];
+      }
+    }
+    if (match) {
+      CFG.figures.categoryId = match.categoryId || CFG.figures.categoryId;
+      CFG.figures.figureValue = match.value || CFG.figures.figureValue;
+      CFG.figures.figureLabel =
+        (match.figure && figurePicker.buildFigureOptionLabel(match.figure)) ||
+        match.label ||
+        match.value ||
+        CFG.figures.figureLabel ||
+        '';
+    }
+    return match;
+  }
+  function renderFigures() {
+    if (!patternContainer) return;
+    const {
+      antallX = 0,
+      antallY = 0,
+      patternGap = DEFAULT_CFG.figures.patternGap
+    } = CFG.figures || {};
+    patternContainer.innerHTML = '';
+    const figCols = Math.max(0, Math.trunc(antallX));
+    const figRows = Math.max(0, Math.trunc(antallY));
+    patternContainer.style.gridTemplateColumns = figCols > 0 ? `repeat(${figCols},minmax(0,1fr))` : '';
+    patternContainer.style.gridTemplateRows = figRows > 0 ? `repeat(${figRows},minmax(0,1fr))` : '';
+    const allowGap = !(figCols <= 1 && figRows <= 1);
+    const gapNumber = Number.isFinite(patternGap) ? patternGap : Number.parseFloat(patternGap);
+    const normalizedGap = Number.isFinite(gapNumber) ? Math.max(0, gapNumber) : DEFAULT_CFG.figures.patternGap;
+    const gapPx = allowGap ? normalizedGap : 0;
+    const itemPadding = allowGap ? Math.max(12, Math.round(gapPx * 0.6)) : 16;
+    const containerPadding = allowGap ? Math.max(8, Math.round(gapPx * 0.45)) : Math.max(12, itemPadding);
+    patternContainer.style.setProperty('--pattern-gap', `${gapPx}px`);
+    patternContainer.style.setProperty('--pattern-item-padding', `${itemPadding}px`);
+    patternContainer.style.setProperty('--pattern-padding', `${containerPadding}px`);
+    const totalFigures = figCols * figRows;
+    const match = resolveFigureSelection();
+    const figure = match && match.figure ? match.figure : null;
+    const figureLabel = CFG.figures.figureLabel || (figure && (figure.name || match.label)) || '';
+    const imageSrc = figure ? figure.image || figure.asset || '' : '';
+    const svg = createFigureSvg(imageSrc, figureLabel);
+    const hasPattern = !!svg && totalFigures > 0;
+    const autoText = buildFiguresAltText(figRows, figCols, figureLabel, hasPattern);
+    setAutoAltText(autoText);
+    updateFigureAlt(patternContainer, 'render-figurer');
+    const outerFactors = filterUnitFactors([figCols, figRows]);
+    if (outerFactors.length > 1) {
+      expression.textContent = `${joinFactors(outerFactors)} = ${totalFigures}`;
+    } else {
+      expression.textContent = `${totalFigures}`;
+    }
+    if (!hasPattern) {
+      return;
+    }
+    for (let i = 0; i < totalFigures; i++) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'pattern-item pattern-item--figure';
+      wrapper.appendChild(svg.cloneNode(true));
+      patternContainer.appendChild(wrapper);
+    }
+  }
   function applyExpressionVisibility() {
     if (!expression) return;
     const enabled = CFG.showExpression !== false;
@@ -1153,6 +1453,19 @@
     }
     applyExpressionVisibility();
   }
+  function updateVisibilityFigures() {
+    var _CFG$figures;
+    brickContainer.style.display = 'none';
+    if (rectangleContainer) rectangleContainer.style.display = 'none';
+    if ((_CFG$figures = CFG.figures) !== null && _CFG$figures !== void 0 && _CFG$figures.showBtn) {
+      playBtn.style.display = 'flex';
+      patternContainer.style.display = 'none';
+    } else {
+      playBtn.style.display = 'none';
+      patternContainer.style.display = 'grid';
+    }
+    applyExpressionVisibility();
+  }
   function clampInt(value, min, fallback) {
     const num = Number.parseInt(value, 10);
     if (Number.isFinite(num)) {
@@ -1191,6 +1504,16 @@
       cfgRectPatternGap.removeAttribute('title');
     }
   }
+  function updateFiguresPatternGapState() {
+    if (!cfgFiguresPatternGap) return;
+    const disableGap = CFG.figures.antallX <= 1 && CFG.figures.antallY <= 1;
+    cfgFiguresPatternGap.disabled = disableGap;
+    if (disableGap) {
+      cfgFiguresPatternGap.setAttribute('title', 'Figuravstand er tilgjengelig når det er flere figurer.');
+    } else {
+      cfgFiguresPatternGap.removeAttribute('title');
+    }
+  }
   function initAltTextManager() {
     if (typeof window === 'undefined' || !window.MathVisAltText) return;
     if (altTextManager || !exportCard) return;
@@ -1218,7 +1541,7 @@
     }
   }
   function sanitizeCfg() {
-    if (!['monster', 'klosser', 'rectangles', 'blocks'].includes(CFG.type)) {
+    if (!['monster', 'klosser', 'rectangles', 'blocks', 'figurer'].includes(CFG.type)) {
       CFG.type = DEFAULT_CFG.type;
     }
     CFG.showExpression = CFG.showExpression !== false;
@@ -1235,6 +1558,7 @@
     if (!CFG.klosser || typeof CFG.klosser !== 'object') CFG.klosser = {};
     if (!CFG.monster || typeof CFG.monster !== 'object') CFG.monster = {};
     if (!CFG.rectangles || typeof CFG.rectangles !== 'object') CFG.rectangles = {};
+    if (!CFG.figures || typeof CFG.figures !== 'object') CFG.figures = {};
     const k = CFG.klosser;
     const dk = DEFAULT_CFG.klosser;
     k.antallX = clampInt(k.antallX, 0, dk.antallX);
@@ -1290,6 +1614,22 @@
     } else {
       r.duration = Math.max(0, r.duration);
     }
+    const f = CFG.figures;
+    const df = DEFAULT_CFG.figures;
+    f.antallX = clampInt(f.antallX, 0, df.antallX);
+    f.antallY = clampInt(f.antallY, 0, df.antallY);
+    f.patternGap = clampFloat(f.patternGap, 0, df.patternGap);
+    f.duration = clampInt(f.duration, 0, df.duration);
+    f.showBtn = f.showBtn === true;
+    if (f.showBtn) {
+      const normalizedDuration = Number.isFinite(f.duration) ? f.duration : df.duration;
+      f.duration = Math.min(MAX_VISIBILITY_DURATION, Math.max(1, normalizedDuration));
+    } else {
+      f.duration = Math.max(0, f.duration);
+    }
+    f.categoryId = typeof f.categoryId === 'string' ? f.categoryId.trim() : '';
+    f.figureValue = typeof f.figureValue === 'string' ? f.figureValue.trim() : '';
+    f.figureLabel = typeof f.figureLabel === 'string' ? f.figureLabel.trim() : '';
     activeFillColorIndex = sanitizeFillIndex(CFG.fillColorIndex, FILL_COLOR_COUNT);
     CFG.fillColorIndex = activeFillColorIndex;
     return CFG;
@@ -1304,7 +1644,13 @@
   }
   function updateVisibilityControlValue() {
     if (!cfgVisibility) return;
-    const activeCfg = CFG.type === 'monster' ? CFG.monster : CFG.type === 'rectangles' ? CFG.rectangles : CFG.klosser;
+    const activeCfg = CFG.type === 'monster'
+      ? CFG.monster
+      : CFG.type === 'rectangles'
+      ? CFG.rectangles
+      : CFG.type === 'figurer'
+      ? CFG.figures
+      : CFG.klosser;
     cfgVisibility.value = resolveVisibilityValue(activeCfg);
   }
   function syncControlsToCfg() {
@@ -1336,6 +1682,13 @@
       cfgRectPatternGap.value = CFG.rectangles.patternGap;
       updateRectanglesPatternGapState();
     }
+    if (cfgFiguresAntallX) cfgFiguresAntallX.value = CFG.figures.antallX;
+    if (cfgFiguresAntallY) cfgFiguresAntallY.value = CFG.figures.antallY;
+    if (cfgFiguresPatternGap) {
+      cfgFiguresPatternGap.value = CFG.figures.patternGap;
+      updateFiguresPatternGapState();
+    }
+    updateFigurePickerControls();
     updateVisibilityControlValue();
   }
   function renderView() {
@@ -1348,19 +1701,31 @@
       if (klosserConfig) klosserConfig.style.display = 'block';
       if (monsterConfig) monsterConfig.style.display = 'none';
       if (rectangleConfig) rectangleConfig.style.display = 'none';
+      if (figuresConfig) figuresConfig.style.display = 'none';
       renderKlosser();
       updateVisibilityKlosser();
     } else if (CFG.type === 'monster') {
       if (klosserConfig) klosserConfig.style.display = 'none';
       if (monsterConfig) monsterConfig.style.display = 'block';
       if (rectangleConfig) rectangleConfig.style.display = 'none';
+      if (figuresConfig) figuresConfig.style.display = 'none';
       renderMonster();
       updateVisibilityMonster();
       updateMonsterPatternGapState();
+    } else if (CFG.type === 'figurer') {
+      if (klosserConfig) klosserConfig.style.display = 'none';
+      if (monsterConfig) monsterConfig.style.display = 'none';
+      if (rectangleConfig) rectangleConfig.style.display = 'none';
+      if (figuresConfig) figuresConfig.style.display = 'block';
+      updateFigurePickerControls();
+      renderFigures();
+      updateVisibilityFigures();
+      updateFiguresPatternGapState();
     } else {
       if (klosserConfig) klosserConfig.style.display = 'none';
       if (monsterConfig) monsterConfig.style.display = 'none';
       if (rectangleConfig) rectangleConfig.style.display = 'block';
+      if (figuresConfig) figuresConfig.style.display = 'none';
       renderRectangles();
       updateVisibilityRectangles();
       updateRectanglesPatternGapState();
@@ -1438,9 +1803,53 @@
   bindFloatInput(cfgRectSpacingX, () => CFG.rectangles, 'spacingX', RECT_POINT_SPACING_MIN, DEFAULT_CFG.rectangles.spacingX, RECT_POINT_SPACING_MAX);
   bindFloatInput(cfgRectSpacingY, () => CFG.rectangles, 'spacingY', RECT_POINT_SPACING_MIN, DEFAULT_CFG.rectangles.spacingY, RECT_POINT_SPACING_MAX);
   bindFloatInput(cfgRectPatternGap, () => CFG.rectangles, 'patternGap', 0, DEFAULT_CFG.rectangles.patternGap);
+  bindNumberInput(cfgFiguresAntallX, () => CFG.figures, 'antallX', 0);
+  bindNumberInput(cfgFiguresAntallY, () => CFG.figures, 'antallY', 0);
+  bindFloatInput(cfgFiguresPatternGap, () => CFG.figures, 'patternGap', 0, DEFAULT_CFG.figures.patternGap);
+  cfgFiguresCategory === null || cfgFiguresCategory === void 0 || cfgFiguresCategory.addEventListener('change', () => {
+    if (!CFG.figures) return;
+    CFG.figures.categoryId = cfgFiguresCategory.value;
+    if (figurePicker) {
+      const result = figurePicker.renderFigureSelect(cfgFiguresFigure, CFG.figures.categoryId, CFG.figures.figureValue, {
+        placeholderLabel: 'Velg figur',
+        disableWhenEmpty: true
+      });
+      CFG.figures.figureValue = result.selectedValue;
+      if (result.match && result.match.figure) {
+        CFG.figures.figureLabel =
+          figurePicker.buildFigureOptionLabel(result.match.figure) ||
+          result.match.label ||
+          result.match.value ||
+          '';
+      }
+    }
+    renderView();
+  });
+  cfgFiguresFigure === null || cfgFiguresFigure === void 0 || cfgFiguresFigure.addEventListener('change', () => {
+    if (!CFG.figures) return;
+    CFG.figures.figureValue = cfgFiguresFigure.value;
+    if (figurePicker) {
+      CFG.figures.categoryId = figurePicker.resolveCategoryId(cfgFiguresCategory.value, CFG.figures.figureValue);
+      const match = figurePicker.findOptionByValue(CFG.figures.figureValue);
+      if (match && match.figure) {
+        CFG.figures.figureLabel =
+          figurePicker.buildFigureOptionLabel(match.figure) ||
+          match.label ||
+          match.value ||
+          '';
+      }
+    }
+    renderView();
+  });
   if (cfgVisibility) {
     cfgVisibility.addEventListener('change', () => {
-      const target = CFG.type === 'monster' ? CFG.monster : CFG.type === 'rectangles' ? CFG.rectangles : CFG.klosser;
+      const target = CFG.type === 'monster'
+        ? CFG.monster
+        : CFG.type === 'rectangles'
+        ? CFG.rectangles
+        : CFG.type === 'figurer'
+        ? CFG.figures
+        : CFG.klosser;
       if (!target) return;
       const value = cfgVisibility.value;
       if (value === 'always') {
@@ -1458,7 +1867,7 @@
     });
   }
   cfgType === null || cfgType === void 0 || cfgType.addEventListener('change', () => {
-    CFG.type = ['monster', 'rectangles', 'blocks'].includes(cfgType.value) ? cfgType.value : 'klosser';
+    CFG.type = ['monster', 'rectangles', 'blocks', 'figurer'].includes(cfgType.value) ? cfgType.value : 'klosser';
     cfgType.value = CFG.type;
     renderView();
   });
@@ -1486,6 +1895,15 @@
       setTimeout(() => {
         updateVisibilityMonster();
       }, duration * 1000);
+    } else if (CFG.type === 'figurer') {
+      const duration = Math.max(0, Number.isFinite(CFG.figures.duration) ? CFG.figures.duration : 0);
+      renderFigures();
+      playBtn.style.display = 'none';
+      patternContainer.style.display = 'grid';
+      applyExpressionVisibility();
+      setTimeout(() => {
+        updateVisibilityFigures();
+      }, duration * 1000);
     } else {
       const duration = Math.max(0, Number.isFinite(CFG.rectangles.duration) ? CFG.rectangles.duration : 0);
       renderRectangles();
@@ -1500,20 +1918,33 @@
   function getActiveSvg() {
     if (CFG.type === 'klosser' || CFG.type === 'blocks') return brickContainer.querySelector('svg');
     if (CFG.type === 'monster') return patternContainer.querySelector('svg');
+    if (CFG.type === 'figurer') return patternContainer.querySelector('svg');
     if (CFG.type === 'rectangles') return rectangleContainer ? rectangleContainer.querySelector('svg') : null;
     return brickContainer.querySelector('svg') || patternContainer.querySelector('svg') || (rectangleContainer ? rectangleContainer.querySelector('svg') : null);
   }
   btnSvg === null || btnSvg === void 0 || btnSvg.addEventListener('click', () => {
     const svg = getActiveSvg();
     if (svg) {
-      const fileName = CFG.type === 'monster' ? 'numbervisuals.svg' : CFG.type === 'rectangles' ? 'rektangler.svg' : 'kvikkbilder.svg';
+      const fileName = CFG.type === 'monster'
+        ? 'numbervisuals.svg'
+        : CFG.type === 'rectangles'
+        ? 'rektangler.svg'
+        : CFG.type === 'figurer'
+        ? 'figurer.svg'
+        : 'kvikkbilder.svg';
       downloadSVG(svg, fileName);
     }
   });
   btnPng === null || btnPng === void 0 || btnPng.addEventListener('click', () => {
     const svg = getActiveSvg();
     if (svg) {
-      const fileName = CFG.type === 'monster' ? 'numbervisuals.png' : CFG.type === 'rectangles' ? 'rektangler.png' : 'kvikkbilder.png';
+      const fileName = CFG.type === 'monster'
+        ? 'numbervisuals.png'
+        : CFG.type === 'rectangles'
+        ? 'rektangler.png'
+        : CFG.type === 'figurer'
+        ? 'figurer.png'
+        : 'kvikkbilder.png';
       downloadPNG(svg, fileName, 2);
     }
   });
@@ -1555,6 +1986,15 @@
         antallX: Number(m.antallX),
         antallY: Number(m.antallY),
         antall: Number(m.antall)
+      };
+    }
+    if (type === 'figurer') {
+      const f = CFG.figures || {};
+      return {
+        type,
+        antallX: Number(f.antallX),
+        antallY: Number(f.antallY),
+        figureValue: typeof f.figureValue === 'string' ? f.figureValue : ''
       };
     }
     if (type === 'rectangles') {
@@ -1759,6 +2199,7 @@
     createCleanState,
     loadCleanState
   };
+  loadFigureLibrary();
   loadBrickAndBlockAssets(kvikkbilderPalette).then(() => {
     renderView();
   });
