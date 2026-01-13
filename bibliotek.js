@@ -93,7 +93,7 @@ const categoryDialogState = {
 };
 
 const DEFAULT_CATEGORY_APP = 'bibliotek';
-const DEFAULT_VISIBLE_CATEGORY_APPS = ['måling', 'sortering'];
+const DEFAULT_VISIBLE_CATEGORY_APPS = ['måling', 'sortering', 'kvikkfigurer'];
 const categoryAppOptionOrder = [];
 const categoryAppOptionMap = new Map();
 const categoryAppFormContexts = {
