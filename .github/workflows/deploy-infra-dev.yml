@@ -67,6 +67,63 @@ jobs:
           role-to-assume: ${{ env.AWS_IAC_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Ensure dev S3 buckets exist
+        run: |
+          set -euo pipefail
+
+          account_id=$(aws sts get-caller-identity --query Account --output text)
+          region="${AWS_REGION}"
+          prod_static_bucket="math-visuals-static-site-796063593326-202512172100921"
+          run_suffix="${GITHUB_RUN_ID:-${GITHUB_SHA:-$(date +%s)}}"
+
+          is_dev_bucket() {
+            local name="$1"
+            [[ "$name" == *"-dev-"* || "$name" == *"-dev" ]]
+          }
+
+          ensure_unique_bucket() {
+            local name="$1"
+            if aws s3api head-bucket --bucket "$name" >/dev/null 2>&1; then
+              name="${name}-${GITHUB_RUN_ATTEMPT:-1}"
+            fi
+            echo "$name"
+          }
+
+          if [ -z "${STATIC_SITE_BUCKET_NAME:-}" ] || ! is_dev_bucket "$STATIC_SITE_BUCKET_NAME"; then
+            if [ -n "${STATIC_SITE_BUCKET_NAME:-}" ]; then
+              echo "STATIC_SITE_BUCKET_NAME '$STATIC_SITE_BUCKET_NAME' er ikke tydelig dev-navngitt; lager ny dev-bøtte." >&2
+            fi
+            STATIC_SITE_BUCKET_NAME="math-visuals-static-site-dev-${account_id}-${region}-${run_suffix}"
+            STATIC_SITE_BUCKET_NAME=$(ensure_unique_bucket "$STATIC_SITE_BUCKET_NAME")
+            echo "STATIC_SITE_BUCKET_NAME=$STATIC_SITE_BUCKET_NAME" >> "$GITHUB_ENV"
+            echo "FORCE_CREATE_SITE_BUCKET=true" >> "$GITHUB_ENV"
+          fi
+
+          if [ -z "${API_ARTIFACT_BUCKET:-}" ] || ! is_dev_bucket "$API_ARTIFACT_BUCKET"; then
+            if [ -n "${API_ARTIFACT_BUCKET:-}" ]; then
+              echo "API_ARTIFACT_BUCKET '$API_ARTIFACT_BUCKET' er ikke tydelig dev-navngitt; lager ny dev-bøtte." >&2
+            fi
+            API_ARTIFACT_BUCKET="math-visuals-artifacts-dev-${account_id}-${region}-${run_suffix}"
+            API_ARTIFACT_BUCKET=$(ensure_unique_bucket "$API_ARTIFACT_BUCKET")
+            echo "API_ARTIFACT_BUCKET=$API_ARTIFACT_BUCKET" >> "$GITHUB_ENV"
+          fi
+
+          if [ "$STATIC_SITE_BUCKET_NAME" = "$prod_static_bucket" ]; then
+            echo "STATIC_SITE_BUCKET_NAME peker på prod-bøtta. Sett en egen dev-bøtte før du fortsetter." >&2
+            exit 1
+          fi
+
+          if ! aws s3api head-bucket --bucket "$API_ARTIFACT_BUCKET" >/dev/null 2>&1; then
+            if [ "$region" = "us-east-1" ]; then
+              aws s3api create-bucket --bucket "$API_ARTIFACT_BUCKET"
+            else
+              aws s3api create-bucket \
+                --bucket "$API_ARTIFACT_BUCKET" \
+                --region "$region" \
+                --create-bucket-configuration "LocationConstraint=$region"
+            fi
+          fi
+
       - name: Ensure App Runner service-linked role exists
         run: |
           # App Runner stacks require the AWSServiceRoleForAppRunner role. See infra/README.md for IAM guidance.
@@ -376,7 +433,10 @@ jobs:
         run: |
           set -euo pipefail
 
-          if aws s3api head-bucket --bucket "$STATIC_SITE_BUCKET_NAME" >/dev/null 2>&1; then
+          if [ "${FORCE_CREATE_SITE_BUCKET:-}" = "true" ]; then
+            echo "FORCE_CREATE_SITE_BUCKET=true; oppretter ny dev-bøtte via CloudFormation."
+            echo "CREATE_SITE_BUCKET=true" >> "$GITHUB_ENV"
+          elif aws s3api head-bucket --bucket "$STATIC_SITE_BUCKET_NAME" >/dev/null 2>&1; then
             echo "Bucket $STATIC_SITE_BUCKET_NAME already exists; reusing it."
             echo "CREATE_SITE_BUCKET=false" >> "$GITHUB_ENV"
           else
@@ -437,6 +497,26 @@ jobs:
               ApiGatewayOriginPath=$api_origin_path \
               CloudFrontPriceClass=$STATIC_SITE_CLOUDFRONT_PRICE_CLASS \
               SharedParametersStackName=$SHARED_PARAMETERS_STACK_NAME
+
+      - name: Resolve static site outputs
+        run: |
+          set -euo pipefail
+
+          site_bucket=$(aws cloudformation describe-stacks \
+            --stack-name "$STATIC_STACK_NAME" \
+            --query "Stacks[0].Outputs[?OutputKey=='StaticSiteBucketName'].OutputValue" \
+            --output text)
+          distribution_id=$(aws cloudformation describe-stacks \
+            --stack-name "$STATIC_STACK_NAME" \
+            --query "Stacks[0].Outputs[?OutputKey=='CloudFrontDistributionId'].OutputValue" \
+            --output text)
+
+          if [ -n "$site_bucket" ] && [ "$site_bucket" != "None" ]; then
+            echo "STATIC_SITE_BUCKET_NAME=$site_bucket" >> "$GITHUB_ENV"
+          fi
+          if [ -n "$distribution_id" ] && [ "$distribution_id" != "None" ]; then
+            echo "STATIC_SITE_CLOUDFRONT_DISTRIBUTION_ID=$distribution_id" >> "$GITHUB_ENV"
+          fi
 
       - name: Build and upload static assets
         env:
