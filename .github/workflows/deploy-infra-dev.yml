@@ -42,6 +42,7 @@ jobs:
       DATA_ENVIRONMENT_NAME: dev
       SHARED_PARAMETERS_STACK_NAME: math-visuals-shared-dev
       SKIP_EXAMPLES_SEEDING: "true"
+      USE_EXTERNAL_REDIS: ${{ secrets.USE_EXTERNAL_REDIS_DEV || 'true' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -106,6 +107,7 @@ jobs:
           bash scripts/helpers/delete-rollback-complete-stack.sh "$DATA_STACK_NAME"
 
       - name: Sync shared Redis connection parameters
+        if: env.USE_EXTERNAL_REDIS != 'true'
         env:
           REDIS_ENDPOINT: ${{ secrets.REDIS_ENDPOINT_DEV }}
           REDIS_PORT: ${{ secrets.REDIS_PORT_DEV }}
@@ -168,6 +170,30 @@ jobs:
             --value "$REDIS_PORT" \
             --overwrite
 
+      - name: Validate external Redis exports
+        if: env.USE_EXTERNAL_REDIS == 'true'
+        run: |
+          set -euo pipefail
+
+          require_export() {
+            local export_name="$1"
+            local value
+            value=$(aws cloudformation list-exports \
+              --query "Exports[?Name=='${export_name}'].Value" \
+              --output text)
+            if [ -z "$value" ] || [ "$value" = "None" ]; then
+              echo "Fant ikke eksporten '${export_name}'. Sørg for at datasstacken '${DATA_STACK_NAME}' har denne eksporten før workflowen fortsetter." >&2
+              return 1
+            fi
+          }
+
+          require_export "${SHARED_PARAMETERS_STACK_NAME}-PrivateSubnet1Id"
+          require_export "${SHARED_PARAMETERS_STACK_NAME}-PrivateSubnet2Id"
+          require_export "${SHARED_PARAMETERS_STACK_NAME}-LambdaSecurityGroupId"
+          require_export "${SHARED_PARAMETERS_STACK_NAME}-RedisEndpointParameterName"
+          require_export "${SHARED_PARAMETERS_STACK_NAME}-RedisPortParameterName"
+          require_export "${SHARED_PARAMETERS_STACK_NAME}-RedisPasswordSecretName"
+
       - name: Deploy API stack
         run: |
           set -euo pipefail
@@ -186,7 +212,18 @@ jobs:
           if [ -n "${LAMBDA_CODE_VERSION:-}" ]; then
             PARAM_OVERRIDES="$PARAM_OVERRIDES LambdaCodeS3ObjectVersion=$LAMBDA_CODE_VERSION"
           fi
-          PARAM_OVERRIDES="$PARAM_OVERRIDES DataStackName=$DATA_STACK_NAME SharedParametersStackName=$SHARED_PARAMETERS_STACK_NAME"
+          data_exports_stack="$DATA_STACK_NAME"
+          network_params="false"
+
+          if [ "${USE_EXTERNAL_REDIS}" = "true" ]; then
+            data_exports_stack="$SHARED_PARAMETERS_STACK_NAME"
+          fi
+
+          if [ "$data_exports_stack" = "$SHARED_PARAMETERS_STACK_NAME" ]; then
+            network_params="true"
+          fi
+
+          PARAM_OVERRIDES="$PARAM_OVERRIDES DataStackName=$data_exports_stack SharedParametersStackName=$SHARED_PARAMETERS_STACK_NAME ResolveNetworkFromParameters=$network_params"
           aws cloudformation deploy \
             --stack-name "$API_STACK_NAME" \
             --template-file infra/api/template.yaml \
