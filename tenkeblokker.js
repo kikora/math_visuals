@@ -101,7 +101,8 @@ const DEFAULT_BLOCKS = [{
   hideNValue: true,
   valueDisplay: 'number',
   showCustomText: false,
-  customText: ''
+  customText: '',
+  fillColorIndex: DEFAULT_FILL_COLOR_INDEX
 }, {
   total: 1,
   n: 1,
@@ -113,7 +114,8 @@ const DEFAULT_BLOCKS = [{
   hideNValue: true,
   valueDisplay: 'number',
   showCustomText: false,
-  customText: ''
+  customText: '',
+  fillColorIndex: DEFAULT_FILL_COLOR_INDEX
 }];
 const DEFAULT_TENKEBLOKKER_EXAMPLES = [];
 const DISPLAY_OPTIONS = ['number', 'fraction', 'percent'];
@@ -154,16 +156,11 @@ const UNION_BRACE_INNER_HEIGHT = UNION_BRACE_BOUNDS.bottom - UNION_BRACE_BOUNDS.
 const FRACTION_GROUP_ID = 'fractions';
 const FILL_COLOR_COUNT = 3;
 const FRACTION_FALLBACK_COLORS = Object.freeze(['#dbe7ff', '#c7d2fe', '#fcd34d']);
-let activeFractionColors = {
-  fill: FRACTION_FALLBACK_COLORS[0],
-  line: '#000000',
-  text: getContrastTextColor(FRACTION_FALLBACK_COLORS[0])
-};
-let activeFillColorIndex = 1;
+const DEFAULT_FILL_COLOR_INDEX = 1;
 
-function getSegmentTextColor(isFilled) {
+function getSegmentTextColor(isFilled, textColor) {
   if (isFilled) {
-    const activeText = typeof activeFractionColors.text === 'string' ? activeFractionColors.text.trim() : '';
+    const activeText = typeof textColor === 'string' ? textColor.trim() : '';
     if (activeText) {
       return activeText;
     }
@@ -224,32 +221,56 @@ function getFillPalette() {
     Array.isArray(fallbackPalette) && fallbackPalette.length ? fallbackPalette : FRACTION_FALLBACK_COLORS;
   return ensurePaletteCount(palette, fallback, FILL_COLOR_COUNT);
 }
-function updateFillPickerSelection(palette) {
-  const picker = typeof document !== 'undefined' ? document.querySelector('[data-fill-color-picker]') : null;
-  if (!picker) return;
-  const activeButton = picker.querySelector('.color-swatch--active');
-  const optionsPanel = picker.querySelector('.color-options');
-  const colors = Array.isArray(palette) ? palette : getFillPalette();
-  if (!optionsPanel || !activeButton) return;
-  const safeIndex = sanitizeFillIndex(activeFillColorIndex, colors.length);
-  activeFillColorIndex = safeIndex;
-  CONFIG.fillColorIndex = activeFillColorIndex;
-  const activeColor = colors[safeIndex - 1] || colors[0] || '#000';
+function getBlockFillIndex(cfg, paletteLength) {
+  const value = cfg && Object.prototype.hasOwnProperty.call(cfg, 'fillColorIndex') ? cfg.fillColorIndex : DEFAULT_FILL_COLOR_INDEX;
+  const index = sanitizeFillIndex(value, paletteLength);
+  if (cfg) cfg.fillColorIndex = index;
+  return index;
+}
+
+function resolveBlockPalette(cfg, paletteOverride) {
+  const palette = Array.isArray(paletteOverride) ? paletteOverride : getFillPalette();
+  const index = getBlockFillIndex(cfg, palette.length);
+  const fill = palette[index - 1] || palette[0] || FRACTION_FALLBACK_COLORS[0];
+  return {
+    palette,
+    index,
+    fill,
+    line: '#000000',
+    text: getContrastTextColor(fill)
+  };
+}
+
+function applyBlockPalette(block, paletteData) {
+  if (!block || !block.svg || !block.cfg) return null;
+  const resolved = paletteData || resolveBlockPalette(block.cfg);
+  block.svg.style.setProperty('--tb-fill', resolved.fill);
+  block.svg.style.setProperty('--tb-line', resolved.line);
+  block.svg.style.setProperty('--tb-text', resolved.text);
+  return resolved;
+}
+
+function updateBlockFillPicker(block, paletteData) {
+  if (!block || !block.fillPicker) return;
+  const { activeButton, optionsPanel } = block.fillPicker;
+  if (!activeButton || !optionsPanel) return;
+  const resolved = paletteData || resolveBlockPalette(block.cfg);
+  const colors = resolved.palette;
+  const activeColor = colors[resolved.index - 1] || colors[0] || '#000';
   activeButton.style.backgroundColor = activeColor;
   optionsPanel.querySelectorAll('.color-option-btn').forEach(btn => {
     const btnIndex = sanitizeFillIndex(btn.dataset.colorIndex, colors.length);
-    btn.classList.toggle('is-selected', btnIndex === safeIndex);
+    btn.classList.toggle('is-selected', btnIndex === resolved.index);
   });
 }
-function renderFillColorPicker() {
-  const picker = typeof document !== 'undefined' ? document.querySelector('[data-fill-color-picker]') : null;
-  if (!picker) return;
-  const activeButton = picker.querySelector('.color-swatch--active');
-  const optionsPanel = picker.querySelector('.color-options');
-  if (!activeButton || !optionsPanel) return;
-  const colors = getFillPalette();
+
+function renderBlockFillPickerOptions(block, paletteOverride) {
+  if (!block || !block.fillPicker) return;
+  const { optionsPanel } = block.fillPicker;
+  if (!optionsPanel) return;
+  const palette = Array.isArray(paletteOverride) ? paletteOverride : getFillPalette();
   optionsPanel.innerHTML = '';
-  colors.forEach((color, index) => {
+  palette.forEach((color, index) => {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'color-option-btn';
@@ -259,29 +280,53 @@ function renderFillColorPicker() {
     btn.setAttribute('aria-label', `Velg farge ${index + 1}`);
     btn.addEventListener('click', event => {
       event.stopPropagation();
-      activeFillColorIndex = sanitizeFillIndex(index + 1, colors.length);
-      CONFIG.fillColorIndex = activeFillColorIndex;
-      updateFillPickerSelection(colors);
+      if (!block.cfg) return;
+      block.cfg.fillColorIndex = sanitizeFillIndex(index + 1, palette.length);
+      updateBlockFillPicker(block, resolveBlockPalette(block.cfg, palette));
       optionsPanel.hidden = true;
-      applyFractionPalette(true);
+      draw(true);
     });
     optionsPanel.appendChild(btn);
   });
-  activeButton.addEventListener('click', event => {
+  updateBlockFillPicker(block, resolveBlockPalette(block.cfg, palette));
+}
+
+function createBlockFillPicker(block, fieldset) {
+  if (!block || !fieldset || typeof document === 'undefined') return;
+  const fillPickerRow = document.createElement('div');
+  fillPickerRow.className = 'fill-color-picker';
+  const fillLabel = document.createElement('span');
+  fillLabel.className = 'fill-color-picker__label';
+  fillLabel.textContent = 'Fyllfarge';
+  const picker = document.createElement('div');
+  picker.className = 'color-picker';
+  const activeBtn = document.createElement('button');
+  activeBtn.type = 'button';
+  activeBtn.className = 'color-swatch color-swatch--active';
+  activeBtn.setAttribute('aria-label', 'Velg fyllfarge');
+  const optionsPanel = document.createElement('div');
+  optionsPanel.className = 'color-options';
+  optionsPanel.hidden = true;
+  picker.appendChild(activeBtn);
+  picker.appendChild(optionsPanel);
+  fillPickerRow.appendChild(fillLabel);
+  fillPickerRow.appendChild(picker);
+  fieldset.appendChild(fillPickerRow);
+  block.fillPicker = {
+    root: fillPickerRow,
+    activeButton: activeBtn,
+    optionsPanel
+  };
+  activeBtn.addEventListener('click', event => {
     event.stopPropagation();
     optionsPanel.hidden = !optionsPanel.hidden;
   });
   document.addEventListener('click', event => {
-    if (!picker.contains(event.target)) {
+    if (!fillPickerRow.contains(event.target)) {
       optionsPanel.hidden = true;
     }
   });
-  updateFillPickerSelection(colors);
-}
-function getActiveFillColor() {
-  const colors = getFillPalette();
-  const index = sanitizeFillIndex(activeFillColorIndex, colors.length);
-  return colors[index - 1] || colors[0] || FRACTION_FALLBACK_COLORS[0];
+  renderBlockFillPickerOptions(block);
 }
 const DEFAULT_FRACTION_SLOT_INDICES = Object.freeze([13, 14, 19]);
 let cachedPaletteConfig = null;
@@ -656,30 +701,14 @@ function getPaletteTargets() {
 
 function applyFractionPalette(force = false) {
   if (typeof document === 'undefined') return;
-  const fill = getActiveFillColor();
-  const line = '#000000';
-  const text = getContrastTextColor(fill);
-  const prevFill = typeof activeFractionColors.fill === 'string' ? activeFractionColors.fill : '';
-  const prevLine = typeof activeFractionColors.line === 'string' ? activeFractionColors.line : '';
-  const prevText = typeof activeFractionColors.text === 'string' ? activeFractionColors.text : '';
-  const changed =
-    prevFill.toLowerCase() !== String(fill || '').toLowerCase() ||
-    prevLine.toLowerCase() !== String(line || '').toLowerCase() ||
-    prevText.toLowerCase() !== String(text || '').toLowerCase();
-  activeFractionColors = { fill, line, text };
-  if (!changed && !force) {
-    return;
-  }
-  const targets = getPaletteTargets();
-  targets.forEach(target => {
-    try {
-      target.style.setProperty('--tb-fill', fill);
-      target.style.setProperty('--tb-line', line);
-      target.style.setProperty('--tb-text', text);
-    } catch (err) {}
+  const palette = getFillPalette();
+  BLOCKS.forEach(block => {
+    if (!block || !block.cfg) return;
+    const resolved = resolveBlockPalette(block.cfg, palette);
+    applyBlockPalette(block, resolved);
+    renderBlockFillPickerOptions(block, palette);
   });
   refreshTenkeblokkerPaletteAttributes();
-  renderFillColorPicker();
 }
 function sanitizeDisplayMode(value) {
   if (typeof value !== 'string') return null;
@@ -853,9 +882,8 @@ const CONFIG = {
   showSum: false,
   altText: '',
   altTextSource: 'auto',
-  fillColorIndex: 1
+  fillColorIndex: DEFAULT_FILL_COLOR_INDEX
 };
-activeFillColorIndex = sanitizeFillIndex(CONFIG.fillColorIndex, FILL_COLOR_COUNT);
 const dimensionState = {
   rowTotals: [],
   columnTotals: [],
@@ -1669,6 +1697,19 @@ function normalizeBlockConfig(raw, index, existing, previous) {
   target.showCustomText = toBoolean(source.showCustomText, toBoolean(defaults.showCustomText, false));
   const textSource = typeof source.customText === 'string' ? source.customText : (_defaults$customText = defaults.customText) !== null && _defaults$customText !== void 0 ? _defaults$customText : '';
   target.customText = textSource;
+  const hasSourceFill = Object.prototype.hasOwnProperty.call(source, 'fillColorIndex');
+  let fillIndex = Number(source.fillColorIndex);
+  if (!Number.isFinite(fillIndex)) {
+    const prevIndex = Number(previous === null || previous === void 0 ? void 0 : previous.fillColorIndex);
+    if (isNew && Number.isFinite(prevIndex)) {
+      fillIndex = prevIndex;
+    } else if (!hasSourceFill && Number.isFinite(target.fillColorIndex)) {
+      fillIndex = target.fillColorIndex;
+    } else {
+      fillIndex = Number(defaults.fillColorIndex) || DEFAULT_FILL_COLOR_INDEX;
+    }
+  }
+  target.fillColorIndex = sanitizeFillIndex(fillIndex, FILL_COLOR_COUNT);
   let desiredDisplay = sanitizeDisplayMode(source.valueDisplay);
   if (!desiredDisplay) {
     if (toBoolean(source.showPercent)) desiredDisplay = 'percent';else if (toBoolean(source.showFraction)) desiredDisplay = 'fraction';else desiredDisplay = sanitizeDisplayMode(defaults.valueDisplay) || 'number';
@@ -1680,6 +1721,13 @@ function normalizeConfig(initial = false) {
   let structureChanged = false;
   const previousRows = getHiddenNumber(CONFIG, '__lastNormalizedRows');
   const previousCols = getHiddenNumber(CONFIG, '__lastNormalizedCols');
+  const legacyFillIndex = sanitizeFillIndex(CONFIG.fillColorIndex, FILL_COLOR_COUNT);
+  const hasBlockFillIndex = Array.isArray(CONFIG.blocks) && CONFIG.blocks.some(row => {
+    if (Array.isArray(row)) {
+      return row.some(cell => cell && typeof cell === 'object' && Object.prototype.hasOwnProperty.call(cell, 'fillColorIndex'));
+    }
+    return row && typeof row === 'object' && Object.prototype.hasOwnProperty.call(row, 'fillColorIndex');
+  });
   if (typeof CONFIG.minN !== 'number' || Number.isNaN(CONFIG.minN)) CONFIG.minN = 1;
   if (typeof CONFIG.maxN !== 'number' || Number.isNaN(CONFIG.maxN)) CONFIG.maxN = 12;
   CONFIG.minN = Math.max(1, Math.floor(CONFIG.minN));
@@ -1804,6 +1852,9 @@ function normalizeConfig(initial = false) {
       cfg.lockDenominator = !!cfg.lockDenominator;
       cfg.lockNumerator = !!cfg.lockNumerator;
       cfg.hideNValue = !!cfg.hideNValue;
+      if (!hasBlockFillIndex && legacyFillIndex) {
+        cfg.fillColorIndex = legacyFillIndex;
+      }
     }
   }
   const activeVisible = CONFIG.blocks.reduce((count, row) => {
@@ -1872,7 +1923,7 @@ function rebuildStructure() {
   grid.setAttribute('data-cols', String(CONFIG.cols));
   grid.appendChild(panelsFragment);
   if (settingsContainer) settingsContainer.appendChild(settingsFragment);
-  renderFillColorPicker();
+  applyFractionPalette(true);
   updateAddButtons();
 }
 
@@ -1892,26 +1943,6 @@ function buildGlobalSettings(targetFragment) {
   const legend = document.createElement('legend');
   legend.textContent = 'Globale innstillinger';
   fieldset.appendChild(legend);
-  const fillPickerRow = document.createElement('div');
-  fillPickerRow.className = 'fill-color-picker';
-  fillPickerRow.dataset.fillColorPicker = 'true';
-  const fillLabel = document.createElement('span');
-  fillLabel.className = 'fill-color-picker__label';
-  fillLabel.textContent = 'Fyllfarge';
-  const picker = document.createElement('div');
-  picker.className = 'color-picker';
-  const activeBtn = document.createElement('button');
-  activeBtn.type = 'button';
-  activeBtn.className = 'color-swatch color-swatch--active';
-  activeBtn.setAttribute('aria-label', 'Velg fyllfarge');
-  const optionsPanel = document.createElement('div');
-  optionsPanel.className = 'color-options';
-  optionsPanel.hidden = true;
-  picker.appendChild(activeBtn);
-  picker.appendChild(optionsPanel);
-  fillPickerRow.appendChild(fillLabel);
-  fillPickerRow.appendChild(picker);
-  fieldset.appendChild(fillPickerRow);
   const rowCount = Math.max(1, Number.parseInt(CONFIG.rows, 10) || 1);
   if (rowCount > 0) {
     const labelWrapper = document.createElement('div');
@@ -2362,6 +2393,7 @@ function createBlock(row, col, cfg) {
   const legend = document.createElement('legend');
   block.legend = legend;
   fieldset.appendChild(legend);
+  createBlockFillPicker(block, fieldset);
   const totalLabel = document.createElement('label');
   totalLabel.textContent = 'Lengde';
   const totalInput = document.createElement('input');
@@ -2599,6 +2631,8 @@ function drawBlock(block) {
   var _block$rectEmpty, _block$rectEmpty2, _block$rectEmpty3, _block$rectEmpty4, _block$rectFrame, _block$rectFrame2, _block$rectFrame3, _block$rectFrame4, _block$handle;
   const cfg = block === null || block === void 0 ? void 0 : block.cfg;
   if (!block || !cfg) return;
+  const paletteData = applyBlockPalette(block);
+  updateBlockFillPicker(block, paletteData);
   const blockHidden = !!cfg.hideBlock;
   if (blockHidden && !cfg.showWhole) cfg.showWhole = true;
   const metrics = getBlockMetrics(block);
@@ -2769,7 +2803,7 @@ function drawBlock(block) {
       const cx = left + (i + 0.5) * cellW;
       const cy = top + innerHeight / 2;
       const isFilled = i < numeratorCount;
-      const segmentTextColor = getSegmentTextColor(isFilled);
+      const segmentTextColor = getSegmentTextColor(isFilled, paletteData === null || paletteData === void 0 ? void 0 : paletteData.text);
       if (showCustomText) {
         const text = createSvgElement(block.gVals, 'text', {
           x: cx,
@@ -3135,6 +3169,7 @@ function syncLegacyConfig() {
   CONFIG.valueDisplay = first.valueDisplay;
   CONFIG.showCustomText = first.showCustomText;
   CONFIG.customText = first.customText;
+  CONFIG.fillColorIndex = Number.isFinite(first.fillColorIndex) ? first.fillColorIndex : DEFAULT_FILL_COLOR_INDEX;
   CONFIG.activeBlocks = CONFIG.rows * CONFIG.cols;
 }
 function createSvgElement(parent, name, attrs = {}) {
@@ -3559,17 +3594,6 @@ function getExportSvg() {
       }
     }
   }
-  if (exportSvg && exportSvg.style) {
-    if (activeFractionColors.fill) {
-      exportSvg.style.setProperty('--tb-fill', activeFractionColors.fill);
-    }
-    if (activeFractionColors.line) {
-      exportSvg.style.setProperty('--tb-line', activeFractionColors.line);
-    }
-    if (activeFractionColors.text) {
-      exportSvg.style.setProperty('--tb-text', activeFractionColors.text);
-    }
-  }
   const styleEl = document.createElementNS(ns, 'style');
   styleEl.setAttribute('type', 'text/css');
   styleEl.textContent = EXPORT_STYLE_RULES;
@@ -3627,6 +3651,12 @@ function getExportSvg() {
       var _metrics$width, _block$svg$viewBox;
       if (!(block !== null && block !== void 0 && block.svg)) return;
       const g = document.createElementNS(ns, 'g');
+      if (block.cfg) {
+        const resolved = resolveBlockPalette(block.cfg);
+        g.style.setProperty('--tb-fill', resolved.fill);
+        g.style.setProperty('--tb-line', resolved.line);
+        g.style.setProperty('--tb-text', resolved.text);
+      }
       g.setAttribute('transform', `translate(${offsetX},0)`);
       const blockClone = block.svg.cloneNode(true);
       const exportHandleElements = blockClone.querySelectorAll('.tb-handle');
