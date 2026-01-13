@@ -74,7 +74,25 @@ jobs:
           account_id=$(aws sts get-caller-identity --query Account --output text)
           region="${AWS_REGION}"
           prod_static_bucket="math-visuals-static-site-796063593326-202512172100921"
-          unique_suffix="${GITHUB_RUN_ID:-manual}-${GITHUB_SHA:-local}"
+          short_run_id="${GITHUB_RUN_ID:-manual}"
+          short_run_id="${short_run_id:0:6}"
+          short_sha="${GITHUB_SHA:-local}"
+          short_sha="${short_sha:0:6}"
+          unique_suffix="${short_run_id}-${short_sha}"
+
+          build_bucket_name() {
+            local prefix="$1"
+            local suffix="$2"
+            local base="${prefix}${account_id}-${region}-"
+            local max_length=63
+            local max_suffix_length=$((max_length - ${#base}))
+            if [ "$max_suffix_length" -lt 1 ]; then
+              echo "Bucket name prefix is too long: $base" >&2
+              exit 1
+            fi
+            suffix="${suffix:0:$max_suffix_length}"
+            echo "${base}${suffix}"
+          }
 
           is_dev_bucket() {
             local bucket_name="$1"
@@ -85,13 +103,13 @@ jobs:
           }
 
           if [ -z "${STATIC_SITE_BUCKET_NAME:-}" ] || ! is_dev_bucket "$STATIC_SITE_BUCKET_NAME"; then
-            STATIC_SITE_BUCKET_NAME="math-visuals-static-site-dev-${account_id}-${region}-${unique_suffix}"
+            STATIC_SITE_BUCKET_NAME=$(build_bucket_name "math-visuals-static-site-dev-" "$unique_suffix")
             echo "STATIC_SITE_BUCKET_NAME=$STATIC_SITE_BUCKET_NAME" >> "$GITHUB_ENV"
             echo "FORCE_CREATE_SITE_BUCKET=true" >> "$GITHUB_ENV"
           fi
 
           if [ -z "${API_ARTIFACT_BUCKET:-}" ] || ! is_dev_bucket "$API_ARTIFACT_BUCKET"; then
-            API_ARTIFACT_BUCKET="math-visuals-artifacts-dev-${account_id}-${region}-${unique_suffix}"
+            API_ARTIFACT_BUCKET=$(build_bucket_name "math-visuals-artifacts-dev-" "$unique_suffix")
             echo "API_ARTIFACT_BUCKET=$API_ARTIFACT_BUCKET" >> "$GITHUB_ENV"
           fi
 
