@@ -1042,7 +1042,7 @@ function isValidColor(value) {
     const perFigureWidth = availableWidth / Math.max(cols, 1);
     const perFigureHeight = availableHeight / Math.max(rows, 1);
     const baseSize = Math.min(perFigureWidth, perFigureHeight);
-    const size = Math.max(FIGURE_MIN_SIZE, Math.min(FIGURE_MAX_SIZE, baseSize));
+    const size = Math.min(FIGURE_MAX_SIZE, baseSize);
     const nextSize = `${size}px`;
     if (nextSize !== lastFigureSize) {
       lastFigureSize = nextSize;
