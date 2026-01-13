@@ -111,7 +111,10 @@ const LEGACY_PIZZA_COLORS = {
 };
 const FRACTION_GROUP_ID = 'fractions';
 const FILL_COLOR_COUNT = 3;
-const fillColorPicker = typeof document !== 'undefined' ? document.querySelector('[data-fill-color-picker]') : null;
+const fillColorPickers =
+  typeof document !== 'undefined'
+    ? Array.from(document.querySelectorAll('[data-fill-color-picker]'))
+    : [];
 const LEGACY_PIZZA_PALETTE = [
   LEGACY_PIZZA_COLORS.fill,
   LEGACY_PIZZA_COLORS.rim,
@@ -495,8 +498,7 @@ function getFractionPalette(count) {
   return createResult([], false);
 }
 
-let activeFillColorIndex = sanitizeFillIndex(SIMPLE.fillColorIndex, FILL_COLOR_COUNT);
-SIMPLE.fillColorIndex = activeFillColorIndex;
+SIMPLE.fillColorIndex = sanitizeFillIndex(SIMPLE.fillColorIndex, FILL_COLOR_COUNT);
 
 function getFillPalette() {
   const result = getFractionPalette(FILL_COLOR_COUNT);
@@ -510,15 +512,46 @@ function sanitizeFillIndex(value, paletteLength) {
   return Math.min(numeric, max);
 }
 
-function updateFillPickerSelection(palette) {
-  if (!fillColorPicker) return;
-  const activeButton = fillColorPicker.querySelector('.color-swatch--active');
-  const optionsPanel = fillColorPicker.querySelector('.color-options');
+function getPickerPizzaIndex(picker) {
+  if (!picker || !picker.dataset) return 0;
+  const raw = Number.parseInt(picker.dataset.pizzaIndex, 10);
+  return Number.isFinite(raw) && raw >= 0 ? raw : 0;
+}
+
+function ensurePizzaState(index) {
+  if (!Array.isArray(SIMPLE.pizzas)) {
+    SIMPLE.pizzas = [];
+  }
+  if (!SIMPLE.pizzas[index]) {
+    SIMPLE.pizzas[index] = {};
+  }
+  return SIMPLE.pizzas[index];
+}
+
+function getPizzaFillIndex(index) {
+  const pizza = Array.isArray(SIMPLE.pizzas) ? SIMPLE.pizzas[index] : null;
+  const fallback = Number.isFinite(pizza?.fillColorIndex) ? pizza.fillColorIndex : SIMPLE.fillColorIndex;
+  return sanitizeFillIndex(fallback, FILL_COLOR_COUNT);
+}
+
+function setPizzaFillIndex(index, value) {
+  const pizza = ensurePizzaState(index);
+  const safeIndex = sanitizeFillIndex(value, FILL_COLOR_COUNT);
+  pizza.fillColorIndex = safeIndex;
+  if (index === 0) {
+    SIMPLE.fillColorIndex = safeIndex;
+  }
+  return safeIndex;
+}
+
+function updateFillPickerSelection(picker, palette) {
+  if (!picker) return;
+  const activeButton = picker.querySelector('.color-swatch--active');
+  const optionsPanel = picker.querySelector('.color-options');
   const colors = Array.isArray(palette) ? palette : getFillPalette();
   if (!optionsPanel || !activeButton) return;
-  const safeIndex = sanitizeFillIndex(activeFillColorIndex, colors.length);
-  activeFillColorIndex = safeIndex;
-  SIMPLE.fillColorIndex = activeFillColorIndex;
+  const pizzaIndex = getPickerPizzaIndex(picker);
+  const safeIndex = getPizzaFillIndex(pizzaIndex);
   const activeColor = colors[safeIndex - 1] || colors[0] || '#000';
   activeButton.style.backgroundColor = activeColor;
   optionsPanel.querySelectorAll('.color-option-btn').forEach(btn => {
@@ -527,56 +560,61 @@ function updateFillPickerSelection(palette) {
   });
 }
 
-function renderFillColorPicker() {
-  if (!fillColorPicker) return;
-  const activeButton = fillColorPicker.querySelector('.color-swatch--active');
-  const optionsPanel = fillColorPicker.querySelector('.color-options');
-  if (!activeButton || !optionsPanel) return;
+function renderFillColorPickers() {
+  if (!fillColorPickers.length) return;
   const colors = getFillPalette();
-  optionsPanel.innerHTML = '';
-  colors.forEach((color, index) => {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'color-option-btn';
-    btn.dataset.colorIndex = String(index + 1);
-    btn.dataset.colorValue = color;
-    btn.style.backgroundColor = color;
-    btn.setAttribute('aria-label', `Velg farge ${index + 1}`);
-    btn.addEventListener('click', event => {
-      event.stopPropagation();
-      activeFillColorIndex = sanitizeFillIndex(index + 1, colors.length);
-      SIMPLE.fillColorIndex = activeFillColorIndex;
-      updateFillPickerSelection(colors);
-      optionsPanel.hidden = true;
-      applyPizzaColors();
+  fillColorPickers.forEach(picker => {
+    const activeButton = picker.querySelector('.color-swatch--active');
+    const optionsPanel = picker.querySelector('.color-options');
+    if (!activeButton || !optionsPanel) return;
+    optionsPanel.innerHTML = '';
+    colors.forEach((color, index) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'color-option-btn';
+      btn.dataset.colorIndex = String(index + 1);
+      btn.dataset.colorValue = color;
+      btn.style.backgroundColor = color;
+      btn.setAttribute('aria-label', `Velg farge ${index + 1}`);
+      btn.addEventListener('click', event => {
+        event.stopPropagation();
+        const pizzaIndex = getPickerPizzaIndex(picker);
+        setPizzaFillIndex(pizzaIndex, index + 1);
+        updateFillPickerSelection(picker, colors);
+        optionsPanel.hidden = true;
+        applyPizzaColors();
+      });
+      optionsPanel.appendChild(btn);
     });
-    optionsPanel.appendChild(btn);
-  });
-  activeButton.addEventListener('click', event => {
-    event.stopPropagation();
-    optionsPanel.hidden = !optionsPanel.hidden;
-  });
-  document.addEventListener('click', event => {
-    if (!fillColorPicker.contains(event.target)) {
-      optionsPanel.hidden = true;
+    if (!picker.dataset.bound) {
+      picker.dataset.bound = 'true';
+      activeButton.addEventListener('click', event => {
+        event.stopPropagation();
+        optionsPanel.hidden = !optionsPanel.hidden;
+      });
+      document.addEventListener('click', event => {
+        if (!picker.contains(event.target)) {
+          optionsPanel.hidden = true;
+        }
+      });
     }
+    updateFillPickerSelection(picker, colors);
   });
-  updateFillPickerSelection(colors);
 }
 
-function getActiveFillColor() {
+function getPizzaFillColor(index) {
   const colors = getFillPalette();
-  const index = sanitizeFillIndex(activeFillColorIndex, colors.length);
-  return colors[index - 1] || colors[0] || LEGACY_PIZZA_COLORS.fill;
+  const fillIndex = getPizzaFillIndex(index);
+  return colors[fillIndex - 1] || colors[0] || LEGACY_PIZZA_COLORS.fill;
 }
 
 function getPizzaColors() {
   const base = {
-    fill: getActiveFillColor(),
-    rim: '#000000',
-    dash: '#000000',
-    handle: LEGACY_PIZZA_COLORS.handle,
-    handleStroke: '#000000'
+    fill: getThemeColor('pizza.fill', getPizzaFillColor(0)),
+    rim: getThemeColor('pizza.rim', '#000000'),
+    dash: getThemeColor('pizza.dash', '#000000'),
+    handle: getThemeColor('pizza.handle', LEGACY_PIZZA_COLORS.handle),
+    handleStroke: getThemeColor('pizza.handleStroke', '#000000')
   };
   return {
     fill: base.fill,
@@ -593,18 +631,28 @@ function applyPizzaColors() {
   const root = doc.documentElement;
   const style = root.style;
   const colors = getPizzaColors();
-  const entries = [
+  const rootEntries = [
     ['--pizza-fill', colors.fill],
     ['--pizza-rim', colors.rim],
     ['--pizza-dash', colors.dash],
     ['--pizza-handle', colors.handle],
     ['--pizza-handle-stroke', colors.handleStroke]
   ];
-  entries.forEach(([cssVar, value]) => {
+  rootEntries.forEach(([cssVar, value]) => {
     if (typeof value === 'string' && value) {
       style.setProperty(cssVar, value);
     } else {
       style.removeProperty(cssVar);
+    }
+  });
+  PIZZA_DOM.forEach((map, index) => {
+    const svg = doc.getElementById(map.svgId);
+    if (!svg || !svg.style) return;
+    const fill = getPizzaFillColor(index);
+    if (typeof fill === 'string' && fill) {
+      svg.style.setProperty('--pizza-fill', fill);
+    } else {
+      svg.style.removeProperty('--pizza-fill');
     }
   });
 }
@@ -615,7 +663,7 @@ function applyThemeToDocument() {
     theme.applyToDocument(document);
   }
   applyPizzaColors();
-  renderFillColorPicker();
+  renderFillColorPickers();
 }
 function getThemeColor(token, fallback) {
   const theme = getThemeApi();
@@ -2325,6 +2373,11 @@ function ensureAltTextAnchor() {
    ======================= */
 function initFromHtml() {
   const cfg = readConfigFromHtml();
+  const previousPizzas = Array.isArray(SIMPLE.pizzas) ? SIMPLE.pizzas : [];
+  cfg.pizzas = cfg.pizzas.map((pizza, idx) => ({
+    ...pizza,
+    fillColorIndex: Number.isFinite(pizza.fillColorIndex) ? pizza.fillColorIndex : previousPizzas[idx]?.fillColorIndex
+  }));
   SIMPLE.pizzas = cfg.pizzas;
   SIMPLE.ops = cfg.ops;
   SIMPLE.solution = normalizeSolution(cfg.solution);
@@ -2384,6 +2437,7 @@ function initFromHtml() {
     if (firstPanel && firstPanel.style.display !== "none") visibleCount = 1;else visibleCount = 0;
   }
   SIMPLE.visibleCount = visibleCount || 1;
+  applyPizzaColors();
   refreshAltText('config');
 }
 window.addEventListener("load", () => {
@@ -2537,7 +2591,7 @@ function sanitizeStringValue(value) {
   return trimmed || null;
 }
 
-function normalizePizzaState(pizza, index, visibleCount) {
+function normalizePizzaState(pizza, index, visibleCount, fallbackFillIndex) {
   const base = pizza && typeof pizza === 'object' ? pizza : {};
   const minN = Number.isFinite(base.minN) && base.minN > 0 ? Math.trunc(base.minN) : 1;
   const maxNRaw = Number.isFinite(base.maksN)
@@ -2550,6 +2604,10 @@ function normalizePizzaState(pizza, index, visibleCount) {
   const tValue = Number.isFinite(base.t) ? base.t : Number.isFinite(base.k) ? base.k : 0;
   const text = sanitizeStringValue(base.text) || 'none';
   const visible = visibleCount != null ? index < visibleCount : index === 0 || !!base.visible;
+  const fillColorIndex = sanitizeFillIndex(
+    Number.isFinite(base.fillColorIndex) ? base.fillColorIndex : fallbackFillIndex,
+    FILL_COLOR_COUNT
+  );
   return {
     t: Math.max(0, Math.trunc(tValue)),
     n,
@@ -2559,7 +2617,8 @@ function normalizePizzaState(pizza, index, visibleCount) {
     hideNVal: !!base.hideNVal,
     minN,
     maksN: maxN,
-    visible
+    visible,
+    fillColorIndex
   };
 }
 
@@ -2585,7 +2644,10 @@ function getPaletteThemeSelectionState() {
 }
 
 function createCleanState() {
-  const pizzas = Array.from({ length: 3 }, (_, idx) => normalizePizzaState(SIMPLE.pizzas[idx], idx, clampVisiblePizzaCount(SIMPLE.visibleCount)));
+  const fallbackFillIndex = sanitizeFillIndex(SIMPLE.fillColorIndex, FILL_COLOR_COUNT);
+  const pizzas = Array.from({ length: 3 }, (_, idx) =>
+    normalizePizzaState(SIMPLE.pizzas[idx], idx, clampVisiblePizzaCount(SIMPLE.visibleCount), fallbackFillIndex)
+  );
   const visibleCount = clampVisiblePizzaCount(SIMPLE.visibleCount) || Math.max(1, pizzas.filter(p => p.visible).length || 0);
   const state = {
     pizzas,
@@ -2594,7 +2656,7 @@ function createCleanState() {
     visibleCount,
     altText: typeof SIMPLE.altText === 'string' ? SIMPLE.altText : '',
     altTextSource: SIMPLE.altTextSource === 'manual' ? 'manual' : 'auto',
-    fillColorIndex: sanitizeFillIndex(SIMPLE.fillColorIndex, FILL_COLOR_COUNT)
+    fillColorIndex: fallbackFillIndex
   };
   const palette = getPaletteThemeSelectionState();
   if (palette) {
@@ -2627,7 +2689,15 @@ function normalizeCleanStatePayload(payload) {
   const state = parsed && parsed.v === 1 ? parsed : parsed && parsed.state && parsed.state.v === 1 ? parsed.state : null;
   if (!state || state.v !== 1) return null;
   const visibleCount = clampVisiblePizzaCount(state.visibleCount);
-  const pizzas = Array.from({ length: 3 }, (_, idx) => normalizePizzaState(Array.isArray(state.pizzas) ? state.pizzas[idx] : null, idx, visibleCount));
+  const fallbackFillIndex = sanitizeFillIndex(state.fillColorIndex, FILL_COLOR_COUNT);
+  const pizzas = Array.from({ length: 3 }, (_, idx) =>
+    normalizePizzaState(
+      Array.isArray(state.pizzas) ? state.pizzas[idx] : null,
+      idx,
+      visibleCount,
+      fallbackFillIndex
+    )
+  );
   const resolvedVisibleCount = visibleCount || Math.max(1, pizzas.filter(p => p.visible).length || 0);
   return {
     pizzas,
@@ -2636,7 +2706,7 @@ function normalizeCleanStatePayload(payload) {
     visibleCount: resolvedVisibleCount,
     altText: typeof state.altText === 'string' ? state.altText : '',
     altTextSource: state.altTextSource === 'manual' ? 'manual' : 'auto',
-    fillColorIndex: sanitizeFillIndex(state.fillColorIndex, FILL_COLOR_COUNT),
+    fillColorIndex: fallbackFillIndex,
     palette: normalizePaletteSelection(state.palette)
   };
 }
@@ -2666,10 +2736,9 @@ function loadCleanState(payload) {
   SIMPLE.altText = state.altText;
   SIMPLE.altTextSource = state.altTextSource;
   SIMPLE.fillColorIndex = sanitizeFillIndex(state.fillColorIndex, FILL_COLOR_COUNT);
-  activeFillColorIndex = SIMPLE.fillColorIndex;
   applyPaletteThemeSelection(state.palette);
   applyPizzaColors();
-  renderFillColorPicker();
+  renderFillColorPickers();
   applyExamplesConfig();
   refreshAltText('manual-load');
   return true;
