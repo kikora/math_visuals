@@ -33,12 +33,15 @@
   const btnPng = document.getElementById('btnPng');
   const cfgAntallWrapper = document.getElementById('cfg-antall-wrapper');
   const exportCard = document.getElementById('exportCard');
+  const fillColorPicker = document.querySelector('[data-fill-color-picker]');
   const DEFAULT_BRICK_PALETTE = {
     stroke: '#932464',
     left: '#cf3a8f',
     right: '#d75ba2',
     top: '#df7cb4'
   };
+  const FILL_COLOR_COUNT = 3;
+  const LEGACY_FILL_PALETTE = ['#B25FE3', '#6C1BA2', '#534477'];
   const DOT_FALLBACKS = {
     default: '#534477',
     monster: '#534477',
@@ -46,6 +49,7 @@
     klosser: '#534477',
     blocks: '#534477'
   };
+  let activeFillColorIndex = 1;
   function getThemeApi() {
     const theme = typeof window !== 'undefined' ? window.MathVisualsTheme : null;
     return theme && typeof theme === 'object' ? theme : null;
@@ -73,6 +77,63 @@
       return '#' + hex;
     }
     return null;
+  }
+  function isValidColor(value) {
+    return typeof value === 'string' && value.trim().length > 0;
+  }
+  function ensurePaletteSize(palette, fallback, target) {
+    const base = Array.isArray(palette) ? palette.filter(isValidColor) : [];
+    const backup = Array.isArray(fallback) ? fallback.filter(isValidColor) : [];
+    const source = base.length ? base : backup;
+    if (!source.length) return [];
+    const count = Number.isFinite(target) && target > 0 ? Math.trunc(target) : source.length;
+    const result = [];
+    for (let i = 0; i < count; i += 1) {
+      result.push(source[i % source.length]);
+    }
+    return result;
+  }
+  function getPaletteFromTheme(count) {
+    const target = Number.isFinite(count) && count > 0 ? Math.trunc(count) : LEGACY_FILL_PALETTE.length;
+    const theme = getThemeApi();
+    if (theme && typeof theme.getGroupPalette === 'function') {
+      let palette = null;
+      try {
+        palette = theme.getGroupPalette('fractions', { count: target });
+      } catch (_) {}
+      if ((!palette || palette.length < target) && theme.getGroupPalette.length >= 2) {
+        try {
+          palette = theme.getGroupPalette('fractions', target);
+        } catch (_) {
+          palette = null;
+        }
+      }
+      if (Array.isArray(palette) && palette.length) {
+        return ensurePaletteSize(palette, LEGACY_FILL_PALETTE, target);
+      }
+    }
+    if (theme && typeof theme.getPalette === 'function') {
+      let palette = null;
+      try {
+        palette = theme.getPalette('fractions', target, { fallbackKinds: ['figures'] });
+      } catch (_) {
+        palette = null;
+      }
+      if (Array.isArray(palette) && palette.length) {
+        return ensurePaletteSize(palette, LEGACY_FILL_PALETTE, target);
+      }
+    }
+    return ensurePaletteSize([], LEGACY_FILL_PALETTE, target);
+  }
+  function getFillPalette() {
+    const palette = getPaletteFromTheme(FILL_COLOR_COUNT);
+    return Array.isArray(palette) ? palette.slice(0, FILL_COLOR_COUNT) : [];
+  }
+  function sanitizeFillIndex(value, paletteLength) {
+    const numeric = Number.parseInt(value, 10);
+    const max = Number.isFinite(paletteLength) && paletteLength > 0 ? paletteLength : FILL_COLOR_COUNT;
+    if (!Number.isFinite(numeric) || numeric < 1) return 1;
+    return Math.min(numeric, max);
   }
   function hexToHsl(hex) {
     const normalized = normalizeHexColor(hex);
@@ -186,9 +247,79 @@
     }
     return fallback;
   }
+  function updateFillPickerSelection(palette) {
+    if (!fillColorPicker) return;
+    const activeButton = fillColorPicker.querySelector('.color-swatch--active');
+    const optionsPanel = fillColorPicker.querySelector('.color-options');
+    const colors = Array.isArray(palette) ? palette : getFillPalette();
+    if (!activeButton || !optionsPanel) return;
+    const safeIndex = sanitizeFillIndex(activeFillColorIndex, colors.length);
+    activeFillColorIndex = safeIndex;
+    const activeColor = colors[safeIndex - 1] || colors[0] || DEFAULT_BRICK_PALETTE.left;
+    activeButton.style.backgroundColor = activeColor;
+    optionsPanel.querySelectorAll('.color-option-btn').forEach(btn => {
+      const btnIndex = sanitizeFillIndex(btn.dataset.colorIndex, colors.length);
+      btn.classList.toggle('is-selected', btnIndex === safeIndex);
+    });
+  }
+  function syncBrickPaletteFromFill(palette) {
+    const colors = Array.isArray(palette) ? palette : getFillPalette();
+    const safeIndex = sanitizeFillIndex(activeFillColorIndex, colors.length);
+    const baseColor = colors[safeIndex - 1] || colors[0] || DEFAULT_BRICK_PALETTE.left;
+    kvikkbilderPalette = buildBrickPalette(baseColor);
+    return kvikkbilderPalette;
+  }
+  function applyFillColorSelection(palette) {
+    const updatedPalette = syncBrickPaletteFromFill(palette);
+    return loadBrickAndBlockAssets(updatedPalette).then(() => {
+      renderView();
+      return true;
+    });
+  }
+  function renderFillColorPicker() {
+    if (!fillColorPicker) return;
+    const activeButton = fillColorPicker.querySelector('.color-swatch--active');
+    const optionsPanel = fillColorPicker.querySelector('.color-options');
+    if (!activeButton || !optionsPanel) return;
+    const colors = getFillPalette();
+    optionsPanel.innerHTML = '';
+    colors.forEach((color, index) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'color-option-btn';
+      btn.dataset.colorIndex = String(index + 1);
+      btn.dataset.colorValue = color;
+      btn.style.backgroundColor = color;
+      btn.setAttribute('aria-label', `Velg farge ${index + 1}`);
+      btn.addEventListener('click', event => {
+        event.stopPropagation();
+        activeFillColorIndex = sanitizeFillIndex(index + 1, colors.length);
+        CFG.fillColorIndex = activeFillColorIndex;
+        updateFillPickerSelection(colors);
+        optionsPanel.hidden = true;
+        applyFillColorSelection(colors);
+      });
+      optionsPanel.appendChild(btn);
+    });
+    if (!fillColorPicker.dataset.bound) {
+      fillColorPicker.dataset.bound = 'true';
+      activeButton.addEventListener('click', event => {
+        event.stopPropagation();
+        optionsPanel.hidden = !optionsPanel.hidden;
+      });
+      document.addEventListener('click', event => {
+        if (!fillColorPicker.contains(event.target)) {
+          optionsPanel.hidden = true;
+        }
+      });
+    }
+    updateFillPickerSelection(colors);
+  }
   applyThemeToDocument();
   let BRICK_SRC;
   let BLOCK_SRC;
+  let RAW_BRICK_SVG = null;
+  let RAW_BLOCK_SVG = null;
   let altTextManager = null;
   let autoAltText = '';
   const BRICK_TILE_WIDTH = 26;
@@ -388,6 +519,7 @@
   const DEFAULT_CFG = {
     type: 'klosser',
     showExpression: true,
+    fillColorIndex: 1,
     klosser: {
       antallX: 5,
       antallY: 2,
@@ -1158,6 +1290,8 @@
     } else {
       r.duration = Math.max(0, r.duration);
     }
+    activeFillColorIndex = sanitizeFillIndex(CFG.fillColorIndex, FILL_COLOR_COUNT);
+    CFG.fillColorIndex = activeFillColorIndex;
     return CFG;
   }
   function resolveVisibilityValue(config) {
@@ -1234,6 +1368,7 @@
   }
   function render() {
     syncControlsToCfg();
+    renderFillColorPicker();
     renderView();
   }
   window.render = render;
@@ -1243,6 +1378,7 @@
     if (type !== 'math-visuals:profile-change') return;
     applyThemeToDocument();
     render();
+    applyFillColorSelection(getFillPalette());
   }
   if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
     window.addEventListener('message', handleThemeProfileChange);
@@ -1544,6 +1680,7 @@
   render();
   initAltTextManager();
   let kvikkbilderPalette = buildBrickPalette(getKvikkbilderBaseColor());
+  kvikkbilderPalette = syncBrickPaletteFromFill(getFillPalette());
   function loadBrickAndBlockAssets(paletteOverride, assets = {}) {
     if (assets && typeof assets === 'object') {
       if (typeof assets.brickSrc === 'string') {
@@ -1554,19 +1691,29 @@
       }
     }
     const activePalette = paletteOverride && typeof paletteOverride === 'object' ? paletteOverride : kvikkbilderPalette;
-    if (BRICK_SRC && BLOCK_SRC) {
+    const updateAssets = () => {
+      if (RAW_BRICK_SVG) {
+        const svg = applyBrickPalette(RAW_BRICK_SVG, activePalette);
+        BRICK_SRC = `data:image/svg+xml;base64,${btoa(svg)}`;
+      }
+      if (RAW_BLOCK_SVG) {
+        const svg = applyBrickPalette(RAW_BLOCK_SVG, activePalette);
+        BLOCK_SRC = `data:image/svg+xml;base64,${btoa(svg)}`;
+      }
+      return true;
+    };
+    if (RAW_BRICK_SVG && RAW_BLOCK_SVG) {
+      updateAssets();
       return Promise.resolve(true);
     }
     return Promise.allSettled([
       fetch('images/brick1.svg').then(r => r.text()).then(txt => {
-        const svg = applyBrickPalette(txt, activePalette);
-        BRICK_SRC = `data:image/svg+xml;base64,${btoa(svg)}`;
+        RAW_BRICK_SVG = txt;
       }),
       fetch('images/block1.svg').then(r => r.text()).then(txt => {
-        const svg = applyBrickPalette(txt, activePalette);
-        BLOCK_SRC = `data:image/svg+xml;base64,${btoa(svg)}`;
+        RAW_BLOCK_SVG = txt;
       })
-    ]).then(() => true);
+    ]).then(() => updateAssets());
   }
   function createCleanState() {
     sanitizeCfg();
@@ -1599,6 +1746,8 @@
     sanitizeCfg();
     if (cleanState.palette && typeof cleanState.palette === 'object') {
       kvikkbilderPalette = { ...DEFAULT_BRICK_PALETTE, ...cleanState.palette };
+    } else {
+      kvikkbilderPalette = syncBrickPaletteFromFill(getFillPalette());
     }
     render();
     return loadBrickAndBlockAssets(kvikkbilderPalette, cleanState).then(() => {
