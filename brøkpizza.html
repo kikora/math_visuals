@@ -86,7 +86,7 @@
     .frac .num { display:block; border-bottom:2px solid #000; margin-bottom:4px; }
     .frac .den { display:block; }
     svg.pizza { width:100%; max-width:420px; height:auto; background:#fff; }
-    .rim { fill:none; stroke:var(--pizza-rim, #333333); stroke-width:6; }
+    .rim { fill:none; stroke:var(--pizza-rim, #000000); stroke-width:6; }
     .sector { stroke:#fff; stroke-width:6; }
     .sector-fill  { fill:var(--pizza-fill, #5B2AA5); }
     .sector-empty { fill:#fff; }
@@ -120,6 +120,57 @@
       border-color:#a7f3d0;
       color:#065f46;
     }
+    .fill-color-picker{display:flex;align-items:center;gap:10px;font-size:13px;color:#4b5563;}
+    .fill-color-picker__label{font-weight:500;color:#4b5563;}
+    .color-picker{position:relative;display:flex;align-items:center;justify-content:center;width:40px;height:40px;}
+    .color-swatch--active{
+      width:32px;
+      height:32px;
+      border-radius:50%;
+      border:2px solid #fff;
+      box-shadow:0 0 0 1px #d1d5db;
+      cursor:pointer;
+      padding:0;
+      transition:transform 0.1s;
+    }
+    .color-swatch--active:hover{transform:scale(1.1);box-shadow:0 0 0 1px #9ca3af;}
+    .color-options{
+      position:absolute;
+      top:100%;
+      left:50%;
+      transform:translateX(-50%);
+      background:white;
+      border:1px solid #e5e7eb;
+      border-radius:99px;
+      padding:8px;
+      display:flex;
+      gap:8px;
+      box-shadow:0 4px 15px rgba(0,0,0,0.15);
+      z-index:100;
+      margin-top:8px;
+    }
+    .color-options::before{
+      content:'';
+      position:absolute;
+      top:-6px;
+      left:50%;
+      margin-left:-6px;
+      border-width:6px;
+      border-style:solid;
+      border-color:transparent transparent #fff transparent;
+    }
+    .color-option-btn{
+      width:24px;
+      height:24px;
+      border-radius:50%;
+      border:1px solid rgba(0,0,0,0.1);
+      cursor:pointer;
+      padding:0;
+      transition:transform 0.1s;
+    }
+    .color-option-btn:hover{transform:scale(1.2);}
+    .color-option-btn.is-selected{outline:2px solid #6366f1;outline-offset:2px;}
+    .color-options[hidden]{display:none !important;}
     .status--error {
       display:block;
       background:#fef2f2;
@@ -231,6 +282,16 @@
 
         <div class="card card--settings">
           <div class="settings">
+          <fieldset>
+            <legend>Fyllfarge</legend>
+            <div class="fill-color-picker" data-fill-color-picker>
+              <span class="fill-color-picker__label">Velg farge</span>
+              <div class="color-picker">
+                <button type="button" class="color-swatch color-swatch--active" aria-label="Velg fyllfarge"></button>
+                <div class="color-options" hidden></div>
+              </div>
+            </div>
+          </fieldset>
           <fieldset>
             <legend>Pizza 1</legend>
             <div class="field-row">

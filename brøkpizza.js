@@ -96,7 +96,8 @@ const SIMPLE = {
   ops: [],
   altText: '',
   altTextSource: 'auto',
-  solution: normalizeSolution()
+  solution: normalizeSolution(),
+  fillColorIndex: 1
 };
 if (typeof window !== 'undefined') window.SIMPLE = SIMPLE;
 const PANEL_HTML = [];
@@ -109,6 +110,8 @@ const LEGACY_PIZZA_COLORS = {
   handleStroke: '#333333'
 };
 const FRACTION_GROUP_ID = 'fractions';
+const FILL_COLOR_COUNT = 3;
+const fillColorPicker = typeof document !== 'undefined' ? document.querySelector('[data-fill-color-picker]') : null;
 const LEGACY_PIZZA_PALETTE = [
   LEGACY_PIZZA_COLORS.fill,
   LEGACY_PIZZA_COLORS.rim,
@@ -492,25 +495,95 @@ function getFractionPalette(count) {
   return createResult([], false);
 }
 
+let activeFillColorIndex = sanitizeFillIndex(SIMPLE.fillColorIndex, FILL_COLOR_COUNT);
+SIMPLE.fillColorIndex = activeFillColorIndex;
+
+function getFillPalette() {
+  const result = getFractionPalette(FILL_COLOR_COUNT);
+  return Array.isArray(result.palette) ? result.palette.slice(0, FILL_COLOR_COUNT) : [];
+}
+
+function sanitizeFillIndex(value, paletteLength) {
+  const numeric = Number.parseInt(value, 10);
+  const max = Number.isFinite(paletteLength) && paletteLength > 0 ? paletteLength : FILL_COLOR_COUNT;
+  if (!Number.isFinite(numeric) || numeric < 1) return 1;
+  return Math.min(numeric, max);
+}
+
+function updateFillPickerSelection(palette) {
+  if (!fillColorPicker) return;
+  const activeButton = fillColorPicker.querySelector('.color-swatch--active');
+  const optionsPanel = fillColorPicker.querySelector('.color-options');
+  const colors = Array.isArray(palette) ? palette : getFillPalette();
+  if (!optionsPanel || !activeButton) return;
+  const safeIndex = sanitizeFillIndex(activeFillColorIndex, colors.length);
+  activeFillColorIndex = safeIndex;
+  SIMPLE.fillColorIndex = activeFillColorIndex;
+  const activeColor = colors[safeIndex - 1] || colors[0] || '#000';
+  activeButton.style.backgroundColor = activeColor;
+  optionsPanel.querySelectorAll('.color-option-btn').forEach(btn => {
+    const btnIndex = sanitizeFillIndex(btn.dataset.colorIndex, colors.length);
+    btn.classList.toggle('is-selected', btnIndex === safeIndex);
+  });
+}
+
+function renderFillColorPicker() {
+  if (!fillColorPicker) return;
+  const activeButton = fillColorPicker.querySelector('.color-swatch--active');
+  const optionsPanel = fillColorPicker.querySelector('.color-options');
+  if (!activeButton || !optionsPanel) return;
+  const colors = getFillPalette();
+  optionsPanel.innerHTML = '';
+  colors.forEach((color, index) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'color-option-btn';
+    btn.dataset.colorIndex = String(index + 1);
+    btn.dataset.colorValue = color;
+    btn.style.backgroundColor = color;
+    btn.setAttribute('aria-label', `Velg farge ${index + 1}`);
+    btn.addEventListener('click', event => {
+      event.stopPropagation();
+      activeFillColorIndex = sanitizeFillIndex(index + 1, colors.length);
+      SIMPLE.fillColorIndex = activeFillColorIndex;
+      updateFillPickerSelection(colors);
+      optionsPanel.hidden = true;
+      applyPizzaColors();
+    });
+    optionsPanel.appendChild(btn);
+  });
+  activeButton.addEventListener('click', event => {
+    event.stopPropagation();
+    optionsPanel.hidden = !optionsPanel.hidden;
+  });
+  document.addEventListener('click', event => {
+    if (!fillColorPicker.contains(event.target)) {
+      optionsPanel.hidden = true;
+    }
+  });
+  updateFillPickerSelection(colors);
+}
+
+function getActiveFillColor() {
+  const colors = getFillPalette();
+  const index = sanitizeFillIndex(activeFillColorIndex, colors.length);
+  return colors[index - 1] || colors[0] || LEGACY_PIZZA_COLORS.fill;
+}
+
 function getPizzaColors() {
   const base = {
-    fill: getThemeColor('pizza.fill', LEGACY_PIZZA_COLORS.fill),
-    rim: getThemeColor('pizza.rim', LEGACY_PIZZA_COLORS.rim),
-    dash: getThemeColor('pizza.dash', LEGACY_PIZZA_COLORS.dash),
-    handle: getThemeColor('pizza.handle', LEGACY_PIZZA_COLORS.handle),
-    handleStroke: getThemeColor('pizza.handleStroke', LEGACY_PIZZA_COLORS.handleStroke)
+    fill: getActiveFillColor(),
+    rim: '#000000',
+    dash: '#000000',
+    handle: LEGACY_PIZZA_COLORS.handle,
+    handleStroke: '#000000'
   };
-  const { palette, isCustom } = getFractionPalette(LEGACY_PIZZA_PALETTE.length);
-  if (!isCustom || !Array.isArray(palette) || !palette.length) {
-    return base;
-  }
-  const [fill, rim, dash, handle, handleStroke] = palette;
   return {
-    fill: typeof fill === 'string' && fill ? fill : base.fill,
-    rim: typeof rim === 'string' && rim ? rim : base.rim,
-    dash: typeof dash === 'string' && dash ? dash : base.dash,
-    handle: typeof handle === 'string' && handle ? handle : base.handle,
-    handleStroke: typeof handleStroke === 'string' && handleStroke ? handleStroke : base.handleStroke
+    fill: base.fill,
+    rim: base.rim,
+    dash: base.dash,
+    handle: base.handle,
+    handleStroke: base.handleStroke
   };
 }
 
@@ -542,6 +615,7 @@ function applyThemeToDocument() {
     theme.applyToDocument(document);
   }
   applyPizzaColors();
+  renderFillColorPicker();
 }
 function getThemeColor(token, fallback) {
   const theme = getThemeApi();
@@ -2519,7 +2593,8 @@ function createCleanState() {
     solution: normalizeSolution(SIMPLE.solution),
     visibleCount,
     altText: typeof SIMPLE.altText === 'string' ? SIMPLE.altText : '',
-    altTextSource: SIMPLE.altTextSource === 'manual' ? 'manual' : 'auto'
+    altTextSource: SIMPLE.altTextSource === 'manual' ? 'manual' : 'auto',
+    fillColorIndex: sanitizeFillIndex(SIMPLE.fillColorIndex, FILL_COLOR_COUNT)
   };
   const palette = getPaletteThemeSelectionState();
   if (palette) {
@@ -2561,6 +2636,7 @@ function normalizeCleanStatePayload(payload) {
     visibleCount: resolvedVisibleCount,
     altText: typeof state.altText === 'string' ? state.altText : '',
     altTextSource: state.altTextSource === 'manual' ? 'manual' : 'auto',
+    fillColorIndex: sanitizeFillIndex(state.fillColorIndex, FILL_COLOR_COUNT),
     palette: normalizePaletteSelection(state.palette)
   };
 }
@@ -2589,7 +2665,11 @@ function loadCleanState(payload) {
   SIMPLE.visibleCount = state.visibleCount;
   SIMPLE.altText = state.altText;
   SIMPLE.altTextSource = state.altTextSource;
+  SIMPLE.fillColorIndex = sanitizeFillIndex(state.fillColorIndex, FILL_COLOR_COUNT);
+  activeFillColorIndex = SIMPLE.fillColorIndex;
   applyPaletteThemeSelection(state.palette);
+  applyPizzaColors();
+  renderFillColorPicker();
   applyExamplesConfig();
   refreshAltText('manual-load');
   return true;

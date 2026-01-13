@@ -128,17 +128,17 @@
     .tb-grid .addFigureBtn{margin:0;}
     .tb-rect{fill:var(--tb-fill, #dbe7ff)}
     .tb-rect-empty{fill:transparent}
-    .tb-frame{fill:none;stroke:var(--tb-line, #333);stroke-width:6}
-    .tb-sep{stroke:var(--tb-line, #333);stroke-width:2;stroke-dasharray:8 8;opacity:.6}
-    .tb-brace{fill:none;stroke:var(--tb-line, #101828);stroke-width:6;stroke-linecap:round}
-    .tb-brace--union{fill:var(--tb-line, #101828);stroke:none}
+    .tb-frame{fill:none;stroke:var(--tb-line, #000);stroke-width:6}
+    .tb-sep{stroke:var(--tb-line, #000);stroke-width:2;stroke-dasharray:8 8;opacity:.6}
+    .tb-brace{fill:none;stroke:var(--tb-line, #000);stroke-width:6;stroke-linecap:round}
+    .tb-brace--union{fill:var(--tb-line, #000);stroke:none}
     .tb-total{font-size:34px;fill:var(--tb-text, #111);text-anchor:middle}
     .tb-val{font-size:34px;text-anchor:middle;dominant-baseline:middle}
     .tb-val:not([data-tb-explicit-fill="true"]){fill:var(--tb-text, #111)}
     .tb-frac{text-anchor:middle;}
     .tb-frac text{font-size:28px;text-anchor:middle;font-variant-numeric:tabular-nums;}
     .tb-frac text:not([data-tb-explicit-fill="true"]){fill:var(--tb-text, #111)}
-    .tb-frac-line{stroke:var(--tb-line, #111);stroke-width:2;stroke-linecap:square}
+    .tb-frac-line{stroke:var(--tb-line, #000);stroke-width:2;stroke-linecap:square}
     .tb-handle{cursor:grab;user-select:none;touch-action:none}
     .tb-handle.is-grabbing{cursor:grabbing}
     .tb-combined-whole{
@@ -168,6 +168,57 @@
     .checkbox-row label{display:inline;}
     fieldset{border:1px solid #e5e7eb;border-radius:10px;padding:10px;margin:0;display:flex;flex-direction:column;gap:8px;}
     legend{font-weight:600;font-size:13px;color:#374151;padding:0 4px;}
+    .fill-color-picker{display:flex;align-items:center;gap:10px;font-size:13px;color:#4b5563;}
+    .fill-color-picker__label{font-weight:500;color:#4b5563;}
+    .color-picker{position:relative;display:flex;align-items:center;justify-content:center;width:40px;height:40px;}
+    .color-swatch--active{
+      width:32px;
+      height:32px;
+      border-radius:50%;
+      border:2px solid #fff;
+      box-shadow:0 0 0 1px #d1d5db;
+      cursor:pointer;
+      padding:0;
+      transition:transform 0.1s;
+    }
+    .color-swatch--active:hover{transform:scale(1.1);box-shadow:0 0 0 1px #9ca3af;}
+    .color-options{
+      position:absolute;
+      top:100%;
+      left:50%;
+      transform:translateX(-50%);
+      background:white;
+      border:1px solid #e5e7eb;
+      border-radius:99px;
+      padding:8px;
+      display:flex;
+      gap:8px;
+      box-shadow:0 4px 15px rgba(0,0,0,0.15);
+      z-index:100;
+      margin-top:8px;
+    }
+    .color-options::before{
+      content:'';
+      position:absolute;
+      top:-6px;
+      left:50%;
+      margin-left:-6px;
+      border-width:6px;
+      border-style:solid;
+      border-color:transparent transparent #fff transparent;
+    }
+    .color-option-btn{
+      width:24px;
+      height:24px;
+      border-radius:50%;
+      border:1px solid rgba(0,0,0,0.1);
+      cursor:pointer;
+      padding:0;
+      transition:transform 0.1s;
+    }
+    .color-option-btn:hover{transform:scale(1.2);}
+    .color-option-btn.is-selected{outline:2px solid #6366f1;outline-offset:2px;}
+    .color-options[hidden]{display:none !important;}
   </style>
   <link rel="stylesheet" href="split.css" />
 </head>

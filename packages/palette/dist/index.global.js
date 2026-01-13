@@ -51,21 +51,21 @@ var MathVisualsPalettePackage = (function (exports) {
     {
       groupId: 'fractions',
       title: 'Brøk og tenkeblokker',
-      description: 'Farger for linjer og fyll i brøkmodeller og tenkeblokker.',
+      description: 'Farger for fyll i brøkmodeller og tenkeblokker.',
       slots: [
-        { index: 13, label: 'Fyll', description: 'Fyllfarge for brøker og tenkeblokker.' },
-        { index: 14, label: 'Linje', description: 'Konturer i brøker og tenkeblokker.' }
+        { index: 13, label: 'Fyll 1', description: 'Fyllfarge 1 for brøker og tenkeblokker.' },
+        { index: 14, label: 'Fyll 2', description: 'Fyllfarge 2 for brøker og tenkeblokker.' },
+        { index: 19, label: 'Fyll 3', description: 'Fyllfarge 3 for brøker og tenkeblokker.' }
       ]
     },
     {
       groupId: 'figurtall',
       title: 'Figurtall',
-      description: 'Fire standardfarger for figurer i mønstre.',
+      description: 'Tre standardfarger for figurer i mønstre.',
       slots: [
         { index: 15, label: 'Fyll 1', description: 'Første farge i figurtall.' },
         { index: 16, label: 'Fyll 2', description: 'Andre farge i figurtall.' },
-        { index: 17, label: 'Fyll 3', description: 'Tredje farge i figurtall.' },
-        { index: 18, label: 'Fyll 4', description: 'Fjerde farge i figurtall.' }
+        { index: 17, label: 'Fyll 3', description: 'Tredje farge i figurtall.' }
       ]
     },
     {

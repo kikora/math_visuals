@@ -296,6 +296,8 @@ function isValidColor(value) {
   }
   const LEGACY_COLOR_PALETTE = ['#B25FE3', '#6C1BA2', '#534477', '#873E79', '#BF4474', '#E31C3D'];
   const FRACTION_GROUP_ID = 'fractions';
+  const FILL_COLOR_COUNT = 3;
+  const fillColorPicker = typeof document !== 'undefined' ? document.querySelector('[data-fill-color-picker]') : null;
   function getThemeApi() {
     const theme = typeof window !== 'undefined' ? window.MathVisualsTheme : null;
     return theme && typeof theme === 'object' ? theme : null;
@@ -807,6 +809,66 @@ function isValidColor(value) {
     if (Array.isArray(palette) && palette[index]) return palette[index];
     return LEGACY_COLOR_PALETTE[index % LEGACY_COLOR_PALETTE.length];
   }
+  function getFillPalette() {
+    const palette = getPaletteFromTheme(FILL_COLOR_COUNT);
+    return Array.isArray(palette) ? palette.slice(0, FILL_COLOR_COUNT) : [];
+  }
+  function sanitizeFillIndex(value, paletteLength) {
+    const numeric = Number.parseInt(value, 10);
+    const max = Number.isFinite(paletteLength) && paletteLength > 0 ? paletteLength : FILL_COLOR_COUNT;
+    if (!Number.isFinite(numeric) || numeric < 1) return 1;
+    return Math.min(numeric, max);
+  }
+  function updateFillPickerSelection(palette) {
+    if (!fillColorPicker) return;
+    const activeButton = fillColorPicker.querySelector('.color-swatch--active');
+    const optionsPanel = fillColorPicker.querySelector('.color-options');
+    const colors = Array.isArray(palette) ? palette : getFillPalette();
+    if (!optionsPanel || !activeButton) return;
+    const safeIndex = sanitizeFillIndex(activeFillColorIndex, colors.length);
+    activeFillColorIndex = safeIndex;
+    const activeColor = colors[safeIndex - 1] || colors[0] || '#000';
+    activeButton.style.backgroundColor = activeColor;
+    optionsPanel.querySelectorAll('.color-option-btn').forEach(btn => {
+      const btnIndex = sanitizeFillIndex(btn.dataset.colorIndex, colors.length);
+      btn.classList.toggle('is-selected', btnIndex === safeIndex);
+    });
+  }
+  function renderFillColorPicker() {
+    if (!fillColorPicker) return;
+    const activeButton = fillColorPicker.querySelector('.color-swatch--active');
+    const optionsPanel = fillColorPicker.querySelector('.color-options');
+    if (!activeButton || !optionsPanel) return;
+    const colors = getFillPalette();
+    optionsPanel.innerHTML = '';
+    colors.forEach((color, index) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'color-option-btn';
+      btn.dataset.colorIndex = String(index + 1);
+      btn.dataset.colorValue = color;
+      btn.style.backgroundColor = color;
+      btn.setAttribute('aria-label', `Velg farge ${index + 1}`);
+      btn.addEventListener('click', event => {
+        event.stopPropagation();
+        activeFillColorIndex = sanitizeFillIndex(index + 1, colors.length);
+        STATE.activeFillColorIndex = activeFillColorIndex;
+        updateFillPickerSelection(colors);
+        optionsPanel.hidden = true;
+      });
+      optionsPanel.appendChild(btn);
+    });
+    activeButton.addEventListener('click', event => {
+      event.stopPropagation();
+      optionsPanel.hidden = !optionsPanel.hidden;
+    });
+    document.addEventListener('click', event => {
+      if (!fillColorPicker.contains(event.target)) {
+        optionsPanel.hidden = true;
+      }
+    });
+    updateFillPickerSelection(colors);
+  }
   const boardEl = document.getElementById('figureBoard');
   const gridEl = document.getElementById('figureGrid');
   const addColumnBtn = document.getElementById('figAddColumn');
@@ -863,6 +925,8 @@ function isValidColor(value) {
     });
   }
   let autoPaletteEnabled = modifiedColorIndexes.size === 0;
+  let activeFillColorIndex = sanitizeFillIndex(STATE.activeFillColorIndex, FILL_COLOR_COUNT);
+  STATE.activeFillColorIndex = activeFillColorIndex;
   if (!STATE.figures || typeof STATE.figures !== 'object') STATE.figures = {};
   let allowWrongGlobal;
   if (typeof STATE.allowWrong === 'boolean') {
@@ -885,10 +949,15 @@ function isValidColor(value) {
   let showOutlineGlobal = typeof STATE.showOutline === 'boolean' ? STATE.showOutline : true;
   STATE.showOutline = showOutlineGlobal;
   if (showOutlineInp) showOutlineInp.checked = showOutlineGlobal;
-  const maxColors = colorInputs.length || 1;
-  const defaultColorCount = clampInt((_colorCountInp$value = colorCountInp === null || colorCountInp === void 0 ? void 0 : colorCountInp.value) !== null && _colorCountInp$value !== void 0 ? _colorCountInp$value : 1, 1, maxColors);
-  const stateColorCount = STATE.colorCount != null ? clampInt(STATE.colorCount, 1, maxColors) : null;
+  const maxColors = Math.max(FILL_COLOR_COUNT, colorInputs.length || 0, 1);
+  const defaultColorCount = clampInt(
+    (_colorCountInp$value = colorCountInp === null || colorCountInp === void 0 ? void 0 : colorCountInp.value) !== null && _colorCountInp$value !== void 0 ? _colorCountInp$value : FILL_COLOR_COUNT,
+    1,
+    FILL_COLOR_COUNT
+  );
+  const stateColorCount = STATE.colorCount != null ? clampInt(STATE.colorCount, 1, FILL_COLOR_COUNT) : null;
   let colorCount = stateColorCount || defaultColorCount;
+  colorCount = FILL_COLOR_COUNT;
   STATE.colorCount = colorCount;
   const MAX_ROWS = 3;
   const MAX_COLS = 3;
@@ -1028,6 +1097,7 @@ function isValidColor(value) {
         }
       }
     });
+    renderFillColorPicker();
   }
   function getColors() {
     ensureColorDefaults(colorCount);
@@ -1078,13 +1148,22 @@ function isValidColor(value) {
     STATE.showOutline = showOutlineGlobal;
     if (showOutlineInp) showOutlineInp.checked = showOutlineGlobal;
     colorCount = clampInt(STATE.colorCount, 1, maxColors);
+    colorCount = FILL_COLOR_COUNT;
     STATE.colorCount = colorCount;
-    if (colorCountInp) colorCountInp.value = String(colorCount);
+    activeFillColorIndex = sanitizeFillIndex(STATE.activeFillColorIndex, colorCount);
+    STATE.activeFillColorIndex = activeFillColorIndex;
+    if (colorCountInp) {
+      colorCountInp.value = String(colorCount);
+      colorCountInp.min = String(FILL_COLOR_COUNT);
+      colorCountInp.max = String(FILL_COLOR_COUNT);
+      colorCountInp.disabled = true;
+    }
     ensureColorDefaults(colorCount);
     colorInputs.forEach((inp, idx) => {
       const color = STATE.colors[idx];
       if (typeof color === 'string') inp.value = color;
     });
+    renderFillColorPicker();
     for (const id of getActiveFigureIds()) {
       const figState = ensureFigureState(id);
       figState.allowWrong = allowWrongGlobal;
@@ -2041,7 +2120,8 @@ function isValidColor(value) {
       }
       const colors = getColors();
       const current = filled.get(i) || 0;
-      const next = (current + 1) % (colors.length + 1);
+      const targetIndex = sanitizeFillIndex(activeFillColorIndex, colors.length);
+      const next = current === targetIndex ? 0 : targetIndex;
       if (next === 0) {
         filled.delete(i);
         element.setAttribute({
@@ -2189,7 +2269,7 @@ function isValidColor(value) {
         }
         if (showOutlineGlobal) {
           board.create('circle', [[cx, cy], r], {
-            strokeColor: '#333',
+            strokeColor: '#000',
             strokeWidth: OUTLINE_STROKE_WIDTH,
             fillColor: 'none',
             highlight: false,
@@ -2227,7 +2307,7 @@ function isValidColor(value) {
         }
         if (showOutlineGlobal) {
           board.create('circle', [center, r], {
-            strokeColor: '#333',
+            strokeColor: '#000',
             strokeWidth: OUTLINE_STROKE_WIDTH,
             fillColor: 'none',
             highlight: false,
@@ -2364,7 +2444,7 @@ function isValidColor(value) {
       if (showOutlineGlobal) {
         board.create('polygon', [[0, 0], [1, 0], [1, 1], [0, 1]], {
           borders: {
-            strokeColor: '#333',
+            strokeColor: '#000',
             strokeWidth: 6
           },
           vertices: {
@@ -2464,7 +2544,7 @@ function isValidColor(value) {
         if (showOutlineGlobal) {
           board.create('polygon', [toEqTri([0, 1]), toEqTri([1, 1]), toEqTri([0.5, 0])], {
             borders: {
-              strokeColor: '#333',
+              strokeColor: '#000',
               strokeWidth: 6
             },
             vertices: {
@@ -2560,7 +2640,7 @@ function isValidColor(value) {
       if (showOutlineGlobal) {
         board.create('polygon', [toEq([0, 0]), toEq([1, 0]), toEq([0, 1])], {
           borders: {
-            strokeColor: '#333',
+            strokeColor: '#000',
             strokeWidth: 6
           },
           vertices: {

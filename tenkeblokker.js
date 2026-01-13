@@ -152,12 +152,14 @@ const UNION_BRACE_BOUNDS = Object.freeze({
 const UNION_BRACE_INNER_WIDTH = UNION_BRACE_BOUNDS.right - UNION_BRACE_BOUNDS.left;
 const UNION_BRACE_INNER_HEIGHT = UNION_BRACE_BOUNDS.bottom - UNION_BRACE_BOUNDS.top;
 const FRACTION_GROUP_ID = 'fractions';
-const FRACTION_FALLBACK_COLORS = Object.freeze(['#dbe7ff', '#333333']);
+const FILL_COLOR_COUNT = 3;
+const FRACTION_FALLBACK_COLORS = Object.freeze(['#dbe7ff', '#c7d2fe', '#fcd34d']);
 let activeFractionColors = {
   fill: FRACTION_FALLBACK_COLORS[0],
-  line: FRACTION_FALLBACK_COLORS[1],
+  line: '#000000',
   text: getContrastTextColor(FRACTION_FALLBACK_COLORS[0])
 };
+let activeFillColorIndex = 1;
 
 function getSegmentTextColor(isFilled) {
   if (isFilled) {
@@ -209,7 +211,79 @@ function getContrastTextColor(color) {
   const whiteContrast = 1.05 / (luminance + 0.05);
   return blackContrast >= whiteContrast ? '#000' : '#fff';
 }
-const DEFAULT_FRACTION_SLOT_INDICES = Object.freeze([13, 14]);
+function sanitizeFillIndex(value, paletteLength) {
+  const numeric = Number.parseInt(value, 10);
+  const max = Number.isFinite(paletteLength) && paletteLength > 0 ? paletteLength : FILL_COLOR_COUNT;
+  if (!Number.isFinite(numeric) || numeric < 1) return 1;
+  return Math.min(numeric, max);
+}
+function getFillPalette() {
+  const palette = resolveFractionPalette(FILL_COLOR_COUNT);
+  const fallbackPalette = resolveProjectFractionFallback(resolvePaletteProjectName());
+  const fallback =
+    Array.isArray(fallbackPalette) && fallbackPalette.length ? fallbackPalette : FRACTION_FALLBACK_COLORS;
+  return ensurePaletteCount(palette, fallback, FILL_COLOR_COUNT);
+}
+function updateFillPickerSelection(palette) {
+  const picker = typeof document !== 'undefined' ? document.querySelector('[data-fill-color-picker]') : null;
+  if (!picker) return;
+  const activeButton = picker.querySelector('.color-swatch--active');
+  const optionsPanel = picker.querySelector('.color-options');
+  const colors = Array.isArray(palette) ? palette : getFillPalette();
+  if (!optionsPanel || !activeButton) return;
+  const safeIndex = sanitizeFillIndex(activeFillColorIndex, colors.length);
+  activeFillColorIndex = safeIndex;
+  CONFIG.fillColorIndex = activeFillColorIndex;
+  const activeColor = colors[safeIndex - 1] || colors[0] || '#000';
+  activeButton.style.backgroundColor = activeColor;
+  optionsPanel.querySelectorAll('.color-option-btn').forEach(btn => {
+    const btnIndex = sanitizeFillIndex(btn.dataset.colorIndex, colors.length);
+    btn.classList.toggle('is-selected', btnIndex === safeIndex);
+  });
+}
+function renderFillColorPicker() {
+  const picker = typeof document !== 'undefined' ? document.querySelector('[data-fill-color-picker]') : null;
+  if (!picker) return;
+  const activeButton = picker.querySelector('.color-swatch--active');
+  const optionsPanel = picker.querySelector('.color-options');
+  if (!activeButton || !optionsPanel) return;
+  const colors = getFillPalette();
+  optionsPanel.innerHTML = '';
+  colors.forEach((color, index) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'color-option-btn';
+    btn.dataset.colorIndex = String(index + 1);
+    btn.dataset.colorValue = color;
+    btn.style.backgroundColor = color;
+    btn.setAttribute('aria-label', `Velg farge ${index + 1}`);
+    btn.addEventListener('click', event => {
+      event.stopPropagation();
+      activeFillColorIndex = sanitizeFillIndex(index + 1, colors.length);
+      CONFIG.fillColorIndex = activeFillColorIndex;
+      updateFillPickerSelection(colors);
+      optionsPanel.hidden = true;
+      applyFractionPalette(true);
+    });
+    optionsPanel.appendChild(btn);
+  });
+  activeButton.addEventListener('click', event => {
+    event.stopPropagation();
+    optionsPanel.hidden = !optionsPanel.hidden;
+  });
+  document.addEventListener('click', event => {
+    if (!picker.contains(event.target)) {
+      optionsPanel.hidden = true;
+    }
+  });
+  updateFillPickerSelection(colors);
+}
+function getActiveFillColor() {
+  const colors = getFillPalette();
+  const index = sanitizeFillIndex(activeFillColorIndex, colors.length);
+  return colors[index - 1] || colors[0] || FRACTION_FALLBACK_COLORS[0];
+}
+const DEFAULT_FRACTION_SLOT_INDICES = Object.freeze([13, 14, 19]);
 let cachedPaletteConfig = null;
 let paletteConfigResolved = false;
 
@@ -582,15 +656,8 @@ function getPaletteTargets() {
 
 function applyFractionPalette(force = false) {
   if (typeof document === 'undefined') return;
-  const project = resolvePaletteProjectName();
-  const palette = resolveFractionPalette(2);
-  const fallbackPalette = resolveProjectFractionFallback(project);
-  const effectiveFallback =
-    Array.isArray(fallbackPalette) && fallbackPalette.length ? fallbackPalette : FRACTION_FALLBACK_COLORS;
-  const safe = ensurePaletteCount(palette, effectiveFallback, 2);
-  const fill =
-    typeof safe[0] === 'string' && safe[0] ? safe[0] : effectiveFallback[0] || FRACTION_FALLBACK_COLORS[0];
-  const line = typeof safe[1] === 'string' && safe[1] ? safe[1] : effectiveFallback[1] || fill;
+  const fill = getActiveFillColor();
+  const line = '#000000';
   const text = getContrastTextColor(fill);
   const prevFill = typeof activeFractionColors.fill === 'string' ? activeFractionColors.fill : '';
   const prevLine = typeof activeFractionColors.line === 'string' ? activeFractionColors.line : '';
@@ -612,6 +679,7 @@ function applyFractionPalette(force = false) {
     } catch (err) {}
   });
   refreshTenkeblokkerPaletteAttributes();
+  renderFillColorPicker();
 }
 function sanitizeDisplayMode(value) {
   if (typeof value !== 'string') return null;
@@ -784,8 +852,10 @@ const CONFIG = {
   rowGap: DEFAULT_ROW_GAP,
   showSum: false,
   altText: '',
-  altTextSource: 'auto'
+  altTextSource: 'auto',
+  fillColorIndex: 1
 };
+activeFillColorIndex = sanitizeFillIndex(CONFIG.fillColorIndex, FILL_COLOR_COUNT);
 const dimensionState = {
   rowTotals: [],
   columnTotals: [],
@@ -1802,6 +1872,7 @@ function rebuildStructure() {
   grid.setAttribute('data-cols', String(CONFIG.cols));
   grid.appendChild(panelsFragment);
   if (settingsContainer) settingsContainer.appendChild(settingsFragment);
+  renderFillColorPicker();
   updateAddButtons();
 }
 
@@ -1821,6 +1892,26 @@ function buildGlobalSettings(targetFragment) {
   const legend = document.createElement('legend');
   legend.textContent = 'Globale innstillinger';
   fieldset.appendChild(legend);
+  const fillPickerRow = document.createElement('div');
+  fillPickerRow.className = 'fill-color-picker';
+  fillPickerRow.dataset.fillColorPicker = 'true';
+  const fillLabel = document.createElement('span');
+  fillLabel.className = 'fill-color-picker__label';
+  fillLabel.textContent = 'Fyllfarge';
+  const picker = document.createElement('div');
+  picker.className = 'color-picker';
+  const activeBtn = document.createElement('button');
+  activeBtn.type = 'button';
+  activeBtn.className = 'color-swatch color-swatch--active';
+  activeBtn.setAttribute('aria-label', 'Velg fyllfarge');
+  const optionsPanel = document.createElement('div');
+  optionsPanel.className = 'color-options';
+  optionsPanel.hidden = true;
+  picker.appendChild(activeBtn);
+  picker.appendChild(optionsPanel);
+  fillPickerRow.appendChild(fillLabel);
+  fillPickerRow.appendChild(picker);
+  fieldset.appendChild(fillPickerRow);
   const rowCount = Math.max(1, Number.parseInt(CONFIG.rows, 10) || 1);
   if (rowCount > 0) {
     const labelWrapper = document.createElement('div');

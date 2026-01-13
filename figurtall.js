@@ -100,14 +100,16 @@ function isValidColor(value) {
   let figurtallAiAppliedSignature = null;
   let pendingAltTextReason = 'auto';
   const MAX_DIM = 20;
-    const MAX_COLORS = 4;
+    const MAX_COLORS = 3;
     const LABEL_MODES = ['hidden', 'count', 'custom'];
     const FIGURE_TYPES = ['square', 'square-outline', 'circle', 'circle-outline', 'star'];
+    const FILL_COLOR_COUNT = 3;
     let isSyncingTheme = false;
     let themeObserver = null;
     let rows = 3;
   let cols = 3;
   const colorCountInp = document.getElementById('colorCount');
+  const fillColorPicker = document.querySelector('[data-fill-color-picker]');
   const colorInputs = [];
   for (let i = 1; i < 100; i++) {
     const inp = document.getElementById('color_' + i);
@@ -116,6 +118,8 @@ function isValidColor(value) {
   }
   const LEGACY_COLOR_PALETTE = ['#B25FE3', '#6C1BA2', '#534477', '#873E79'];
   const FIGURE_GROUP_ID = 'figurtall';
+  let activeFillColorIndex = sanitizeFillIndex(STATE.activeFillColorIndex, FILL_COLOR_COUNT);
+  STATE.activeFillColorIndex = activeFillColorIndex;
   function getThemeApi() {
     const theme = typeof window !== 'undefined' ? window.MathVisualsTheme : null;
     return theme && typeof theme === 'object' ? theme : null;
@@ -159,6 +163,66 @@ function isValidColor(value) {
       result.push(base[i % base.length]);
     }
     return result;
+  }
+  function getFillPalette() {
+    const palette = getPaletteFromTheme(FILL_COLOR_COUNT);
+    return Array.isArray(palette) ? palette.slice(0, FILL_COLOR_COUNT) : [];
+  }
+  function sanitizeFillIndex(value, paletteLength) {
+    const numeric = Number.parseInt(value, 10);
+    const max = Number.isFinite(paletteLength) && paletteLength > 0 ? paletteLength : FILL_COLOR_COUNT;
+    if (!Number.isFinite(numeric) || numeric < 1) return 1;
+    return Math.min(numeric, max);
+  }
+  function updateFillPickerSelection(palette) {
+    if (!fillColorPicker) return;
+    const activeButton = fillColorPicker.querySelector('.color-swatch--active');
+    const optionsPanel = fillColorPicker.querySelector('.color-options');
+    const colors = Array.isArray(palette) ? palette : getFillPalette();
+    if (!optionsPanel || !activeButton) return;
+    const safeIndex = sanitizeFillIndex(activeFillColorIndex, colors.length);
+    activeFillColorIndex = safeIndex;
+    const activeColor = colors[safeIndex - 1] || colors[0] || '#000';
+    activeButton.style.backgroundColor = activeColor;
+    optionsPanel.querySelectorAll('.color-option-btn').forEach(btn => {
+      const btnIndex = sanitizeFillIndex(btn.dataset.colorIndex, colors.length);
+      btn.classList.toggle('is-selected', btnIndex === safeIndex);
+    });
+  }
+  function renderFillColorPicker() {
+    if (!fillColorPicker) return;
+    const activeButton = fillColorPicker.querySelector('.color-swatch--active');
+    const optionsPanel = fillColorPicker.querySelector('.color-options');
+    if (!activeButton || !optionsPanel) return;
+    const colors = getFillPalette();
+    optionsPanel.innerHTML = '';
+    colors.forEach((color, index) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'color-option-btn';
+      btn.dataset.colorIndex = String(index + 1);
+      btn.dataset.colorValue = color;
+      btn.style.backgroundColor = color;
+      btn.setAttribute('aria-label', `Velg farge ${index + 1}`);
+      btn.addEventListener('click', event => {
+        event.stopPropagation();
+        activeFillColorIndex = sanitizeFillIndex(index + 1, colors.length);
+        STATE.activeFillColorIndex = activeFillColorIndex;
+        updateFillPickerSelection(colors);
+        optionsPanel.hidden = true;
+      });
+      optionsPanel.appendChild(btn);
+    });
+    activeButton.addEventListener('click', event => {
+      event.stopPropagation();
+      optionsPanel.hidden = !optionsPanel.hidden;
+    });
+    document.addEventListener('click', event => {
+      if (!fillColorPicker.contains(event.target)) {
+        optionsPanel.hidden = true;
+      }
+    });
+    updateFillPickerSelection(colors);
   }
   function getDefaultColorForIndex(index) {
     if (!Number.isFinite(index) || index < 0) return LEGACY_COLOR_PALETTE[0];
@@ -327,7 +391,7 @@ function isValidColor(value) {
     return getSolutionCellValue(figIndex, r, c);
   }
   function ensureColors(count) {
-    const required = Math.max(count, MAX_COLORS);
+    const required = Math.max(count, FILL_COLOR_COUNT);
     const palette = getPaletteFromTheme(required);
     if (!Array.isArray(STATE.colors)) STATE.colors = [];
     if (autoPaletteEnabled) {
@@ -365,7 +429,6 @@ function isValidColor(value) {
   }
   function sanitizeState() {
     var _STATE$rows, _STATE$cols, _STATE$colorCount;
-    const maxColors = colorInputs.length || MAX_COLORS;
     rows = clampInt((_STATE$rows = STATE.rows) !== null && _STATE$rows !== void 0 ? _STATE$rows : rows, 1, MAX_DIM);
     cols = clampInt((_STATE$cols = STATE.cols) !== null && _STATE$cols !== void 0 ? _STATE$cols : cols, 1, MAX_DIM);
     STATE.rows = rows;
@@ -392,7 +455,12 @@ function isValidColor(value) {
     const inferredMode = typeof STATE.labelMode === 'string' ? STATE.labelMode : STATE.showFigureText === false ? 'hidden' : 'custom';
     STATE.labelMode = normalizeLabelMode(inferredMode);
     STATE.showFigureText = STATE.labelMode !== 'hidden';
-    STATE.colorCount = clampInt((_STATE$colorCount = STATE.colorCount) !== null && _STATE$colorCount !== void 0 ? _STATE$colorCount : colorCountInp ? colorCountInp.value : 1, 1, maxColors);
+    STATE.colorCount = clampInt(
+      (_STATE$colorCount = STATE.colorCount) !== null && _STATE$colorCount !== void 0 ? _STATE$colorCount : colorCountInp ? colorCountInp.value : FILL_COLOR_COUNT,
+      1,
+      FILL_COLOR_COUNT
+    );
+    STATE.colorCount = FILL_COLOR_COUNT;
     ensureColors(STATE.colorCount);
     if (typeof STATE.altText !== 'string') STATE.altText = '';
     STATE.altTextSource = STATE.altTextSource === 'manual' ? 'manual' : 'auto';
@@ -416,6 +484,8 @@ function isValidColor(value) {
     if (STATE.lastFigureIsAnswer) {
       ensureTaskStudentCells(true);
     }
+    activeFillColorIndex = sanitizeFillIndex(STATE.activeFillColorIndex, FILL_COLOR_COUNT);
+    STATE.activeFillColorIndex = activeFillColorIndex;
   }
   function getColors() {
     ensureColors(STATE.colorCount);
@@ -779,12 +849,13 @@ function isValidColor(value) {
   }
   function cycleCell(figIndex, r, c, cell) {
     const colors = getColors();
+    const targetIndex = sanitizeFillIndex(activeFillColorIndex, colors.length);
     if (isStudentFigureIndex(figIndex)) {
       const matrix = ensureTaskStudentCells(true);
       if (!matrix || !Array.isArray(matrix[r])) return;
       const row = matrix[r];
       const current = parseInt(row[c], 10) || 0;
-      const next = (current + 1) % (colors.length + 1);
+      const next = current === targetIndex ? 0 : targetIndex;
       row[c] = next;
       cell.dataset.color = String(next);
       applyCellAppearance(cell, next, colors);
@@ -796,7 +867,7 @@ function isValidColor(value) {
     const fig = STATE.figures[figIndex];
     if (!fig || !Array.isArray(fig.cells) || !Array.isArray(fig.cells[r])) return;
     const current = parseInt(fig.cells[r][c], 10) || 0;
-    const next = (current + 1) % (colors.length + 1);
+    const next = current === targetIndex ? 0 : targetIndex;
     fig.cells[r][c] = next;
     cell.dataset.color = String(next);
     applyCellAppearance(cell, next, colors);
@@ -999,8 +1070,14 @@ function isValidColor(value) {
     if (labelModeSelect) {
       labelModeSelect.value = normalizeLabelMode(STATE.labelMode);
     }
-    if (colorCountInp) colorCountInp.value = String(STATE.colorCount);
+    if (colorCountInp) {
+      colorCountInp.value = String(STATE.colorCount);
+      colorCountInp.min = String(FILL_COLOR_COUNT);
+      colorCountInp.max = String(FILL_COLOR_COUNT);
+      colorCountInp.disabled = true;
+    }
     updateColorVisibility();
+    renderFillColorPicker();
   }
   function setRows(next) {
     const clamped = clampInt(next, 1, MAX_DIM);
@@ -1120,7 +1197,7 @@ function isValidColor(value) {
     });
   }
   colorCountInp === null || colorCountInp === void 0 || colorCountInp.addEventListener('input', () => {
-    STATE.colorCount = clampInt(colorCountInp.value, 1, colorInputs.length || MAX_COLORS);
+    STATE.colorCount = clampInt(colorCountInp.value, 1, FILL_COLOR_COUNT);
     resetTaskStudentCells();
     render();
   });
@@ -2086,13 +2163,16 @@ function isValidColor(value) {
     STATE.lastFigureIsAnswer = rawState.lastFigureIsAnswer === true;
     STATE.labelMode = normalizeLabelMode(rawState.labelMode);
 
-    const maxColors = colorInputs.length || MAX_COLORS;
-    const nextColorCount = clampInt(rawState.colorCount != null ? rawState.colorCount : STATE.colorCount, 1, maxColors);
-    STATE.colorCount = nextColorCount;
-    ensureColors(nextColorCount);
+    const nextColorCount = clampInt(
+      rawState.colorCount != null ? rawState.colorCount : STATE.colorCount,
+      1,
+      FILL_COLOR_COUNT
+    );
+    STATE.colorCount = FILL_COLOR_COUNT;
+    ensureColors(STATE.colorCount);
     modifiedColorIndexes.clear();
 
-    const incomingColors = Array.isArray(rawState.colors) ? rawState.colors.slice(0, nextColorCount) : [];
+    const incomingColors = Array.isArray(rawState.colors) ? rawState.colors.slice(0, STATE.colorCount) : [];
     incomingColors.forEach((color, idx) => {
       if (typeof color === 'string' && color.trim()) {
         STATE.colors[idx] = color;
