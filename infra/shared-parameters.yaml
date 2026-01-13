@@ -112,7 +112,7 @@ Resources:
       # Provide an initial secret version so consumers can resolve AWSCURRENT
       # immediately after stack creation. The value should be overwritten with
       # the real Redis password via `scripts/update-shared-params.sh`.
-      SecretString: '{"authToken":""}'
+      SecretString: '{"authToken":"","vkUser":"","vkPassword":""}'
 
   RedisEndpointParameter:
     Type: AWS::SSM::Parameter
