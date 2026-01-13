@@ -30,6 +30,7 @@ jobs:
       STATIC_SITE_CLOUDFRONT_PRICE_CLASS: ${{ secrets.STATIC_SITE_CLOUDFRONT_PRICE_CLASS_DEV || 'PriceClass_100' }}
       API_ARTIFACT_BUCKET: ${{ secrets.API_ARTIFACT_BUCKET_DEV }}
       API_ARTIFACT_KEY: ${{ secrets.API_ARTIFACT_KEY_DEV }}
+      REDIS_KEY_PREFIX: ${{ secrets.REDIS_KEY_PREFIX_DEV || 'dev' }}
       # Default to the template's dev stage when the secret is missing so the
       # deploy step doesn't fail with an empty StageName parameter.
       API_STAGE_NAME: ${{ secrets.API_STAGE_NAME_DEV || 'dev' }}
@@ -181,7 +182,7 @@ jobs:
           }
 
           trap log_stack_events ERR
-          PARAM_OVERRIDES="LambdaCodeS3Bucket=$API_ARTIFACT_BUCKET LambdaCodeS3Key=$LAMBDA_CODE_KEY StageName=$API_STAGE_NAME"
+          PARAM_OVERRIDES="LambdaCodeS3Bucket=$API_ARTIFACT_BUCKET LambdaCodeS3Key=$LAMBDA_CODE_KEY StageName=$API_STAGE_NAME RedisKeyPrefix=$REDIS_KEY_PREFIX"
           if [ -n "${LAMBDA_CODE_VERSION:-}" ]; then
             PARAM_OVERRIDES="$PARAM_OVERRIDES LambdaCodeS3ObjectVersion=$LAMBDA_CODE_VERSION"
           fi
