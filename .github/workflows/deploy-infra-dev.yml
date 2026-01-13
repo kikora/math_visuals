@@ -6,7 +6,7 @@ permissions:
 
 on:
   push:
-    branches: [dev]
+    branches: [main]
   workflow_dispatch:
     inputs:
       cloudfront_invalidation_paths:
