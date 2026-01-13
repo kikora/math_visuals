@@ -283,7 +283,7 @@ function isValidColor(value) {
   const CLIP_PAD_PERCENT = CLIP_PADDING_PERCENT + CLIP_PAD_EXTRA_PERCENT;
   const CIRCLE_RADIUS = 0.45;
   const OUTLINE_STROKE_WIDTH = 6;
-  const DIVISION_SEGMENT_EXTENSION = 0.01;
+  const DIVISION_SEGMENT_EXTENSION = 0;
   const colorCountInp = document.getElementById('colorCount');
   const allowWrongInp = document.getElementById('allowWrong');
   const showDivisionLinesInp = document.getElementById('showDivisionLines');
@@ -1964,8 +1964,8 @@ function isValidColor(value) {
         const nodes = [border.rendNode, border.rendNodeFront && border.rendNodeFront !== border.rendNode ? border.rendNodeFront : null];
         for (const node of nodes) {
           if (!node) continue;
-          node.setAttribute('stroke-linecap', 'butt');
-          node.setAttribute('stroke-linejoin', 'miter');
+          node.setAttribute('stroke-linecap', 'round');
+          node.setAttribute('stroke-linejoin', 'round');
           markDivisionNode(node);
         }
       }
