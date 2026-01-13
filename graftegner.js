@@ -7409,7 +7409,7 @@ if (btnPng) {
       }
       return false;
     };
-    if (helper && typeof helper.renderSvgToPng === 'function' && url) {
+    if (helper && typeof helper.renderSvgToPng === 'function') {
       try {
         const pngData = await helper.renderSvgToPng(document, url, svgExport.markup, {
           width: svgExport.width,
@@ -7462,21 +7462,28 @@ if (btnPng) {
       if (urlApi && url) {
         urlApi.revokeObjectURL(url);
       }
-      canvas.toBlob(blob => {
-        if (!blob) {
-          if (helper && typeof helper.showToast === 'function') {
-            helper.showToast('Kunne ikke lage PNG-blob', 'error');
+      try {
+        canvas.toBlob(blob => {
+          if (!blob) {
+            if (helper && typeof helper.showToast === 'function') {
+              helper.showToast('Kunne ikke lage PNG-blob', 'error');
+            }
+            return;
           }
-          return;
+          const a = document.createElement('a');
+          a.href = urlApi ? urlApi.createObjectURL(blob) : '';
+          a.download = `${getSuggestedFilename()}.png`;
+          a.click();
+          if (urlApi && a.href) {
+            urlApi.revokeObjectURL(a.href);
+          }
+        });
+      } catch (error) {
+        if (helper && typeof helper.showToast === 'function') {
+          const message = error && error.message ? error.message : 'Ukjent feil';
+          helper.showToast(`PNG feilet: ${message}.`, 'error');
         }
-        const a = document.createElement('a');
-        a.href = urlApi ? urlApi.createObjectURL(blob) : '';
-        a.download = `${getSuggestedFilename()}.png`;
-        a.click();
-        if (urlApi && a.href) {
-          urlApi.revokeObjectURL(a.href);
-        }
-      });
+      }
     };
     img.onerror = () => {
       if (helper && typeof helper.showToast === 'function') {
