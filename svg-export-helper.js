@@ -349,6 +349,34 @@
     return svgElement;
   }
 
+  function parseSvgStringDimensions(svgString) {
+    if (typeof svgString !== 'string' || !svgString.trim()) {
+      return null;
+    }
+    if (typeof DOMParser === 'undefined') {
+      return null;
+    }
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(svgString, 'image/svg+xml');
+      const svgEl = doc && doc.querySelector ? doc.querySelector('svg') : null;
+      if (!svgEl) return null;
+      const viewBoxAttr = svgEl.getAttribute('viewBox');
+      const parsedViewBox = parseViewBox(viewBoxAttr);
+      if (parsedViewBox && parsedViewBox.width > 0 && parsedViewBox.height > 0) {
+        return { width: parsedViewBox.width, height: parsedViewBox.height };
+      }
+      const widthAttr = parseLength(svgEl.getAttribute('width'));
+      const heightAttr = parseLength(svgEl.getAttribute('height'));
+      if (Number.isFinite(widthAttr) && Number.isFinite(heightAttr) && widthAttr > 0 && heightAttr > 0) {
+        return { width: widthAttr, height: heightAttr };
+      }
+    } catch (error) {
+      return null;
+    }
+    return null;
+  }
+
   function ensureSvgSizingAttributes(svgElement, sourceElement) {
     if (!svgElement || typeof svgElement.setAttribute !== 'function') {
       return svgElement;
@@ -653,7 +681,7 @@
     const summary = options.summary != null ? options.summary : null;
     const createdAt = new Date().toISOString();
 
-    const dimensions = getSvgDimensions(exportSvg);
+    const dimensions = parseSvgStringDimensions(svgString) || getSvgDimensions(exportSvg);
 
     const fallbackBase = sanitizeBaseName(options.defaultBaseName || suggestedName || tool || 'export', sanitizeBaseName(tool || 'export'));
     let baseNameSuggestion;
