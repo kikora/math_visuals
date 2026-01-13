@@ -65,6 +65,7 @@
     }
     #patternContainer svg,
     #rectangleContainer svg{width:100%;height:100%;display:block;}
+    #patternContainer .pattern-item--figure svg{width:100%;height:100%;display:block;}
     #expression{text-align:center;font-size:24px;font-weight:600;margin-top:var(--gap);}
     input[type="number"], select{width:100%;}
     .field-row{display:grid;gap:10px;}
@@ -183,6 +184,7 @@
               <option value="klosser">Klosser med knott</option>
               <option value="blocks">Klosser</option>
               <option value="monster" selected>Numbervisuals</option>
+              <option value="figurer">Figurer</option>
               <option value="rectangles">Rektangler</option>
             </select>
           </label>
@@ -282,6 +284,27 @@
               </label>
               <label>Figuravstand
                 <input id="cfg-rect-patternGap" type="number" min="0" value="18">
+              </label>
+            </div>
+          </div>
+          <div id="figuresConfig">
+            <div class="field-row field-row--two">
+              <label>Antall figurer i x-retning
+                <input id="cfg-figures-antallX" type="number" min="1" value="2">
+              </label>
+              <label>Antall figurer i y-retning
+                <input id="cfg-figures-antallY" type="number" min="1" value="2">
+              </label>
+            </div>
+            <div class="field-grid">
+              <label>Figurkategori
+                <select id="cfg-figures-category"></select>
+              </label>
+              <label>Figur
+                <select id="cfg-figures-figure"></select>
+              </label>
+              <label>Figuravstand
+                <input id="cfg-figures-patternGap" type="number" min="0" value="18">
               </label>
             </div>
           </div>
