@@ -1814,7 +1814,7 @@ function isValidColor(value) {
         (_board$stopResizeObse = board.stopResizeObserver) === null || _board$stopResizeObse === void 0 ? void 0 : _board$stopResizeObse.call(board);
         JXG.JSXGraph.freeBoard(board);
       }
-      const boundingBox = shape === 'rectangle' ? [-BOARD_MARGIN, RECTANGLE_ASPECT_RATIO + BOARD_MARGIN, 1 + BOARD_MARGIN, -BOARD_MARGIN] : BOARD_BOUNDING_BOX;
+      const boundingBox = shape === 'rectangle' ? [-BOARD_MARGIN, 1 + BOARD_MARGIN, RECTANGLE_ASPECT_RATIO + BOARD_MARGIN, -BOARD_MARGIN] : BOARD_BOUNDING_BOX;
       board = JXG.JSXGraph.initBoard(`box${id}`, {
         boundingbox: boundingBox,
         axis: false,
