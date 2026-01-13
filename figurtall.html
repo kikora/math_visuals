@@ -60,6 +60,58 @@
     .card input[type="color"]{width:40px;height:40px;padding:0;border:none;}
     .color-grid{display:flex;flex-wrap:wrap;gap:6px;}
     .color-grid input{flex:0 0 40px;width:40px;height:40px;}
+    .fill-color-picker{display:flex;align-items:center;gap:10px;font-size:13px;color:#4b5563;}
+    .fill-color-picker__label{font-weight:500;color:#4b5563;}
+    .color-picker{position:relative;display:flex;align-items:center;justify-content:center;width:40px;height:40px;}
+    .color-swatch--active{
+      width:32px;
+      height:32px;
+      border-radius:50%;
+      border:2px solid #fff;
+      box-shadow:0 0 0 1px #d1d5db;
+      cursor:pointer;
+      padding:0;
+      transition:transform 0.1s;
+    }
+    .color-swatch--active:hover{transform:scale(1.1);box-shadow:0 0 0 1px #9ca3af;}
+    .color-options{
+      position:absolute;
+      top:100%;
+      left:50%;
+      transform:translateX(-50%);
+      background:white;
+      border:1px solid #e5e7eb;
+      border-radius:99px;
+      padding:8px;
+      display:flex;
+      gap:8px;
+      box-shadow:0 4px 15px rgba(0,0,0,0.15);
+      z-index:100;
+      margin-top:8px;
+    }
+    .color-options::before{
+      content:'';
+      position:absolute;
+      top:-6px;
+      left:50%;
+      margin-left:-6px;
+      border-width:6px;
+      border-style:solid;
+      border-color:transparent transparent #fff transparent;
+    }
+    .color-option-btn{
+      width:24px;
+      height:24px;
+      border-radius:50%;
+      border:1px solid rgba(0,0,0,0.1);
+      cursor:pointer;
+      padding:0;
+      transition:transform 0.1s;
+    }
+    .color-option-btn:hover{transform:scale(1.2);}
+    .color-option-btn.is-selected{outline:2px solid #6366f1;outline-offset:2px;}
+    .color-options[hidden]{display:none !important;}
+    .legacy-color-settings{display:none;}
     .figure{
       border-radius:10px;
       background:#fff;
@@ -221,15 +273,24 @@
               </div>
               <div class="settings-group">
                 <span class="settings-group-title" id="globalColorSettingsHeading">Farger</span>
-                <div class="input-stack">
-                  <label for="colorCount">Antall farger</label>
-                  <input id="colorCount" type="number" min="1" max="4" value="1" />
+                <div class="fill-color-picker" data-fill-color-picker>
+                  <span class="fill-color-picker__label">Fyllfarge</span>
+                  <div class="color-picker">
+                    <button type="button" class="color-swatch color-swatch--active" aria-label="Velg fyllfarge"></button>
+                    <div class="color-options" hidden></div>
+                  </div>
                 </div>
-                <div class="color-grid" role="group" aria-labelledby="globalColorSettingsHeading">
-                  <input id="color_1" type="color" />
-                  <input id="color_2" type="color" />
-                  <input id="color_3" type="color" />
-                  <input id="color_4" type="color" />
+                <div class="legacy-color-settings">
+                  <div class="input-stack">
+                    <label for="colorCount">Antall farger</label>
+                    <input id="colorCount" type="number" min="1" max="4" value="1" />
+                  </div>
+                  <div class="color-grid" role="group" aria-labelledby="globalColorSettingsHeading">
+                    <input id="color_1" type="color" />
+                    <input id="color_2" type="color" />
+                    <input id="color_3" type="color" />
+                    <input id="color_4" type="color" />
+                  </div>
                 </div>
               </div>
             </fieldset>
