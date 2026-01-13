@@ -182,8 +182,10 @@ test.describe('Figurbibliotek opplastinger', () => {
     await expect(categoryAppsFieldset).toBeVisible();
     const measurementCheckbox = categoryAppsFieldset.getByRole('checkbox', { name: 'Måling' });
     const sortingCheckbox = categoryAppsFieldset.getByRole('checkbox', { name: 'Sortering' });
+    const kvikkfigurerCheckbox = categoryAppsFieldset.getByRole('checkbox', { name: 'Kvikkfigurer' });
     await expect(measurementCheckbox).toBeChecked();
     await expect(sortingCheckbox).toBeChecked();
+    await expect(kvikkfigurerCheckbox).toBeChecked();
 
     const saveAvailabilityButton = categoryDialog.getByRole('button', { name: 'Lagre tilgjengelighet' });
     await expect(saveAvailabilityButton).toBeDisabled();
@@ -206,7 +208,7 @@ test.describe('Figurbibliotek opplastinger', () => {
     const firstCategoryPatchResponse = await firstCategoryPatchResponsePromise;
     expect(firstCategoryPatchResponse.ok()).toBeTruthy();
     const firstCategoryPatchBody = await firstCategoryPatchResponse.json();
-    expect(firstCategoryPatchBody.category?.apps).toEqual(['bibliotek', 'måling']);
+    expect(firstCategoryPatchBody.category?.apps).toEqual(['bibliotek', 'måling', 'kvikkfigurer']);
     await expect(categoryDialog.locator('[data-category-apps-status]')).toHaveText('Tilgjengelighet oppdatert.');
     await expect(saveAvailabilityButton).toBeDisabled();
 
@@ -234,8 +236,10 @@ test.describe('Figurbibliotek opplastinger', () => {
     const updatedAppsFieldset = categoryDialog.locator('[data-category-apps="category"]');
     const updatedMeasurementCheckbox = updatedAppsFieldset.getByRole('checkbox', { name: 'Måling' });
     const updatedSortingCheckbox = updatedAppsFieldset.getByRole('checkbox', { name: 'Sortering' });
+    const updatedKvikkfigurerCheckbox = updatedAppsFieldset.getByRole('checkbox', { name: 'Kvikkfigurer' });
     await expect(updatedMeasurementCheckbox).toBeChecked();
     await expect(updatedSortingCheckbox).toBeChecked();
+    await expect(updatedKvikkfigurerCheckbox).toBeChecked();
 
     const updatedSaveButton = categoryDialog.getByRole('button', { name: 'Lagre tilgjengelighet' });
     await updatedMeasurementCheckbox.uncheck();
@@ -256,7 +260,7 @@ test.describe('Figurbibliotek opplastinger', () => {
     const secondCategoryPatchResponse = await secondCategoryPatchResponsePromise;
     expect(secondCategoryPatchResponse.ok()).toBeTruthy();
     const secondCategoryPatchBody = await secondCategoryPatchResponse.json();
-    expect(secondCategoryPatchBody.category?.apps).toEqual(['bibliotek', 'sortering']);
+    expect(secondCategoryPatchBody.category?.apps).toEqual(['bibliotek', 'sortering', 'kvikkfigurer']);
     await expect(categoryDialog.locator('[data-category-apps-status]')).toHaveText('Tilgjengelighet oppdatert.');
     await expect(updatedSaveButton).toBeDisabled();
 
@@ -282,6 +286,7 @@ test.describe('Figurbibliotek opplastinger', () => {
     const reloadedAppsFieldset = page.locator('[data-category-dialog] [data-category-apps="category"]');
     await expect(reloadedAppsFieldset.getByRole('checkbox', { name: 'Måling' })).not.toBeChecked();
     await expect(reloadedAppsFieldset.getByRole('checkbox', { name: 'Sortering' })).toBeChecked();
+    await expect(reloadedAppsFieldset.getByRole('checkbox', { name: 'Kvikkfigurer' })).toBeChecked();
 
     await page.locator('[data-category-dialog] [data-category-close]').click();
 
@@ -293,8 +298,8 @@ test.describe('Figurbibliotek opplastinger', () => {
     const postRequests = figureLibraryRequests.filter((request) => request.method() === 'POST');
     expect(postRequests).toHaveLength(2);
     const postPayload = postRequests[0].postDataJSON();
-    expect(postPayload.category?.apps).toEqual(['bibliotek', 'måling', 'sortering']);
-    expect(postPayload.categoryApps).toEqual(['bibliotek', 'måling', 'sortering']);
+    expect(postPayload.category?.apps).toEqual(['bibliotek', 'måling', 'sortering', 'kvikkfigurer']);
+    expect(postPayload.categoryApps).toEqual(['bibliotek', 'måling', 'sortering', 'kvikkfigurer']);
 
     const patchRequests = figureLibraryRequests.filter((request) => request.method() === 'PATCH');
     const categoryPatchRequests = patchRequests.filter((request) => {
@@ -310,8 +315,8 @@ test.describe('Figurbibliotek opplastinger', () => {
     expect(figurePatchRequests).toHaveLength(2);
 
     const firstCategoryPayload = categoryPatchRequests[0].postDataJSON();
-    expect(firstCategoryPayload.category?.apps).toEqual(['bibliotek', 'måling']);
-    expect(firstCategoryPayload.categoryApps).toEqual(['bibliotek', 'måling']);
+    expect(firstCategoryPayload.category?.apps).toEqual(['bibliotek', 'måling', 'kvikkfigurer']);
+    expect(firstCategoryPayload.categoryApps).toEqual(['bibliotek', 'måling', 'kvikkfigurer']);
 
     const figurePatchPayloads = figurePatchRequests.map((request) => request.postDataJSON());
     const serverFigurePatchPayload = figurePatchPayloads.find((payload) => payload.slug === 'serverfigur');
@@ -319,12 +324,12 @@ test.describe('Figurbibliotek opplastinger', () => {
     expect(serverFigurePatchPayload.title).toBe('Oppdatert serverfigur');
     const uploadedFigurePatchPayload = figurePatchPayloads.find((payload) => payload.slug !== 'serverfigur');
     expect(uploadedFigurePatchPayload).toBeDefined();
-    expect(uploadedFigurePatchPayload.category?.apps).toEqual(['bibliotek', 'måling', 'sortering']);
-    expect(uploadedFigurePatchPayload.categoryApps).toEqual(['bibliotek', 'måling', 'sortering']);
+    expect(uploadedFigurePatchPayload.category?.apps).toEqual(['bibliotek', 'måling', 'sortering', 'kvikkfigurer']);
+    expect(uploadedFigurePatchPayload.categoryApps).toEqual(['bibliotek', 'måling', 'sortering', 'kvikkfigurer']);
 
     const secondCategoryPayload = categoryPatchRequests[1].postDataJSON();
-    expect(secondCategoryPayload.category?.apps).toEqual(['bibliotek', 'sortering']);
-    expect(secondCategoryPayload.categoryApps).toEqual(['bibliotek', 'sortering']);
+    expect(secondCategoryPayload.category?.apps).toEqual(['bibliotek', 'sortering', 'kvikkfigurer']);
+    expect(secondCategoryPayload.categoryApps).toEqual(['bibliotek', 'sortering', 'kvikkfigurer']);
   });
 
   test('viser appvalg i kategoridialogen og ikke i skjemaet for ny kategori', async ({ page }) => {
