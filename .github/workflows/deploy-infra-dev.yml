@@ -442,10 +442,28 @@ jobs:
         run: |
           set -euo pipefail
 
+          resolve_existing_bucket() {
+            aws cloudformation describe-stacks \
+              --stack-name "$STATIC_STACK_NAME" \
+              --query "Stacks[0].Outputs[?OutputKey=='StaticSiteBucketName'].OutputValue" \
+              --output text 2>/dev/null || true
+          }
+
           if [ "${FORCE_CREATE_SITE_BUCKET:-false}" = "true" ]; then
             echo "FORCE_CREATE_SITE_BUCKET er satt; oppretter ny bøtte via CloudFormation."
             echo "CREATE_SITE_BUCKET=true" >> "$GITHUB_ENV"
-          elif aws s3api head-bucket --bucket "$STATIC_SITE_BUCKET_NAME" >/dev/null 2>&1; then
+            exit 0
+          fi
+
+          existing_bucket="$(resolve_existing_bucket)"
+          if [ -n "$existing_bucket" ] && [ "$existing_bucket" != "None" ]; then
+            echo "Fant eksisterende bøtte i stacken $STATIC_STACK_NAME: $existing_bucket"
+            echo "STATIC_SITE_BUCKET_NAME=$existing_bucket" >> "$GITHUB_ENV"
+            echo "CREATE_SITE_BUCKET=false" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+          if aws s3api head-bucket --bucket "$STATIC_SITE_BUCKET_NAME" >/dev/null 2>&1; then
             echo "Bucket $STATIC_SITE_BUCKET_NAME already exists; reusing it."
             echo "CREATE_SITE_BUCKET=false" >> "$GITHUB_ENV"
           else
