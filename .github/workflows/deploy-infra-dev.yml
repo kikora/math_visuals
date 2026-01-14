@@ -105,7 +105,11 @@ jobs:
           if [ -z "${STATIC_SITE_BUCKET_NAME:-}" ] || ! is_dev_bucket "$STATIC_SITE_BUCKET_NAME"; then
             STATIC_SITE_BUCKET_NAME=$(build_bucket_name "math-visuals-static-site-dev-" "$unique_suffix")
             echo "STATIC_SITE_BUCKET_NAME=$STATIC_SITE_BUCKET_NAME" >> "$GITHUB_ENV"
-            echo "FORCE_CREATE_SITE_BUCKET=true" >> "$GITHUB_ENV"
+            if aws s3api head-bucket --bucket "$STATIC_SITE_BUCKET_NAME" >/dev/null 2>&1; then
+              echo "FORCE_CREATE_SITE_BUCKET=false" >> "$GITHUB_ENV"
+            else
+              echo "FORCE_CREATE_SITE_BUCKET=true" >> "$GITHUB_ENV"
+            fi
           fi
 
           if [ -z "${API_ARTIFACT_BUCKET:-}" ] || ! is_dev_bucket "$API_ARTIFACT_BUCKET"; then
