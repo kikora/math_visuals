@@ -40,7 +40,7 @@ Parameters:
       CloudFront cache policy ID applied to API-backed cache behaviors
       (defaults to the managed "CachingDisabled" policy).
   CloudFrontAliases:
-    Type: CommaDelimitedList
+    Type: String
     Default: ''
     Description: >-
       Optional comma-delimited list of CloudFront aliases (CNAMEs). Leave blank
@@ -69,7 +69,7 @@ Parameters:
 Conditions:
   CreateSiteBucketCondition: !Equals [!Ref CreateSiteBucket, 'true']
   CreateCloudFrontDistributionCondition: !Equals [!Ref ExistingCloudFrontDistributionId, '']
-  HasCloudFrontAliases: !Not [!Equals [!Join ['', !Ref CloudFrontAliases], '']]
+  HasCloudFrontAliases: !Not [!Equals [!Ref CloudFrontAliases, '']]
 
 Rules:
   ExistingCloudFrontDistributionRule:
@@ -78,7 +78,7 @@ Rules:
       - Assert: !Not [!Equals [!Ref ExistingCloudFrontDistributionDomainName, '']]
         AssertDescription: ExistingCloudFrontDistributionDomainName must be set when reusing a CloudFront distribution.
   CloudFrontAliasesCertificateRule:
-    RuleCondition: !Not [!Equals [!Join ['', !Ref CloudFrontAliases], '']]
+    RuleCondition: !Not [!Equals [!Ref CloudFrontAliases, '']]
     Assertions:
       - Assert: !Not [!Equals [!Ref CloudFrontAcmCertificateArn, '']]
         AssertDescription: CloudFrontAcmCertificateArn must be set when CloudFrontAliases are provided.
@@ -279,7 +279,7 @@ Resources:
         Comment: !Sub 'Math Visuals static site (${SiteEnvironmentName})'
         Aliases: !If
           - HasCloudFrontAliases
-          - !Ref CloudFrontAliases
+          - !Split [',', !Ref CloudFrontAliases]
           - !Ref AWS::NoValue
         Origins:
           - Id: SiteBucketOrigin
