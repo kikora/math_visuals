@@ -40,6 +40,7 @@ Parameters:
     Description: Second private subnet ID used by the API Lambda when USE_EXTERNAL_REDIS=true.
 
 Conditions:
+  IsProdEnvironment: !Equals [!Ref EnvironmentName, "prod"]
   HasRedisEndpoint: !Not [!Equals [!Ref RedisEndpoint, ""]]
   HasRedisPort: !Not [!Equals [!Ref RedisPort, ""]]
   UseProvidedRedisSecret: !Not [!Equals [!Ref RedisPasswordSecretName, ""]]
@@ -165,7 +166,7 @@ Resources:
     Properties:
       Name: !Sub '/math-visuals/${EnvironmentName}/config/examples-allowed-origins'
       Type: String
-      Value: https://visualmath.kikora.com
+      Value: !If [IsProdEnvironment, https://visualmath.kikora.com, https://visualmath-dev.kikora.com]
       Description: Comma-separated list of allowed origins for the examples API frontend.
 
   SvgAllowedOriginsParameter:
@@ -174,7 +175,7 @@ Resources:
     Properties:
       Name: !Sub '/math-visuals/${EnvironmentName}/config/svg-allowed-origins'
       Type: String
-      Value: https://visualmath.kikora.com
+      Value: !If [IsProdEnvironment, https://visualmath.kikora.com, https://visualmath-dev.kikora.com]
       Description: Comma-separated list of allowed origins for the SVG export API frontend.
 
   SharedStackVersionParameter:
