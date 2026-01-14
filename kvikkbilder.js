@@ -55,7 +55,7 @@
     klosser: '#534477',
     blocks: '#534477'
   };
-  const FIGURE_LIBRARY_APP_KEY = 'kvikkbilder';
+  const FIGURE_LIBRARY_APP_KEY = 'kvikkfigurer';
   let figureLibraryModule = null;
   let figureData = null;
   let figurePicker = null;
