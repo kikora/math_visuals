@@ -7528,15 +7528,18 @@ if (btnSvg) {
     if (!svgExport || !svgExport.markup) return;
     const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
     const suggestedName = `${getSuggestedFilename()}.svg`;
+    let exportedViaHelper = false;
     if (helper && typeof helper.exportSvgWithArchive === 'function') {
       helper.exportSvgWithArchive(svgExport.node, suggestedName, 'graftegner', {
         svgString: svgExport.markup,
         alt: svgExport.altText,
         description: svgExport.altText
       });
-      return;
+      exportedViaHelper = true;
     }
-    await downloadBoardSvg(svgExport, suggestedName);
+    if (!exportedViaHelper) {
+      await downloadBoardSvg(svgExport, suggestedName);
+    }
     const html2CanvasDidDownload = await downloadBoardPngWithHtml2Canvas(`${getSuggestedFilename()}.png`);
     if (!html2CanvasDidDownload) {
       await downloadBoardPNG(svgExport, `${getSuggestedFilename()}.png`);
