@@ -7319,6 +7319,23 @@ function serializeBoardSvg(clone) {
     });
   }
 
+  async function downloadBoardSvg(svgExport, filename) {
+    if (!svgExport || !svgExport.markup) return false;
+    const urlApi = typeof window !== 'undefined' ? window.URL || URL : null;
+    const svgBlob = new Blob([svgExport.markup], {
+      type: 'image/svg+xml;charset=utf-8'
+    });
+    const url = urlApi ? urlApi.createObjectURL(svgBlob) : null;
+    const a = document.createElement('a');
+    a.href = url || `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgExport.markup)}`;
+    a.download = filename.endsWith('.svg') ? filename : `${filename}.svg`;
+    a.click();
+    if (urlApi && url) {
+      urlApi.revokeObjectURL(url);
+    }
+    return true;
+  }
+
   async function downloadBoardPngWithHtml2Canvas(filename, scale = 2, bg = '#fff') {
     const html2canvas = typeof window !== 'undefined' ? window.html2canvas : null;
     if (typeof html2canvas !== 'function') return false;
@@ -7511,78 +7528,19 @@ if (btnSvg) {
     if (!svgExport || !svgExport.markup) return;
     const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
     const suggestedName = `${getSuggestedFilename()}.svg`;
-    if (!helper || typeof helper.exportSvgWithArchive !== 'function') {
-      await downloadBoardPNG(svgExport, `${getSuggestedFilename()}.png`);
+    if (helper && typeof helper.exportSvgWithArchive === 'function') {
+      helper.exportSvgWithArchive(svgExport.node, suggestedName, 'graftegner', {
+        svgString: svgExport.markup,
+        alt: svgExport.altText,
+        description: svgExport.altText
+      });
       return;
     }
-    helper.exportSvgWithArchive(svgExport.node, suggestedName, 'graftegner', {
-      svgString: svgExport.markup,
-      alt: svgExport.altText,
-      description: svgExport.altText
-    });
-  });
-}
-const btnPng = document.getElementById('btnPng');
-if (btnPng) {
-  btnPng.addEventListener('click', async () => {
-    const cleanState = createCleanSaveState();
-    if (typeof window !== 'undefined') {
-      window.STATE_V2 = cleanState;
-      window.STATE = cleanState;
-    }
-    const svgExport = buildBoardSvgExport();
-    if (!svgExport || !svgExport.markup) return;
+    await downloadBoardSvg(svgExport, suggestedName);
     const html2CanvasDidDownload = await downloadBoardPngWithHtml2Canvas(`${getSuggestedFilename()}.png`);
-    if (html2CanvasDidDownload) return;
-    const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
-    const urlApi = typeof window !== 'undefined' ? window.URL || URL : null;
-    const svgBlob = new Blob([svgExport.markup], {
-      type: 'image/svg+xml;charset=utf-8'
-    });
-    const url = urlApi ? urlApi.createObjectURL(svgBlob) : null;
-    const downloadPng = pngData => {
-      if (!pngData) return false;
-      if (urlApi && pngData.blob) {
-        const pngUrl = urlApi.createObjectURL(pngData.blob);
-        const a = document.createElement('a');
-        a.href = pngUrl;
-        a.download = `${getSuggestedFilename()}.png`;
-        a.click();
-        urlApi.revokeObjectURL(pngUrl);
-        return true;
-      }
-      if (pngData.dataUrl) {
-        const a = document.createElement('a');
-        a.href = pngData.dataUrl;
-        a.download = `${getSuggestedFilename()}.png`;
-        a.click();
-        return true;
-      }
-      return false;
-    };
-    if (helper && typeof helper.renderSvgToPng === 'function' && url) {
-      try {
-        const pngData = await helper.renderSvgToPng(document, url, svgExport.markup, {
-          width: svgExport.width,
-          height: svgExport.height
-        });
-        const didDownload = downloadPng(pngData);
-        if (!didDownload && helper.showToast) {
-          helper.showToast('Kunne ikke lage PNG.', 'error');
-        }
-      } catch (error) {
-        if (helper && typeof helper.showToast === 'function') {
-          const message = error && error.message ? error.message : 'Ukjent feil';
-          helper.showToast(`PNG feilet: ${message}.`, 'error');
-        }
-      } finally {
-        if (urlApi && url) {
-          urlApi.revokeObjectURL(url);
-        }
-      }
-      return;
+    if (!html2CanvasDidDownload) {
+      await downloadBoardPNG(svgExport, `${getSuggestedFilename()}.png`);
     }
-    await downloadBoardPNG(svgExport, `${getSuggestedFilename()}.png`);
   });
 }
 setupSettingsForm();
