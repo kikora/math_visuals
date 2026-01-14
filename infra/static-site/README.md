@@ -52,6 +52,8 @@ extension or includes an example slug.
 | `ApiGatewayDomainName`     | Domain name of the API Gateway stage (e.g. `abc123.execute-api.us-east-1.amazonaws.com`). |
 | `CloudFrontPriceClass`     | CloudFront price class to use (defaults to `PriceClass_100`). |
 | `CachePolicyId`            | CloudFront cache policy applied to API-backed behaviours (defaults to the managed `CachingDisabled` policy). |
+| `CloudFrontAliases`        | Optional comma-delimited list of CloudFront aliases (CNAMEs). Leave blank to use the default CloudFront certificate. |
+| `CloudFrontAcmCertificateArn` | ACM certificate ARN (in `us-east-1`) used when `CloudFrontAliases` are set. |
 | `ExistingCloudFrontDistributionId` | Optional CloudFront distribution ID to reuse instead of creating a new distribution. |
 | `ExistingCloudFrontDistributionDomainName` | Domain name for the existing CloudFront distribution (required when reusing a distribution). |
 | `SharedParametersStackName`| Name of the stack created from `infra/shared-parameters.yaml`. |
@@ -120,8 +122,9 @@ Override the behaviour by exporting `CREATE_SITE_BUCKET=true|false` before
 running the script when you need to force a particular mode.
 
 The script reads the current parameter values for `SiteBucketName`,
-`ApiGatewayDomainName`, `ApiGatewayOriginPath`, `CloudFrontPriceClass` and
-`CachePolicyId` from the existing `math-visuals-static-site` stack before calling
+`ApiGatewayDomainName`, `ApiGatewayOriginPath`, `CloudFrontPriceClass`,
+`CachePolicyId`, `CloudFrontAliases`, and `CloudFrontAcmCertificateArn` from the
+existing `math-visuals-static-site` stack before calling
 [`aws cloudformation deploy`](https://docs.aws.amazon.com/cli/latest/reference/cloudformation/deploy/index.html)
 against [`template.yaml`](./template.yaml). Passing `--force-upload` ensures
 CloudFront receives the latest behaviours even when the parameter values do not
@@ -135,6 +138,34 @@ If you omit it the script reuses the value already stored on the stack (falling
 back to the template default of `4135ea2d-6df8-44a3-9df3-4b5a84be39ad` when the
 stack is first created) so existing deployments continue to inherit AWS's
 managed "CachingDisabled" policy.
+
+To configure aliases, set `CLOUDFRONT_ALIASES` to a comma-delimited list and
+provide an ACM certificate ARN in `CLOUDFRONT_ACM_CERTIFICATE_ARN`. The deploy
+script will reuse the existing stack values unless you override them. If
+`CLOUDFRONT_ALIASES` is empty, the distribution falls back to the default
+CloudFront certificate.
+
+**Dev (without custom domain):** leave aliases empty to keep the default certificate:
+
+```bash
+export CLOUDFRONT_ALIASES=
+export CLOUDFRONT_ACM_CERTIFICATE_ARN=
+```
+
+**Dev (with custom domain):** provide the dev CNAME and a us-east-1 ACM certificate
+that covers it:
+
+```bash
+export CLOUDFRONT_ALIASES=visualmath-dev.kikora.com
+export CLOUDFRONT_ACM_CERTIFICATE_ARN=arn:aws:acm:us-east-1:123456789012:certificate/your-dev-cert-id
+```
+
+**Prod:** provide the prod CNAME and a us-east-1 ACM certificate that covers it:
+
+```bash
+export CLOUDFRONT_ALIASES=visualmath.kikora.com
+export CLOUDFRONT_ACM_CERTIFICATE_ARN=arn:aws:acm:us-east-1:123456789012:certificate/your-cert-id
+```
 
 To reuse an existing CloudFront distribution (for example if it was created
 manually or retained from a previous stack), export
