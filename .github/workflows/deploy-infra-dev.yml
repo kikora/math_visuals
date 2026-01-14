@@ -67,6 +67,21 @@ jobs:
           role-to-assume: ${{ env.AWS_IAC_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Debug CloudFront invalidation paths
+        run: |
+          if [ -n "${{ github.event.inputs.cloudfront_invalidation_paths }}" ]; then
+            echo "Using workflow_dispatch input for invalidation paths."
+          elif [ -n "${CLOUDFRONT_INVALIDATION_PATHS:-}" ]; then
+            echo "Using CLOUDFRONT_INVALIDATION_PATHS from secrets/default."
+          else
+            echo "CLOUDFRONT_INVALIDATION_PATHS is empty."
+          fi
+          if [ -z "${CLOUDFRONT_INVALIDATION_PATHS:-}" ]; then
+            echo "CLOUDFRONT_INVALIDATION_PATHS length: 0"
+          else
+            echo "CLOUDFRONT_INVALIDATION_PATHS length: ${#CLOUDFRONT_INVALIDATION_PATHS}"
+          fi
+
       - name: Ensure dev S3 buckets exist
         run: |
           set -euo pipefail
