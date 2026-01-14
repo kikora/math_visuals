@@ -39,12 +39,32 @@ Parameters:
     Description: >-
       CloudFront cache policy ID applied to API-backed cache behaviors
       (defaults to the managed "CachingDisabled" policy).
+  ExistingCloudFrontDistributionId:
+    Type: String
+    Default: ''
+    Description: >-
+      Optional CloudFront distribution ID to reuse instead of creating a new
+      distribution.
+  ExistingCloudFrontDistributionDomainName:
+    Type: String
+    Default: ''
+    Description: >-
+      Domain name for the existing CloudFront distribution (required when
+      ExistingCloudFrontDistributionId is set).
   SharedParametersStackName:
     Type: String
     Description: Name of the CloudFormation stack that exports shared parameter names.
 
 Conditions:
   CreateSiteBucketCondition: !Equals [!Ref CreateSiteBucket, 'true']
+  CreateCloudFrontDistributionCondition: !Equals [!Ref ExistingCloudFrontDistributionId, '']
+
+Rules:
+  ExistingCloudFrontDistributionRule:
+    RuleCondition: !Not [!Equals [!Ref ExistingCloudFrontDistributionId, '']]
+    Assertions:
+      - Assert: !Not [!Equals [!Ref ExistingCloudFrontDistributionDomainName, '']]
+        AssertDescription: ExistingCloudFrontDistributionDomainName must be set when reusing a CloudFront distribution.
 
 Resources:
   SiteBucket:
@@ -232,6 +252,7 @@ Resources:
 
   Distribution:
     Type: AWS::CloudFront::Distribution
+    Condition: CreateCloudFrontDistributionCondition
     Properties:
       DistributionConfig:
         Enabled: true
@@ -426,12 +447,18 @@ Outputs:
       Name: !Sub '${AWS::StackName}-StaticSiteBucketName'
   CloudFrontDistributionId:
     Description: Identifier of the CloudFront distribution serving the site.
-    Value: !Ref Distribution
+    Value: !If
+      - CreateCloudFrontDistributionCondition
+      - !Ref Distribution
+      - !Ref ExistingCloudFrontDistributionId
     Export:
       Name: !Sub '${AWS::StackName}-DistributionId'
   CloudFrontDistributionDomainName:
     Description: Domain name of the CloudFront distribution.
-    Value: !GetAtt Distribution.DomainName
+    Value: !If
+      - CreateCloudFrontDistributionCondition
+      - !GetAtt Distribution.DomainName
+      - !Ref ExistingCloudFrontDistributionDomainName
     Export:
       Name: !Sub '${AWS::StackName}-DistributionDomainName'
   ExamplesAllowedOriginsParameterName:

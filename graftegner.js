@@ -1428,6 +1428,8 @@ const INITIAL_SHOW_AXIS_NUMBERS = !!(ADV.axis && ADV.axis.ticks && ADV.axis.tick
 const INITIAL_SHOW_GRID = !!(ADV.axis && ADV.axis.grid && ADV.axis.grid.show);
 const INITIAL_FORCE_TICKS = !!FORCE_TICKS_REQUESTED;
 const INITIAL_SNAP_ENABLED = !!(ADV.points && ADV.points.snap && ADV.points.snap.enabled);
+const INITIAL_SHOW_POINT_ARROWS = !!(ADV.points && ADV.points.guideArrows);
+const INITIAL_SHOW_POINT_COORDS = !!(ADV.points && ADV.points.showCoordsOnHover);
 const CLEAN_SAVE_DEFAULTS = {
   grid: STORAGE_V2_DEFAULTS.grid,
   axisNumbers: STORAGE_V2_DEFAULTS.axisNumbers,
@@ -1514,6 +1516,12 @@ const EXAMPLE_STATE = (() => {
   }
   if (!Object.prototype.hasOwnProperty.call(existing, 'snapEnabled')) {
     existing.snapEnabled = INITIAL_SNAP_ENABLED;
+  }
+  if (!Object.prototype.hasOwnProperty.call(existing, 'showPointArrows')) {
+    existing.showPointArrows = INITIAL_SHOW_POINT_ARROWS;
+  }
+  if (!Object.prototype.hasOwnProperty.call(existing, 'showPointCoords')) {
+    existing.showPointCoords = INITIAL_SHOW_POINT_COORDS;
   }
   if (!Object.prototype.hasOwnProperty.call(existing, 'screen')) {
     existing.screen = Array.isArray(ADV.screen) ? ADV.screen.slice(0, 4) : null;
@@ -7587,6 +7595,8 @@ function setupSettingsForm() {
   const forceTicksInput = g('cfgForceTicks');
   const q1Input = g('cfgQ1');
   const lockInput = g('cfgLock');
+  const showPointArrowsInput = g('cfgShowPointArrows');
+  const showPointCoordsInput = g('cfgShowPointCoords');
   const screenInput = g('cfgScreen');
   const zoomInput = g('cfgZoom');
   const panInput = g('cfgPan');
@@ -7771,6 +7781,22 @@ function setupSettingsForm() {
       ADV.points.snap.enabled = effectiveSnap;
       changed = true;
     }
+    const resolvedPointArrows = resolveExampleStateFlag(exampleState, 'showPointArrows', INITIAL_SHOW_POINT_ARROWS);
+    if (showPointArrowsInput && showPointArrowsInput.checked !== resolvedPointArrows) {
+      showPointArrowsInput.checked = resolvedPointArrows;
+    }
+    if (ADV.points.guideArrows !== resolvedPointArrows) {
+      ADV.points.guideArrows = resolvedPointArrows;
+      changed = true;
+    }
+    const resolvedPointCoords = resolveExampleStateFlag(exampleState, 'showPointCoords', INITIAL_SHOW_POINT_COORDS);
+    if (showPointCoordsInput && showPointCoordsInput.checked !== resolvedPointCoords) {
+      showPointCoordsInput.checked = resolvedPointCoords;
+    }
+    if (ADV.points.showCoordsOnHover !== resolvedPointCoords) {
+      ADV.points.showCoordsOnHover = resolvedPointCoords;
+      changed = true;
+    }
     const exampleScreen = exampleState && Array.isArray(exampleState.screen) && exampleState.screen.length === 4
       ? exampleState.screen
       : defaultScreen;
@@ -7809,6 +7835,8 @@ function setupSettingsForm() {
     exampleState.showGrid = showGridInput ? !!showGridInput.checked : !!(ADV.axis && ADV.axis.grid && ADV.axis.grid.show);
     exampleState.forceTicks = forceTicksInput ? !!forceTicksInput.checked : !!FORCE_TICKS_REQUESTED;
     exampleState.snapEnabled = snapCheckbox ? !!(snapCheckbox.checked && !snapCheckbox.disabled) : !!(ADV.points && ADV.points.snap && ADV.points.snap.enabled);
+    exampleState.showPointArrows = showPointArrowsInput ? !!showPointArrowsInput.checked : !!(ADV.points && ADV.points.guideArrows);
+    exampleState.showPointCoords = showPointCoordsInput ? !!showPointCoordsInput.checked : !!(ADV.points && ADV.points.showCoordsOnHover);
     exampleState.screen = Array.isArray(LAST_COMPUTED_SCREEN) && LAST_COMPUTED_SCREEN.length === 4
       ? LAST_COMPUTED_SCREEN.slice(0, 4)
       : null;
@@ -9134,14 +9162,19 @@ function setupSettingsForm() {
     return false;
   };
   const updateSnapAvailability = () => {
-    if (!snapCheckbox) return;
     const hasPoints = hasConfiguredPoints();
-    snapCheckbox.disabled = !hasPoints;
-    if (!hasPoints) {
-      snapCheckbox.title = 'Aktiveres når punkter er lagt til.';
-    } else {
-      snapCheckbox.removeAttribute('title');
-    }
+    const updateCheckbox = input => {
+      if (!input) return;
+      input.disabled = !hasPoints;
+      if (!hasPoints) {
+        input.title = 'Aktiveres når punkter er lagt til.';
+      } else {
+        input.removeAttribute('title');
+      }
+    };
+    updateCheckbox(snapCheckbox);
+    updateCheckbox(showPointArrowsInput);
+    updateCheckbox(showPointCoordsInput);
   };
   const updateExtraAnswerControl = control => {
     if (!control || !control.label || !control.funInput) return;
@@ -10140,6 +10173,14 @@ function setupSettingsForm() {
       snapCheckbox.checked = INITIAL_SNAP_ENABLED;
     }
     ADV.points.snap.enabled = snapDefault;
+    if (showPointArrowsInput) {
+      showPointArrowsInput.checked = INITIAL_SHOW_POINT_ARROWS;
+    }
+    if (showPointCoordsInput) {
+      showPointCoordsInput.checked = INITIAL_SHOW_POINT_COORDS;
+    }
+    ADV.points.guideArrows = INITIAL_SHOW_POINT_ARROWS;
+    ADV.points.showCoordsOnHover = INITIAL_SHOW_POINT_COORDS;
   };
   const applyCleanOptions = (cleanOptions, exampleState) => {
     if (!cleanOptions || typeof cleanOptions !== 'object') return;
@@ -10514,6 +10555,12 @@ function setupSettingsForm() {
   if (showGridInput) {
     showGridInput.checked = !!(ADV.axis && ADV.axis.grid && ADV.axis.grid.show);
   }
+  if (showPointArrowsInput) {
+    showPointArrowsInput.checked = !!(ADV.points && ADV.points.guideArrows);
+  }
+  if (showPointCoordsInput) {
+    showPointCoordsInput.checked = !!(ADV.points && ADV.points.showCoordsOnHover);
+  }
   if (forceTicksInput) {
     forceTicksInput.checked = !!ADV.axis.forceIntegers;
     forceTicksInput.disabled = FORCE_TICKS_LOCKED_FALSE;
@@ -10667,6 +10714,8 @@ function setupSettingsForm() {
     const showBracketsChecked = !!(ADV.domainMarkers && ADV.domainMarkers.show);
     const showAxisNumbersChecked = showAxisNumbersInput ? !!showAxisNumbersInput.checked : !!(ADV.axis && ADV.axis.ticks && ADV.axis.ticks.showNumbers);
     const showGridChecked = showGridInput ? !!showGridInput.checked : !!(ADV.axis && ADV.axis.grid && ADV.axis.grid.show);
+    const showPointArrowsChecked = showPointArrowsInput ? !!showPointArrowsInput.checked : !!(ADV.points && ADV.points.guideArrows);
+    const showPointCoordsChecked = showPointCoordsInput ? !!showPointCoordsInput.checked : !!(ADV.points && ADV.points.showCoordsOnHover);
     if (showNamesInput && ADV.curveName.showName !== showNamesChecked) {
       ADV.curveName.showName = showNamesChecked;
       needsRebuild = true;
@@ -10686,6 +10735,14 @@ function setupSettingsForm() {
     }
     if (showGridInput && ADV.axis.grid.show !== showGridChecked) {
       ADV.axis.grid.show = showGridChecked;
+      needsRebuild = true;
+    }
+    if (showPointArrowsInput && ADV.points.guideArrows !== showPointArrowsChecked) {
+      ADV.points.guideArrows = showPointArrowsChecked;
+      needsRebuild = true;
+    }
+    if (showPointCoordsInput && ADV.points.showCoordsOnHover !== showPointCoordsChecked) {
+      ADV.points.showCoordsOnHover = showPointCoordsChecked;
       needsRebuild = true;
     }
     syncExampleStateFromControls();

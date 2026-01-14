@@ -27,6 +27,14 @@ function read_parameter() {
   echo "$value"
 }
 
+function read_optional_parameter() {
+  local key=$1
+  aws cloudformation describe-stacks \
+    --stack-name "$STACK_NAME" \
+    --query "Stacks[0].Parameters[?ParameterKey=='$key'].ParameterValue" \
+    --output text 2>/dev/null
+}
+
 function stack_exists() {
   aws cloudformation describe-stacks --stack-name "$STACK_NAME" >/dev/null 2>&1
 }
@@ -61,6 +69,8 @@ CACHE_POLICY_ID=${CACHE_POLICY_ID:-}
 CLOUDFRONT_REGION=${CLOUDFRONT_REGION:-us-east-1}
 SKIP_INVALIDATION=${SKIP_INVALIDATION:-}
 CREATE_SITE_BUCKET=${CREATE_SITE_BUCKET:-false}
+EXISTING_CLOUDFRONT_DISTRIBUTION_ID=${EXISTING_CLOUDFRONT_DISTRIBUTION_ID:-}
+EXISTING_CLOUDFRONT_DISTRIBUTION_DOMAIN_NAME=${EXISTING_CLOUDFRONT_DISTRIBUTION_DOMAIN_NAME:-}
 
 STACK_EXISTS=false
 if stack_exists; then
@@ -122,6 +132,24 @@ if [[ -z "$CREATE_SITE_BUCKET" ]]; then
   fi
 fi
 
+if [[ -z "$EXISTING_CLOUDFRONT_DISTRIBUTION_ID" && $STACK_EXISTS == true ]]; then
+  EXISTING_CLOUDFRONT_DISTRIBUTION_ID=$(read_optional_parameter "ExistingCloudFrontDistributionId" || true)
+fi
+
+if [[ -z "$EXISTING_CLOUDFRONT_DISTRIBUTION_DOMAIN_NAME" && $STACK_EXISTS == true ]]; then
+  EXISTING_CLOUDFRONT_DISTRIBUTION_DOMAIN_NAME=$(read_optional_parameter "ExistingCloudFrontDistributionDomainName" || true)
+fi
+
+if [[ -n "$EXISTING_CLOUDFRONT_DISTRIBUTION_ID" && -z "$EXISTING_CLOUDFRONT_DISTRIBUTION_DOMAIN_NAME" ]]; then
+  echo "EXISTING_CLOUDFRONT_DISTRIBUTION_DOMAIN_NAME must be set when reusing a CloudFront distribution." >&2
+  exit 1
+fi
+
+if [[ -z "$EXISTING_CLOUDFRONT_DISTRIBUTION_ID" && -n "$EXISTING_CLOUDFRONT_DISTRIBUTION_DOMAIN_NAME" ]]; then
+  echo "EXISTING_CLOUDFRONT_DISTRIBUTION_ID must be set when providing a CloudFront distribution domain name." >&2
+  exit 1
+fi
+
 if [[ "${CREATE_SITE_BUCKET,,}" == "true" ]] && bucket_exists "$SITE_BUCKET_NAME"; then
   echo "Bucket $SITE_BUCKET_NAME already exists. Set CREATE_SITE_BUCKET=false to reuse the existing bucket." >&2
   exit 1
@@ -139,6 +167,8 @@ PARAM_OVERRIDES=(
   "ApiGatewayOriginPath=$API_GATEWAY_ORIGIN_PATH"
   "CloudFrontPriceClass=$CLOUDFRONT_PRICE_CLASS"
   "CachePolicyId=$CACHE_POLICY_ID"
+  "ExistingCloudFrontDistributionId=$EXISTING_CLOUDFRONT_DISTRIBUTION_ID"
+  "ExistingCloudFrontDistributionDomainName=$EXISTING_CLOUDFRONT_DISTRIBUTION_DOMAIN_NAME"
   "SharedParametersStackName=$SHARED_STACK_NAME"
 )
 
