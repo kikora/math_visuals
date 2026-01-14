@@ -378,6 +378,12 @@
   }
   function getDotColor(kind) {
     const fallback = DOT_FALLBACKS[kind] || DOT_FALLBACKS.default;
+    if (kind === 'monster' || kind === 'rectangles') {
+      const colors = getFillPalette();
+      const safeIndex = sanitizeFillIndex(activeFillColorIndex, colors.length);
+      const fillColor = colors[safeIndex - 1] || colors[0];
+      if (typeof fillColor === 'string' && fillColor) return fillColor;
+    }
     const theme = getThemeApi();
     if (theme && typeof theme.getColor === 'function') {
       const color = theme.getColor('dots.default', fallback);
