@@ -29,10 +29,17 @@ function read_parameter() {
 
 function read_optional_parameter() {
   local key=$1
-  aws cloudformation describe-stacks \
+  local value
+  value=$(aws cloudformation describe-stacks \
     --stack-name "$STACK_NAME" \
     --query "Stacks[0].Parameters[?ParameterKey=='$key'].ParameterValue" \
-    --output text 2>/dev/null
+    --output text 2>/dev/null || true)
+
+  if [[ "$value" == "None" ]]; then
+    echo ""
+  else
+    echo "$value"
+  fi
 }
 
 function stack_exists() {
