@@ -284,7 +284,7 @@ function isValidColor(value) {
   const CLIP_PAD_PERCENT = CLIP_PADDING_PERCENT + CLIP_PAD_EXTRA_PERCENT;
   const CIRCLE_RADIUS = 0.45;
   const OUTLINE_STROKE_WIDTH = 6;
-  const RECT_CORNER_RADIUS_RATIO = 0.04;
+  const RECT_CORNER_RADIUS_RATIO = 0.01;
   const DIVISION_SEGMENT_EXTENSION = 0;
   const colorCountInp = document.getElementById('colorCount');
   const allowWrongInp = document.getElementById('allowWrong');
