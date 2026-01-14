@@ -258,11 +258,15 @@ function ensure_api_behavior_first() {
 ensure_api_behavior_first
 
 if [[ -z "$SKIP_INVALIDATION" ]]; then
-  echo "Creating CloudFront invalidation on distribution $CLOUDFRONT_ID for paths: /api/* and /*"
+  invalidation_paths=(
+    "/api/*"
+    "/*"
+  )
+  echo "Creating CloudFront invalidation on distribution $CLOUDFRONT_ID for paths: ${invalidation_paths[*]}"
   aws cloudfront create-invalidation \
     --region "$CLOUDFRONT_REGION" \
     --distribution-id "$CLOUDFRONT_ID" \
-    --paths "/api/*" "/*" >/dev/null
+    --paths "${invalidation_paths[@]}" >/dev/null
 else
   echo "Skipping CloudFront invalidation because SKIP_INVALIDATION is set."
 fi
