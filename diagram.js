@@ -500,6 +500,7 @@ const EMERGENCY_SERIES_COLORS = ['#574595', '#d081a1'];
 const EMERGENCY_PIE_PALETTE = ['#4f2c8c', '#6c3db5', '#8a4de0', '#a75cf1', '#c26ef0', '#d381ba', '#c46287', '#9f436d', '#723a82', '#503070'];
 const PIE_COLOR_CLASS_COUNT = 10;
 const DIAGRAM_GROUP_SLOT_COUNT = 6;
+const SHARED_GROUP_ID = 'graftegner';
 const LEGACY_AXIS_COLOR = '#0f172a';
 const LEGACY_GRID_COLOR = '#e5e7eb';
 const LEGACY_TEXT_COLOR = '#333333';
@@ -739,14 +740,14 @@ function resolveDiagramPaletteData(options = {}) {
   let groupPalette = [];
   if (paletteApi) {
     try {
-      groupPalette = paletteApi.getGroupPalette('diagram', paletteRequest) || [];
+      groupPalette = paletteApi.getGroupPalette(SHARED_GROUP_ID, paletteRequest) || [];
     } catch (_) {
       groupPalette = [];
     }
   }
   if ((!Array.isArray(groupPalette) || !groupPalette.length) && theme && typeof theme.getGroupPalette === 'function') {
     try {
-      groupPalette = theme.getGroupPalette('diagram', paletteRequest) || [];
+      groupPalette = theme.getGroupPalette(SHARED_GROUP_ID, paletteRequest) || [];
     } catch (_) {
       groupPalette = [];
     }

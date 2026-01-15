@@ -2,8 +2,8 @@ const { test, expect } = require('@playwright/test');
 
 function buildProjectPalette(fillColor, lineColor) {
   const palette = Array.from({ length: 30 }, (_, index) => `#${(index + 1).toString(16).padStart(6, '0')}`);
-  palette[13] = fillColor;
-  palette[14] = lineColor;
+  palette[4] = fillColor;
+  palette[5] = lineColor;
   return palette;
 }
 
@@ -117,12 +117,12 @@ test.describe('tenkeblokker fraction palette fallbacks', () => {
         default: defaultFallback
       },
       GROUP_SLOT_INDICES: {
-        fractions: [13, 14]
+        graftegner: [4, 5]
       },
       COLOR_SLOT_GROUPS: [
         {
-          groupId: 'fractions',
-          slots: [{ index: 13 }, { index: 14 }]
+          groupId: 'graftegner',
+          slots: [{ index: 4 }, { index: 5 }]
         }
       ]
     };

@@ -114,11 +114,11 @@
     if (theme && typeof theme.getGroupPalette === 'function') {
       let palette = null;
       try {
-        palette = theme.getGroupPalette('fractions', { count: target });
+        palette = theme.getGroupPalette('graftegner', { count: target });
       } catch (_) {}
       if ((!palette || palette.length < target) && theme.getGroupPalette.length >= 2) {
         try {
-          palette = theme.getGroupPalette('fractions', target);
+          palette = theme.getGroupPalette('graftegner', target);
         } catch (_) {
           palette = null;
         }
@@ -345,7 +345,7 @@
     const theme = getThemeApi();
     if (theme && typeof theme.getGroupPalette === 'function') {
       try {
-        const palette = theme.getGroupPalette('kvikkbilder', { count: 1 });
+        const palette = theme.getGroupPalette('graftegner', { count: 1 });
         if (Array.isArray(palette) && palette.length) {
           const normalized = normalizeHexColor(palette[0]);
           if (normalized) return normalized;

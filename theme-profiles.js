@@ -124,35 +124,14 @@
     return colors;
   }
   const GROUP_FALLBACKS = {
-    graftegner: ['figures', 'fractions'],
+    graftegner: ['fractions', 'figures'],
     nkant: ['figures', 'fractions'],
-    diagram: ['fractions', 'figures'],
-    fractions: ['fractions', 'figures'],
-    brokvegg: ['fractions', 'figures'],
     arealmodell: ['fractions', 'figures'],
-    kvikkbilder: ['figures', 'fractions'],
-    trefigurer: ['figures', 'fractions'],
-    tallinje: ['figures', 'fractions'],
-    prikktilprikk: ['figures', 'fractions'],
-    figurtall: ['figures', 'fractions'],
     default: ['fractions', 'figures']
   };
   const DEFAULT_PALETTE_GROUPS = Array.isArray(paletteConfig.DEFAULT_GROUP_ORDER)
     ? paletteConfig.DEFAULT_GROUP_ORDER.slice()
-    : [
-        'graftegner',
-        'nkant',
-        'diagram',
-        'fractions',
-        'figurtall',
-        'arealmodell',
-        'tallinje',
-        'kvikkbilder',
-        'trefigurer',
-        'brokvegg',
-        'prikktilprikk',
-        'extra'
-      ];
+    : ['graftegner', 'nkant', 'arealmodell', 'extra'];
   const campusPaletteColors = Array.isArray(paletteConfig.PROJECT_FALLBACKS.campus)
     ? paletteConfig.PROJECT_FALLBACKS.campus.slice()
     : [];

@@ -74,7 +74,7 @@ const paletteService = typeof require === 'function'
   };
   const DEFAULT_DENOMS = [1, 2, 3, 4, 5, 6, 8, 9, 10, 12];
   const LEGACY_COLOR_PALETTE = ['#B25FE3', '#6C1BA2', '#534477', '#873E79', '#BF4474', '#E31C3D'];
-  const FRACTION_GROUP_ID = 'brokvegg';
+  const SHARED_GROUP_ID = 'graftegner';
 
   function sanitizePaletteList(values) {
     if (!Array.isArray(values)) return [];
@@ -139,7 +139,7 @@ const paletteService = typeof require === 'function'
     const project = getActiveThemeProjectName(theme);
     const targetCount = Number.isFinite(count) && count > 0 ? Math.trunc(count) : undefined;
     const servicePalette = paletteService.resolveGroupPalette({
-      groupId: FRACTION_GROUP_ID,
+      groupId: SHARED_GROUP_ID,
       count: targetCount,
       project: project || undefined,
       fallback: LEGACY_COLOR_PALETTE,
@@ -155,7 +155,7 @@ const paletteService = typeof require === 'function'
     let palette = null;
     if (theme && typeof theme.getGroupPalette === 'function') {
       try {
-        palette = theme.getGroupPalette(FRACTION_GROUP_ID, { project, count: targetCount });
+        palette = theme.getGroupPalette(SHARED_GROUP_ID, { project, count: targetCount });
       } catch (_) {
         palette = null;
       }
@@ -165,7 +165,7 @@ const paletteService = typeof require === 'function'
       ) {
         try {
           palette = theme.getGroupPalette(
-            FRACTION_GROUP_ID,
+            SHARED_GROUP_ID,
             targetCount || undefined,
             project ? { project } : undefined
           );

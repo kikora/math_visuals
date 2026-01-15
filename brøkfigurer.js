@@ -297,7 +297,7 @@ function isValidColor(value) {
     colorInputs.push(inp);
   }
   const LEGACY_COLOR_PALETTE = ['#B25FE3', '#6C1BA2', '#534477', '#873E79', '#BF4474', '#E31C3D'];
-  const FRACTION_GROUP_ID = 'fractions';
+  const SHARED_GROUP_ID = 'graftegner';
   const FILL_COLOR_COUNT = 6;
   const fillColorPickersSelector = '[data-fill-color-picker]';
   function getThemeApi() {
@@ -719,13 +719,13 @@ function isValidColor(value) {
     const theme = getThemeApi();
     const project = resolvePaletteProjectName();
     const legacyFallback = sanitizePalette(LEGACY_COLOR_PALETTE);
-    const projectFallback = getProjectGroupFallbackPalette(project, FRACTION_GROUP_ID, LEGACY_COLOR_PALETTE);
+    const projectFallback = getProjectGroupFallbackPalette(project, SHARED_GROUP_ID, LEGACY_COLOR_PALETTE);
     const fallback = projectFallback.length ? projectFallback : legacyFallback;
     const target = Number.isFinite(count) && count > 0 ? Math.trunc(count) : fallback.length || legacyFallback.length;
 
     if (paletteApi) {
       const palette = tryResolvePalette(() =>
-        paletteApi.getGroupPalette(FRACTION_GROUP_ID, {
+        paletteApi.getGroupPalette(SHARED_GROUP_ID, {
           project: project || undefined,
           count: target || undefined
         })
@@ -737,7 +737,7 @@ function isValidColor(value) {
 
     if (settings && typeof settings.getGroupPalette === 'function') {
       let palette = tryResolvePalette(() =>
-        settings.getGroupPalette(FRACTION_GROUP_ID, {
+        settings.getGroupPalette(SHARED_GROUP_ID, {
           project: project || undefined,
           count: target || undefined
         })
@@ -745,7 +745,7 @@ function isValidColor(value) {
       if ((!palette || palette.length < target) && settings.getGroupPalette.length >= 3) {
         palette = tryResolvePalette(() =>
           settings.getGroupPalette(
-            FRACTION_GROUP_ID,
+            SHARED_GROUP_ID,
             target || undefined,
             project ? { project } : undefined
           )
@@ -758,7 +758,7 @@ function isValidColor(value) {
 
     const servicePalette = tryResolvePalette(() =>
       paletteService.resolveGroupPalette({
-        groupId: FRACTION_GROUP_ID,
+        groupId: SHARED_GROUP_ID,
         count: target || undefined,
         project: project || undefined,
         fallback,
@@ -772,7 +772,7 @@ function isValidColor(value) {
 
     if (theme && typeof theme.getGroupPalette === 'function') {
       let palette = tryResolvePalette(() =>
-        theme.getGroupPalette(FRACTION_GROUP_ID, {
+        theme.getGroupPalette(SHARED_GROUP_ID, {
           project: project || undefined,
           count: target || undefined
         })
@@ -780,7 +780,7 @@ function isValidColor(value) {
       if ((!palette || palette.length < target) && theme.getGroupPalette.length >= 3) {
         palette = tryResolvePalette(() =>
           theme.getGroupPalette(
-            FRACTION_GROUP_ID,
+            SHARED_GROUP_ID,
             target || undefined,
             project ? { project } : undefined
           )

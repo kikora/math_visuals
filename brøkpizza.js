@@ -109,7 +109,7 @@ const LEGACY_PIZZA_COLORS = {
   handle: '#e9e6f7',
   handleStroke: '#333333'
 };
-const FRACTION_GROUP_ID = 'fractions';
+const SHARED_GROUP_ID = 'graftegner';
 const FILL_COLOR_COUNT = 6;
 const fillColorPickers =
   typeof document !== 'undefined'
@@ -400,7 +400,7 @@ function getFractionPalette(count) {
   const theme = getThemeApi();
   const project = resolvePaletteProjectName();
   const projectFallbackBase = getProjectFallbackPaletteBase(project);
-  const projectFallback = getProjectGroupFallbackPalette(project, FRACTION_GROUP_ID, projectFallbackBase);
+  const projectFallback = getProjectGroupFallbackPalette(project, SHARED_GROUP_ID, projectFallbackBase);
   const legacyFallback = LEGACY_PIZZA_PALETTE.slice();
   const fallbackCandidates = projectFallback.length
     ? projectFallback
@@ -417,7 +417,7 @@ function getFractionPalette(count) {
 
   if (paletteApi) {
     const palette = tryResolvePalette(() =>
-      paletteApi.getGroupPalette(FRACTION_GROUP_ID, {
+      paletteApi.getGroupPalette(SHARED_GROUP_ID, {
         project: project || undefined,
         count: target || undefined
       })
@@ -429,7 +429,7 @@ function getFractionPalette(count) {
 
   if (settings && typeof settings.getGroupPalette === 'function') {
     let palette = tryResolvePalette(() =>
-      settings.getGroupPalette(FRACTION_GROUP_ID, {
+      settings.getGroupPalette(SHARED_GROUP_ID, {
         project: project || undefined,
         count: target || undefined
       })
@@ -437,7 +437,7 @@ function getFractionPalette(count) {
     if ((!palette || palette.length < target) && settings.getGroupPalette.length >= 3) {
       palette = tryResolvePalette(() =>
         settings.getGroupPalette(
-          FRACTION_GROUP_ID,
+          SHARED_GROUP_ID,
           target || undefined,
           project ? { project } : undefined
         )
@@ -450,7 +450,7 @@ function getFractionPalette(count) {
 
   const servicePalette = tryResolvePalette(() =>
     paletteService.resolveGroupPalette({
-      groupId: FRACTION_GROUP_ID,
+      groupId: SHARED_GROUP_ID,
       count: target || undefined,
       project: project || undefined,
       fallback,
@@ -464,7 +464,7 @@ function getFractionPalette(count) {
 
   if (theme && typeof theme.getGroupPalette === 'function') {
     let palette = tryResolvePalette(() =>
-      theme.getGroupPalette(FRACTION_GROUP_ID, {
+      theme.getGroupPalette(SHARED_GROUP_ID, {
         project: project || undefined,
         count: target || undefined
       })
@@ -472,7 +472,7 @@ function getFractionPalette(count) {
     if ((!palette || palette.length < target) && theme.getGroupPalette.length >= 3) {
       palette = tryResolvePalette(() =>
         theme.getGroupPalette(
-          FRACTION_GROUP_ID,
+          SHARED_GROUP_ID,
           target || undefined,
           project ? { project } : undefined
         )

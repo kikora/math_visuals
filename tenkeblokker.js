@@ -155,7 +155,7 @@ const UNION_BRACE_BOUNDS = Object.freeze({
 });
 const UNION_BRACE_INNER_WIDTH = UNION_BRACE_BOUNDS.right - UNION_BRACE_BOUNDS.left;
 const UNION_BRACE_INNER_HEIGHT = UNION_BRACE_BOUNDS.bottom - UNION_BRACE_BOUNDS.top;
-const FRACTION_GROUP_ID = 'fractions';
+const SHARED_GROUP_ID = 'graftegner';
 const FILL_COLOR_COUNT = 6;
 const FRACTION_FALLBACK_COLORS = Object.freeze([
   '#dbe7ff',
@@ -495,7 +495,7 @@ function getFractionSlotIndices(config) {
   }
   const indices = [];
   if (config.GROUP_SLOT_INDICES && typeof config.GROUP_SLOT_INDICES === 'object') {
-    const raw = config.GROUP_SLOT_INDICES[FRACTION_GROUP_ID];
+    const raw = config.GROUP_SLOT_INDICES[SHARED_GROUP_ID];
     if (Array.isArray(raw)) {
       raw.forEach(index => {
         if (Number.isInteger(index) && index >= 0) {
@@ -507,7 +507,7 @@ function getFractionSlotIndices(config) {
   if (!indices.length && Array.isArray(config.COLOR_SLOT_GROUPS)) {
     const match = config.COLOR_SLOT_GROUPS.find(group => {
       if (!group || typeof group.groupId !== 'string') return false;
-      return group.groupId.trim().toLowerCase() === FRACTION_GROUP_ID;
+      return group.groupId.trim().toLowerCase() === SHARED_GROUP_ID;
     });
     if (match && Array.isArray(match.slots)) {
       match.slots.forEach(slot => {
@@ -618,7 +618,7 @@ function resolveFractionPalette(count = 2) {
       : ensurePaletteCount(FRACTION_FALLBACK_COLORS, FRACTION_FALLBACK_COLORS, target);
   const servicePalette = tryResolvePalette(() =>
     paletteService.resolveGroupPalette({
-      groupId: FRACTION_GROUP_ID,
+      groupId: SHARED_GROUP_ID,
       count: target || undefined,
       project: project || undefined,
       fallback,
@@ -632,7 +632,7 @@ function resolveFractionPalette(count = 2) {
   const paletteApi = getPaletteApi();
   if (paletteApi) {
     const palette = tryResolvePalette(() =>
-      paletteApi.getGroupPalette(FRACTION_GROUP_ID, {
+      paletteApi.getGroupPalette(SHARED_GROUP_ID, {
         project: project || undefined,
         count: target || undefined
       })
@@ -644,7 +644,7 @@ function resolveFractionPalette(count = 2) {
   const settings = getSettingsApi();
   if (settings && typeof settings.getGroupPalette === 'function') {
     let palette = tryResolvePalette(() =>
-      settings.getGroupPalette(FRACTION_GROUP_ID, {
+      settings.getGroupPalette(SHARED_GROUP_ID, {
         project: project || undefined,
         count: target || undefined
       })
@@ -652,7 +652,7 @@ function resolveFractionPalette(count = 2) {
     if ((!palette || palette.length < target) && settings.getGroupPalette.length >= 3) {
       palette = tryResolvePalette(() =>
         settings.getGroupPalette(
-          FRACTION_GROUP_ID,
+          SHARED_GROUP_ID,
           target || undefined,
           project ? { project } : undefined
         )
@@ -665,7 +665,7 @@ function resolveFractionPalette(count = 2) {
   const theme = getThemeApi();
   if (theme && typeof theme.getGroupPalette === 'function') {
     let palette = tryResolvePalette(() =>
-      theme.getGroupPalette(FRACTION_GROUP_ID, {
+      theme.getGroupPalette(SHARED_GROUP_ID, {
         project: project || undefined,
         count: target || undefined
       })
@@ -673,7 +673,7 @@ function resolveFractionPalette(count = 2) {
     if ((!palette || palette.length < target) && theme.getGroupPalette.length >= 3) {
       palette = tryResolvePalette(() =>
         theme.getGroupPalette(
-          FRACTION_GROUP_ID,
+          SHARED_GROUP_ID,
           target || undefined,
           project ? { project } : undefined
         )

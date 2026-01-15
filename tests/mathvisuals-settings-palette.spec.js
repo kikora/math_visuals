@@ -19,13 +19,12 @@ const AXIS_SLOT = (() => {
   }
   for (const group of paletteConfig.COLOR_SLOT_GROUPS) {
     if (!group || !Array.isArray(group.slots)) continue;
-    for (const slot of group.slots) {
-      if (slot && Number.isInteger(slot.index) && slot.index === 19) {
-        const groupId = typeof group.groupId === 'string' ? group.groupId : String(group.groupId || '');
-        const groupIndex = Number.isInteger(slot.groupIndex) ? slot.groupIndex : group.slots.indexOf(slot);
-        return { groupId, groupIndex };
-      }
-    }
+    const groupId = typeof group.groupId === 'string' ? group.groupId : String(group.groupId || '');
+    if (groupId !== 'graftegner') continue;
+    const slot = group.slots[1];
+    if (!slot || !Number.isInteger(slot.index)) continue;
+    const groupIndex = Number.isInteger(slot.groupIndex) ? slot.groupIndex : 1;
+    return { groupId, groupIndex, index: slot.index };
   }
   return null;
 })();
@@ -764,7 +763,7 @@ test.describe('brøkfigurer palette fallback', () => {
       const colors = windowStub.STATE.colors || [];
       expect(colors.length).toBeGreaterThan(0);
 
-      const fallbackPalette = resolveProjectGroupFallbackPaletteForTest('kikora', 'fractions');
+      const fallbackPalette = resolveProjectGroupFallbackPaletteForTest('kikora', 'graftegner');
       expect(fallbackPalette.length).toBeGreaterThan(0);
 
       const expected = Array.from({ length: colors.length }, (_, index) => {
@@ -1108,7 +1107,7 @@ test.describe('nkant settings palette fallback', () => {
 test.describe('MathVisuals palette slot handling', () => {
   test('preserves graftegner axis color across flatten → distribute → expand', () => {
     expect(AXIS_SLOT).toBeTruthy();
-    const axisIndex = 19;
+    const axisIndex = AXIS_SLOT ? AXIS_SLOT.index : 0;
     const projects = Array.isArray(paletteConfig.DEFAULT_PROJECT_ORDER)
       ? paletteConfig.DEFAULT_PROJECT_ORDER.slice()
       : ['campus', 'kikora', 'annet'];
