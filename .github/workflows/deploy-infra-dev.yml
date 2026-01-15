@@ -580,7 +580,22 @@ jobs:
           SITE_BUCKET_NAME: ${{ env.STATIC_SITE_BUCKET_NAME }}
         run: |
           set -euo pipefail
+          
+          echo "🧹 Sletter gamle builds og cache (Nuclear Option)..."
+          rm -rf public dist packages/*/dist .turbo node_modules/.cache
+          
+          echo "🏗️ Bygger applikasjonen på nytt fra bunnen..."
           npm run build
+          
+          echo "🔍 VERIFISERER at fixen er med..."
+          if grep -q "svgDataUrl" public/svg-export-helper.js; then
+            echo "✅ SUKSESS: Bygget inneholder den nye fixen!"
+          else
+            echo "❌ FEIL: Bygget inneholder fortsatt gammel kode! Stopper deploy."
+            exit 1
+          fi
+
+          echo "🚀 Laster opp ferske filer til S3..."
           aws s3 sync public/ "s3://$SITE_BUCKET_NAME/" \
             --delete \
             --exclude "index.html" \
@@ -589,6 +604,7 @@ jobs:
             --exclude "**/node_modules/*" \
             --exclude "node_modules/*" \
             --cache-control "max-age=31536000,public"
+          echo "📄 Laster opp index.html..."
           aws s3 cp public/index.html "s3://$SITE_BUCKET_NAME/index.html" \
             --cache-control "no-cache,no-store,must-revalidate"
 
