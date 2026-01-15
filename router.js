@@ -370,6 +370,39 @@ const CAMPUS_VISIBLE_LABELS = new Set([
   'Settings',
   'nKant'
 ]);
+const SETTINGS_SCRIPT_SRC = '/settings.js';
+const SETTINGS_NORMALIZED_PATH = '/settings';
+let pendingSettingsScriptLoad = false;
+
+function isSettingsEntry(entry) {
+  if (!entry) return false;
+  const normalizedPath = entry.normalizedPath || normalizeExamplePath(entry.path || entry.href || '');
+  if (normalizedPath === SETTINGS_NORMALIZED_PATH) return true;
+  if (entry.href === 'settings.html' || entry.path === '/settings.html') return true;
+  return false;
+}
+
+function ensureSettingsScriptInIframe() {
+  if (!iframe) return;
+  const doc = iframe.contentDocument;
+  if (!doc || !doc.head) return;
+  const existing = doc.querySelector(
+    `script[src="${SETTINGS_SCRIPT_SRC}"], script[data-settings-script="true"]`
+  );
+  if (existing) return;
+  const script = doc.createElement('script');
+  script.defer = true;
+  script.src = SETTINGS_SCRIPT_SRC;
+  script.dataset.settingsScript = 'true';
+  doc.head.appendChild(script);
+}
+
+if (iframe) {
+  iframe.addEventListener('load', () => {
+    if (!pendingSettingsScriptLoad || !currentEntry || !isSettingsEntry(currentEntry)) return;
+    ensureSettingsScriptInIframe();
+  });
+}
 function setBetaFeatureVisibility(isEnabled) {
   betaFeatureItems.forEach(item => {
     if (item instanceof HTMLElement) {
@@ -1118,6 +1151,7 @@ function setIframeSrc(targetSrc, { refresh } = {}) {
 
 function applyRoute(entry, exampleNumber, options = {}) {
   if (!entry) return;
+  pendingSettingsScriptLoad = isSettingsEntry(entry);
   const explicitExample = Number.isFinite(exampleNumber) && exampleNumber > 0 ? Math.trunc(exampleNumber) : null;
   let normalizedExample = explicitExample;
   if (normalizedExample == null && Number.isFinite(entry.defaultExampleNumber) && entry.defaultExampleNumber > 0) {
