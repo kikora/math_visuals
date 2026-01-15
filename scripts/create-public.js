@@ -10,7 +10,10 @@ const paletteDistDestination = path.join(outputDir, 'packages', 'palette', 'dist
 const EXCLUDED_ENTRIES = new Set([
   'api',
   'docs',
+  'infra',
   'node_modules',
+  'packages',
+  'palette',
   'scripts',
   'tests',
   'public',
@@ -28,6 +31,7 @@ const EXCLUDED_ENTRIES = new Set([
   'pnpm-lock.yaml',
   'yarn.lock',
   'README.md',
+  'deployment-notes.md',
   'vercel.json',
   'playwright.config.js',
   'test-results.log',
