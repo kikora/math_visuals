@@ -613,7 +613,7 @@
     if ('crossOrigin' in img) {
       img.crossOrigin = 'anonymous';
     }
-    const dataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgString)}`;
+    const svgDataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgString)}`;
     const loadSvgImage = src =>
       new Promise((resolve, reject) => {
         img.onload = () => resolve();
@@ -621,12 +621,12 @@
         img.src = src;
       });
     try {
-      await loadSvgImage(svgUrl || dataUrl);
+      await loadSvgImage(svgUrl || svgDataUrl);
     } catch (error) {
       if (!svgUrl) {
         throw error;
       }
-      await loadSvgImage(dataUrl);
+      await loadSvgImage(svgDataUrl);
     }
     ctx.clearRect(0, 0, width, height);
     ctx.drawImage(img, 0, 0, width, height);
