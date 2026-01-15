@@ -677,7 +677,6 @@ function getThemeColor(token, fallback) {
   }
   return fallback;
 }
-applyThemeToDocument();
 
 const checkButton = typeof document !== 'undefined' ? document.getElementById('btnCheck') : null;
 const checkStatus = typeof document !== 'undefined' ? document.getElementById('checkStatus') : null;
@@ -945,6 +944,7 @@ const PIZZA_DOM = [{
   valId: "nVal3",
   index: 2
 }];
+applyThemeToDocument();
 const TAU = Math.PI * 2;
 const norm = a => (a % TAU + TAU) % TAU;
 const applySvgAttributes = (el, attrs = {}) => {
