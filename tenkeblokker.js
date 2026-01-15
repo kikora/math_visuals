@@ -156,8 +156,15 @@ const UNION_BRACE_BOUNDS = Object.freeze({
 const UNION_BRACE_INNER_WIDTH = UNION_BRACE_BOUNDS.right - UNION_BRACE_BOUNDS.left;
 const UNION_BRACE_INNER_HEIGHT = UNION_BRACE_BOUNDS.bottom - UNION_BRACE_BOUNDS.top;
 const FRACTION_GROUP_ID = 'fractions';
-const FILL_COLOR_COUNT = 3;
-const FRACTION_FALLBACK_COLORS = Object.freeze(['#dbe7ff', '#c7d2fe', '#fcd34d']);
+const FILL_COLOR_COUNT = 6;
+const FRACTION_FALLBACK_COLORS = Object.freeze([
+  '#dbe7ff',
+  '#c7d2fe',
+  '#fcd34d',
+  '#a7f3d0',
+  '#fde68a',
+  '#fbcfe8'
+]);
 
 function getSegmentTextColor(isFilled, textColor) {
   if (isFilled) {
@@ -329,7 +336,7 @@ function createBlockFillPicker(block, fieldset) {
   });
   renderBlockFillPickerOptions(block);
 }
-const DEFAULT_FRACTION_SLOT_INDICES = Object.freeze([13, 14, 19]);
+const DEFAULT_FRACTION_SLOT_INDICES = Object.freeze([13, 14, 18, 19, 20, 48]);
 let cachedPaletteConfig = null;
 let paletteConfigResolved = false;
 
