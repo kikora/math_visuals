@@ -17,19 +17,7 @@ const MIN_COLOR_SLOTS = paletteConfig.MIN_COLOR_SLOTS;
 const DEFAULT_PROJECT = typeof paletteConfig.DEFAULT_PROJECT === 'string' ? paletteConfig.DEFAULT_PROJECT : 'campus';
 const GROUPED_PALETTE_ORDER = (Array.isArray(paletteConfig.DEFAULT_GROUP_ORDER)
   ? paletteConfig.DEFAULT_GROUP_ORDER
-  : [
-      'graftegner',
-      'nkant',
-      'diagram',
-      'fractions',
-      'figurtall',
-      'arealmodell',
-      'tallinje',
-      'kvikkbilder',
-      'trefigurer',
-      'brokvegg',
-      'prikktilprikk'
-    ])
+  : ['graftegner', 'nkant', 'arealmodell'])
   .map(value => (typeof value === 'string' ? value.trim().toLowerCase() : ''))
   .filter(Boolean);
 const COLOR_GROUP_IDS = Array.isArray(paletteConfig.COLOR_GROUP_IDS)

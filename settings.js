@@ -476,7 +476,7 @@
 
   function buildContrastStatus(groupId, palette) {
     if (!groupId || !palette || typeof palette !== 'object') return null;
-    if (groupId === 'fractions') {
+    if (groupId === 'graftegner') {
       const colors = Array.isArray(palette[groupId]) ? palette[groupId] : [];
       const evaluation = evaluateContrastForSlot(colors[0]);
       if (!evaluation) {

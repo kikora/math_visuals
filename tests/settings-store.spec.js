@@ -40,15 +40,7 @@ function buildGroupedPalette(overrides = {}) {
   const base = {
     graftegner: ['#123456', '#654321'],
     nkant: ['#234567', '#345678', '#456789'],
-    diagram: ['#56789a', '#6789ab', '#789abc', '#89abcd'],
-    fractions: ['#9abcde', '#abcdee'],
-    figurtall: ['#bcdef0', '#cdef01', '#def012', '#ef0123'],
-    arealmodell: ['#ef0123', '#f01234', '#012345'],
-    tallinje: ['#112233', '#223344'],
-    kvikkbilder: ['#334455'],
-    trefigurer: ['#445566', '#556677'],
-    brokvegg: ['#667788', '#778899', '#8899aa', '#99aabb'],
-    prikktilprikk: ['#aabbcc', '#bbccdd']
+    arealmodell: ['#ef0123', '#f01234', '#012345', '#123456']
   };
   Object.keys(overrides).forEach(key => {
     base[key] = overrides[key];

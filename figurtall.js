@@ -117,7 +117,7 @@ function isValidColor(value) {
     colorInputs.push(inp);
   }
   const LEGACY_COLOR_PALETTE = ['#B25FE3', '#6C1BA2', '#534477', '#873E79', '#E3B660', '#2C395B'];
-  const FIGURE_GROUP_ID = 'figurtall';
+  const SHARED_GROUP_ID = 'graftegner';
   let activeFillColorIndex = sanitizeFillIndex(STATE.activeFillColorIndex, FILL_COLOR_COUNT);
   STATE.activeFillColorIndex = activeFillColorIndex;
   function getThemeApi() {
@@ -134,7 +134,7 @@ function isValidColor(value) {
   function getPaletteFromTheme(count) {
     const theme = getThemeApi();
     const servicePalette = paletteService.resolveGroupPalette({
-      groupId: FIGURE_GROUP_ID,
+      groupId: SHARED_GROUP_ID,
       count: Number.isFinite(count) && count > 0 ? Math.trunc(count) : undefined,
       fallback: LEGACY_COLOR_PALETTE,
       legacyPaletteId: 'figures',
@@ -146,7 +146,7 @@ function isValidColor(value) {
     let palette = null;
     if (theme && typeof theme.getGroupPalette === 'function') {
       try {
-        palette = theme.getGroupPalette(FIGURE_GROUP_ID, count);
+        palette = theme.getGroupPalette(SHARED_GROUP_ID, count);
       } catch (_) {
         palette = null;
       }

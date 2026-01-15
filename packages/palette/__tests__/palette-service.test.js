@@ -15,7 +15,7 @@ test('ensurePalette fills gaps using fallback colors', () => {
 
 test('service resolves project fallback palette when no sources available', () => {
   const service = createPaletteService();
-  const palette = service.resolveGroupPalette({ groupId: 'fractions', project: 'annet', count: 3 });
+  const palette = service.resolveGroupPalette({ groupId: 'graftegner', project: 'annet', count: 3 });
   const expected = ensurePalette([], PROJECT_FALLBACKS.annet, 3);
   assert.deepStrictEqual(palette, expected);
 });
@@ -68,7 +68,7 @@ test('legacy palettes are used as final fallback', () => {
     }
   });
   const palette = service.resolveGroupPalette({
-    groupId: 'figurtall',
+    groupId: 'graftegner',
     legacyPaletteId: 'figures',
     count: 3
   });
@@ -76,7 +76,7 @@ test('legacy palettes are used as final fallback', () => {
 });
 
 test('default resolveGroupPalette helper uses configured fallbacks', () => {
-  const palette = resolveGroupPalette({ groupId: 'diagram', project: 'kikora', count: 2 });
+  const palette = resolveGroupPalette({ groupId: 'graftegner', project: 'kikora', count: 2 });
   const expected = ensurePalette([], PROJECT_FALLBACKS.kikora, 2);
   assert.deepStrictEqual(palette, expected);
 });

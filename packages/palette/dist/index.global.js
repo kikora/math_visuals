@@ -14,15 +14,16 @@ var MathVisualsPalettePackage = (function (exports) {
   const RAW_COLOR_SLOT_GROUPS = [
     {
       groupId: 'graftegner',
-      title: 'Graftegner',
-      description: 'Standardfarger for nye grafer og koordinatsystem.',
+      title: 'Felles farger',
+      description:
+        'Farger som brukes av graftegner, diagram, brøksirkler, brøkfigurer, tallfigurer, kvikkbilder, tenkeblokker, brøkvegg og 3D-figurer.',
       slots: [
-        { index: 0, label: 'Graf 1', description: 'Standardfarge for første graf.' },
-        { index: 46, label: 'Graf 2', description: 'Standardfarge for andre graf.' },
-        { index: 47, label: 'Graf 3', description: 'Standardfarge for tredje graf.' },
-        { index: 25, label: 'Graf 4', description: 'Standardfarge for fjerde graf.' },
-        { index: 26, label: 'Graf 5', description: 'Standardfarge for femte graf.' },
-        { index: 36, label: 'Graf 6', description: 'Standardfarge for sjette graf.' }
+        { index: 4, label: 'Farge 1', description: 'Felles farge 1 for appene.' },
+        { index: 5, label: 'Farge 2', description: 'Felles farge 2 for appene.' },
+        { index: 6, label: 'Farge 3', description: 'Felles farge 3 for appene.' },
+        { index: 7, label: 'Farge 4', description: 'Felles farge 4 for appene.' },
+        { index: 8, label: 'Farge 5', description: 'Felles farge 5 for appene.' },
+        { index: 9, label: 'Farge 6', description: 'Felles farge 6 for appene.' }
       ]
     },
     {
@@ -36,45 +37,6 @@ var MathVisualsPalettePackage = (function (exports) {
       ]
     },
     {
-      groupId: 'diagram',
-      title: 'Diagram',
-      description: 'Standardfarger for stolpe-, linje- og sektordiagram.',
-      slots: [
-        { index: 4, label: 'Farge 1', description: 'Standardfarge 1 i diagram.' },
-        { index: 5, label: 'Farge 2', description: 'Standardfarge 2 i diagram.' },
-        { index: 6, label: 'Farge 3', description: 'Standardfarge 3 i diagram.' },
-        { index: 7, label: 'Farge 4', description: 'Standardfarge 4 i diagram.' },
-        { index: 8, label: 'Farge 5', description: 'Standardfarge 5 i diagram.' },
-        { index: 9, label: 'Farge 6', description: 'Standardfarge 6 i diagram.' }
-      ]
-    },
-    {
-      groupId: 'fractions',
-      title: 'Brøk og tenkeblokker',
-      description: 'Farger for fyll i brøkmodeller og tenkeblokker.',
-      slots: [
-        { index: 13, label: 'Fyll 1', description: 'Fyllfarge 1 for brøker og tenkeblokker.' },
-        { index: 14, label: 'Fyll 2', description: 'Fyllfarge 2 for brøker og tenkeblokker.' },
-        { index: 18, label: 'Fyll 3', description: 'Fyllfarge 3 for brøker og tenkeblokker.' },
-        { index: 19, label: 'Fyll 4', description: 'Fyllfarge 4 for brøker og tenkeblokker.' },
-        { index: 20, label: 'Fyll 5', description: 'Fyllfarge 5 for brøker og tenkeblokker.' },
-        { index: 48, label: 'Fyll 6', description: 'Fyllfarge 6 for brøker og tenkeblokker.' }
-      ]
-    },
-    {
-      groupId: 'figurtall',
-      title: 'Figurtall',
-      description: 'Seks standardfarger for figurer i mønstre.',
-      slots: [
-        { index: 15, label: 'Fyll 1', description: 'Første farge i figurtall.' },
-        { index: 16, label: 'Fyll 2', description: 'Andre farge i figurtall.' },
-        { index: 17, label: 'Fyll 3', description: 'Tredje farge i figurtall.' },
-        { index: 10, label: 'Fyll 4', description: 'Fjerde farge i figurtall.' },
-        { index: 11, label: 'Fyll 5', description: 'Femte farge i figurtall.' },
-        { index: 12, label: 'Fyll 6', description: 'Sjette farge i figurtall.' }
-      ]
-    },
-    {
       groupId: 'arealmodell',
       title: 'Arealmodell',
       description: 'Farger for rutene i arealmodellen.',
@@ -84,59 +46,6 @@ var MathVisualsPalettePackage = (function (exports) {
         { index: 23, label: 'Farge 3', description: 'Tredje rute i arealmodellen.' },
         { index: 24, label: 'Farge 4', description: 'Fjerde rute i arealmodellen.' }
       ]
-    },
-    {
-      groupId: 'kvikkbilder',
-      title: 'Kvikkbilder',
-      description: 'Fyllfargen i kvikkbilder.',
-      slots: [{ index: 27, label: 'Fyll', description: 'Brukes på figurer i kvikkbilder.' }]
-    },
-    {
-      groupId: 'trefigurer',
-      title: '3D-figurer',
-      description: 'Standardfarger for romfigurer.',
-      slots: [
-        { index: 28, label: 'Farge 1', description: 'Standardfarge 1 for romfigurer.' },
-        { index: 29, label: 'Farge 2', description: 'Standardfarge 2 for romfigurer.' },
-        { index: 37, label: 'Farge 3', description: 'Standardfarge 3 for romfigurer.' },
-        { index: 43, label: 'Farge 4', description: 'Standardfarge 4 for romfigurer.' },
-        { index: 44, label: 'Farge 5', description: 'Standardfarge 5 for romfigurer.' },
-        { index: 45, label: 'Farge 6', description: 'Standardfarge 6 for romfigurer.' }
-      ]
-    },
-    {
-      groupId: 'brokvegg',
-      title: 'Brøkvegg',
-      description: 'Farger for nivåene i brøkveggen.',
-      slots: [
-        { index: 30, label: 'Fyll 1', description: 'Øverste nivå i brøkveggen.' },
-        { index: 31, label: 'Fyll 2', description: 'Andre nivå i brøkveggen.' },
-        { index: 32, label: 'Fyll 3', description: 'Tredje nivå i brøkveggen.' },
-        { index: 33, label: 'Fyll 4', description: 'Fjerde nivå i brøkveggen.' },
-        { index: 34, label: 'Fyll 5', description: 'Femte nivå i brøkveggen.' },
-        { index: 35, label: 'Fyll 6', description: 'Sjette nivå i brøkveggen.' }
-      ]
-    },
-    {
-      groupId: 'fortegnsskjema',
-      title: 'Fortegnsskjema',
-      description: 'Farger for akse, segmenter og markører i fortegnsskjemaet.',
-      slots: [
-        { index: 38, label: 'Akse', description: 'Koordinataksen og pilen.' },
-        { index: 39, label: 'Hjelpelinjer', description: 'Vertikale hjelpelinjer og bakgrunnsmarkører.' },
-        {
-          index: 40,
-          label: 'Positiv',
-          description: 'Segmenter og markører som viser positivt fortegn.'
-        },
-        {
-          index: 41,
-          label: 'Negativ',
-          description: 'Segmenter og markører som viser negativt fortegn.'
-        },
-        { index: 42, label: 'Tekst', description: 'Etiketter og verdiindikatorer i diagrammet.' }
-      ]
-    },
     }
   ];
 
