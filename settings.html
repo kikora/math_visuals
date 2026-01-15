@@ -118,32 +118,24 @@
     .color-table {
       border: 1px solid var(--profile-surface-border, #e5e7eb);
       border-radius: 10px;
-      overflow: hidden;
       background: rgba(255, 255, 255, 0.9);
-      display: flex;
-      flex-direction: column;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      padding: 12px;
       width: 100%;
       max-width: 100%;
     }
-    .color-row {
-      display: flex;
-      flex-wrap: nowrap;
-      border-top: 1px solid var(--profile-surface-border, #e5e7eb);
-    }
-    .color-row:first-child {
-      border-top: none;
-    }
     .color-slot {
-      flex: 1;
       min-width: 0;
       display: grid;
       grid-template-columns: minmax(78px, 1fr) minmax(86px, max-content) 48px;
       align-items: center;
       gap: 10px;
       padding: 10px 12px;
-    }
-    .color-slot:not(:first-child) {
-      border-left: 1px solid var(--profile-surface-border, #e5e7eb);
+      background: #fff;
+      border: 1px solid var(--profile-surface-border, #e5e7eb);
+      border-radius: 8px;
     }
     .color-slot__label {
       font-weight: 600;

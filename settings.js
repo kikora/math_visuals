@@ -98,7 +98,6 @@
     : COLOR_SLOT_GROUPS.reduce((total, group) => total + group.slots.length, 0);
   const PROJECT_FALLBACK_CACHE = new Map();
   const PROJECT_FALLBACK_GROUP_CACHE = new Map();
-  const SLOTS_PER_ROW = 4;
 
   function normalizeProjectName(name) {
     if (typeof name !== 'string') return '';
@@ -1000,13 +999,7 @@
 
   function appendSlotToTable(container, slotElement) {
     if (!container || !slotElement) return;
-    let row = container.lastElementChild;
-    if (!row || !row.classList.contains('color-row') || row.children.length >= SLOTS_PER_ROW) {
-      row = document.createElement('div');
-      row.className = 'color-row';
-      container.appendChild(row);
-    }
-    row.appendChild(slotElement);
+    container.appendChild(slotElement);
   }
 
   function buildColorLayout() {
