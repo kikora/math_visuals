@@ -40,7 +40,7 @@ jobs:
       # Default to the template's dev stage when the secret is missing so the
       # deploy step doesn't fail with an empty StageName parameter.
       API_STAGE_NAME: ${{ secrets.API_STAGE_NAME_DEV || 'dev' }}
-      CLOUDFRONT_INVALIDATION_PATHS: ${{ github.event.inputs.cloudfront_invalidation_paths || secrets.CLOUDFRONT_INVALIDATION_PATHS_DEV || '/*' }}
+      CLOUDFRONT_INVALIDATION_PATHS: ${{ github.event.inputs.cloudfront_invalidation_paths || secrets.CLOUDFRONT_INVALIDATION_PATHS_DEV || '/ /index.html' }}
       # Stack names and defaults
       STATIC_STACK_NAME: math-visuals-static-site-dev
       API_STACK_NAME: math-visuals-api-dev
@@ -69,6 +69,11 @@ jobs:
 
       - name: Debug CloudFront invalidation paths
         run: |
+          if [ -z "${STATIC_SITE_CLOUDFRONT_DISTRIBUTION_ID:-}" ]; then
+            echo "STATIC_SITE_CLOUDFRONT_DISTRIBUTION_ID is empty; CloudFront invalidation will be skipped."
+          else
+            echo "STATIC_SITE_CLOUDFRONT_DISTRIBUTION_ID is set."
+          fi
           if [ -n "${{ github.event.inputs.cloudfront_invalidation_paths }}" ]; then
             echo "Using workflow_dispatch input for invalidation paths."
           elif [ -n "${CLOUDFRONT_INVALIDATION_PATHS:-}" ]; then
