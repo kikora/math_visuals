@@ -812,8 +812,12 @@ function isValidColor(value) {
     return LEGACY_COLOR_PALETTE[index % LEGACY_COLOR_PALETTE.length];
   }
   function getFillPalette() {
-    const palette = getPaletteFromTheme(FILL_COLOR_COUNT);
-    return Array.isArray(palette) ? palette.slice(0, FILL_COLOR_COUNT) : [];
+    const palette = getColors();
+    if (Array.isArray(palette) && palette.length) {
+      return palette.slice(0, FILL_COLOR_COUNT);
+    }
+    const themePalette = getPaletteFromTheme(FILL_COLOR_COUNT);
+    return Array.isArray(themePalette) ? themePalette.slice(0, FILL_COLOR_COUNT) : [];
   }
   function sanitizeFillIndex(value, paletteLength) {
     const numeric = Number.parseInt(value, 10);
