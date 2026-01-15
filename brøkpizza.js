@@ -625,6 +625,40 @@ function getPizzaColors() {
   };
 }
 
+const PIZZA_DEFAULTS = {
+  minN: 1,
+  maxN: 24,
+  R: 180,
+  stepN: 1,
+  stepK: 1,
+  metaMode: "none",
+  lockDenominator: false,
+  lockNumerator: false,
+  showDenominatorValue: true
+};
+const PIZZA_DOM = [{
+  svgId: "pizza1",
+  fracId: "frac1",
+  minusId: "nMinus1",
+  plusId: "nPlus1",
+  valId: "nVal1",
+  index: 0
+}, {
+  svgId: "pizza2",
+  fracId: "frac2",
+  minusId: "nMinus2",
+  plusId: "nPlus2",
+  valId: "nVal2",
+  index: 1
+}, {
+  svgId: "pizza3",
+  fracId: "frac3",
+  minusId: "nMinus3",
+  plusId: "nPlus3",
+  valId: "nVal3",
+  index: 2
+}];
+
 function applyPizzaColors() {
   const doc = typeof document !== 'undefined' ? document : null;
   if (!doc || !doc.documentElement) return;
@@ -911,39 +945,6 @@ function readConfigFromHtml() {
 /* =======================
    Grunnoppsett
    ======================= */
-const PIZZA_DEFAULTS = {
-  minN: 1,
-  maxN: 24,
-  R: 180,
-  stepN: 1,
-  stepK: 1,
-  metaMode: "none",
-  lockDenominator: false,
-  lockNumerator: false,
-  showDenominatorValue: true
-};
-const PIZZA_DOM = [{
-  svgId: "pizza1",
-  fracId: "frac1",
-  minusId: "nMinus1",
-  plusId: "nPlus1",
-  valId: "nVal1",
-  index: 0
-}, {
-  svgId: "pizza2",
-  fracId: "frac2",
-  minusId: "nMinus2",
-  plusId: "nPlus2",
-  valId: "nVal2",
-  index: 1
-}, {
-  svgId: "pizza3",
-  fracId: "frac3",
-  minusId: "nMinus3",
-  plusId: "nPlus3",
-  valId: "nVal3",
-  index: 2
-}];
 applyThemeToDocument();
 const TAU = Math.PI * 2;
 const norm = a => (a % TAU + TAU) % TAU;
