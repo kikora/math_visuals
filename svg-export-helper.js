@@ -650,24 +650,24 @@
         }
       });
     }
-    let dataUrl = null;
+    let pngDataUrl = null;
     if (blob) {
-      dataUrl = await blobToDataUrl(blob);
+      pngDataUrl = await blobToDataUrl(blob);
     }
-    if (!dataUrl) {
+    if (!pngDataUrl) {
       try {
-        dataUrl = canvas.toDataURL(mimeType);
+        pngDataUrl = canvas.toDataURL(mimeType);
       } catch (error) {
         throw new Error('Kunne ikke generere PNG-data-URL');
       }
       if (!blob) {
-        blob = dataUrlToBlob(dataUrl);
+        blob = dataUrlToBlob(pngDataUrl);
       }
     }
     if (!blob) {
       throw new Error('Kunne ikke lage PNG-blob');
     }
-    return { dataUrl, blob, width, height };
+    return { dataUrl: pngDataUrl, blob, width, height };
   }
 
   async function exportGraphicWithArchive(svgElement, suggestedName, toolId, options = {}) {
