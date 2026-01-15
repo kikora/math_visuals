@@ -3555,7 +3555,10 @@ function sideLabelText(g, P, Q, text, rotate, centroid, offset = 18, labelKey = 
   const nlen = Math.hypot(nx, ny) || 1;
   const adj = Math.max(offset, Math.min(22, dist(P, Q) * 0.18));
   const labelPad = STYLE.sideFS * 0.4;
-  const finalAdj = adj + labelPad;
+  const dirX = sgn * nx / nlen;
+  const dirY = sgn * ny / nlen;
+  const extraPad = (dirY > 0.25 || dirX > 0.25) ? 5 : 0;
+  const finalAdj = adj + labelPad + extraPad;
   const x = M.x + sgn * finalAdj * nx / nlen;
   const y = M.y + sgn * finalAdj * ny / nlen;
   let baseRotation = 0;
