@@ -89,25 +89,6 @@ jobs:
           account_id=$(aws sts get-caller-identity --query Account --output text)
           region="${AWS_REGION}"
           prod_static_bucket="math-visuals-static-site-796063593326-202512172100921"
-          short_run_id="${GITHUB_RUN_ID:-manual}"
-          short_run_id="${short_run_id:0:6}"
-          short_sha="${GITHUB_SHA:-local}"
-          short_sha="${short_sha:0:6}"
-          unique_suffix="${short_run_id}-${short_sha}"
-
-          build_bucket_name() {
-            local prefix="$1"
-            local suffix="$2"
-            local base="${prefix}${account_id}-${region}-"
-            local max_length=63
-            local max_suffix_length=$((max_length - ${#base}))
-            if [ "$max_suffix_length" -lt 1 ]; then
-              echo "Bucket name prefix is too long: $base" >&2
-              exit 1
-            fi
-            suffix="${suffix:0:$max_suffix_length}"
-            echo "${base}${suffix}"
-          }
 
           is_dev_bucket() {
             local bucket_name="$1"
@@ -117,35 +98,64 @@ jobs:
             esac
           }
 
-          if [ -z "${STATIC_SITE_BUCKET_NAME:-}" ] || ! is_dev_bucket "$STATIC_SITE_BUCKET_NAME"; then
-            STATIC_SITE_BUCKET_NAME=$(build_bucket_name "math-visuals-static-site-dev-" "$unique_suffix")
-            echo "STATIC_SITE_BUCKET_NAME=$STATIC_SITE_BUCKET_NAME" >> "$GITHUB_ENV"
-            if aws s3api head-bucket --bucket "$STATIC_SITE_BUCKET_NAME" >/dev/null 2>&1; then
-              echo "FORCE_CREATE_SITE_BUCKET=false" >> "$GITHUB_ENV"
-            else
-              echo "FORCE_CREATE_SITE_BUCKET=true" >> "$GITHUB_ENV"
-            fi
-          fi
-
-          if [ -z "${API_ARTIFACT_BUCKET:-}" ] || ! is_dev_bucket "$API_ARTIFACT_BUCKET"; then
-            API_ARTIFACT_BUCKET=$(build_bucket_name "math-visuals-artifacts-dev-" "$unique_suffix")
-            echo "API_ARTIFACT_BUCKET=$API_ARTIFACT_BUCKET" >> "$GITHUB_ENV"
-          fi
-
-          if [ "$STATIC_SITE_BUCKET_NAME" = "$prod_static_bucket" ]; then
+          if [ "${STATIC_SITE_BUCKET_NAME:-}" = "$prod_static_bucket" ]; then
             echo "STATIC_SITE_BUCKET_NAME peker på prod-bøtta. Sett en egen dev-bøtte før du fortsetter." >&2
             exit 1
           fi
 
-          if ! aws s3api head-bucket --bucket "$API_ARTIFACT_BUCKET" >/dev/null 2>&1; then
+          if [ -z "${STATIC_SITE_BUCKET_NAME:-}" ]; then
+            echo "STATIC_SITE_BUCKET_NAME mangler. Sett STATIC_SITE_BUCKET_NAME_DEV i secrets." >&2
+            exit 1
+          fi
+          if [ -z "${API_ARTIFACT_BUCKET:-}" ]; then
+            echo "API_ARTIFACT_BUCKET mangler. Sett API_ARTIFACT_BUCKET_DEV i secrets." >&2
+            exit 1
+          fi
+          if ! is_dev_bucket "$STATIC_SITE_BUCKET_NAME"; then
+            echo "STATIC_SITE_BUCKET_NAME peker ikke på en dev-bøtte ($STATIC_SITE_BUCKET_NAME)." >&2
+            exit 1
+          fi
+          if ! is_dev_bucket "$API_ARTIFACT_BUCKET"; then
+            echo "API_ARTIFACT_BUCKET peker ikke på en dev-bøtte ($API_ARTIFACT_BUCKET)." >&2
+            exit 1
+          fi
+
+          ensure_bucket_exists() {
+            local bucket_name="$1"
+            if aws s3api head-bucket --bucket "$bucket_name" >/dev/null 2>&1; then
+              return 0
+            fi
             if [ "$region" = "us-east-1" ]; then
-              aws s3api create-bucket --bucket "$API_ARTIFACT_BUCKET"
+              aws s3api create-bucket --bucket "$bucket_name"
             else
               aws s3api create-bucket \
-                --bucket "$API_ARTIFACT_BUCKET" \
+                --bucket "$bucket_name" \
                 --region "$region" \
                 --create-bucket-configuration "LocationConstraint=$region"
             fi
+          }
+
+          warn_if_bucket_empty() {
+            local bucket_name="$1"
+            object_count=$(aws s3api list-objects-v2 \
+              --bucket "$bucket_name" \
+              --max-items 1 \
+              --query 'KeyCount' \
+              --output text)
+            if [ "${object_count:-0}" -eq 0 ]; then
+              echo "Bucket $bucket_name er tom. Fortsetter med bøtta fra secrets."
+            fi
+          }
+
+          ensure_bucket_exists "$STATIC_SITE_BUCKET_NAME"
+          ensure_bucket_exists "$API_ARTIFACT_BUCKET"
+          warn_if_bucket_empty "$STATIC_SITE_BUCKET_NAME"
+          warn_if_bucket_empty "$API_ARTIFACT_BUCKET"
+
+          if aws s3api head-bucket --bucket "$STATIC_SITE_BUCKET_NAME" >/dev/null 2>&1; then
+            echo "FORCE_CREATE_SITE_BUCKET=false" >> "$GITHUB_ENV"
+          else
+            echo "FORCE_CREATE_SITE_BUCKET=true" >> "$GITHUB_ENV"
           fi
 
       - name: Ensure App Runner service-linked role exists
