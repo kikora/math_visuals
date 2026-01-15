@@ -88,6 +88,7 @@
 .color-swatch { width: 34px; height: 34px; border-radius: 999px; border: 2px solid #e5e7eb; background: #fff; box-shadow: 0 3px 6px rgba(15,23,42,.16); cursor: pointer; }
 .color-swatch:focus-visible { outline: 3px solid rgba(99,102,241,.45); outline-offset: 2px; }
 .color-options { position: absolute; top: 44px; left: 0; z-index: 10; display: grid; grid-template-columns: repeat(3, 34px); gap: 8px; padding: 10px; border-radius: 12px; background: #fff; border: 1px solid #e5e7eb; box-shadow: 0 10px 20px rgba(15,23,42,.15); }
+.color-options[hidden] { display: none !important; }
 .color-option-btn { width: 34px; height: 34px; border-radius: 999px; border: 2px solid transparent; background: #fff; cursor: pointer; }
 .color-option-btn.is-selected { border-color: #111827; box-shadow: 0 0 0 3px rgba(15,23,42,.12); }
 #chartTitle { text-align: center; font-size: calc(var(--diagram-text-scale, 1) * 20px); margin: 0 0 6px; }
