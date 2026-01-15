@@ -6,6 +6,8 @@ const projectRoot = path.resolve(__dirname, '..');
 const outputDir = path.join(projectRoot, 'public');
 const paletteDistSource = path.join(projectRoot, 'packages', 'palette', 'dist');
 const paletteDistDestination = path.join(outputDir, 'packages', 'palette', 'dist');
+const paletteSource = path.join(projectRoot, 'palette');
+const paletteDestination = path.join(outputDir, 'palette');
 
 const EXCLUDED_ENTRIES = new Set([
   'api',
@@ -92,5 +94,16 @@ function copyPalettePackageDist() {
   log('Copied packages/palette/dist into public/.');
 }
 
+function copyPaletteDirectory() {
+  if (!fs.existsSync(paletteSource)) {
+    log('Skipped copying palette/ (missing source directory).');
+    return;
+  }
+  fs.mkdirSync(path.dirname(paletteDestination), { recursive: true });
+  fs.cpSync(paletteSource, paletteDestination, { recursive: true });
+  log('Copied palette/ into public/.');
+}
+
 buildPublicDirectory();
 copyPalettePackageDist();
+copyPaletteDirectory();
