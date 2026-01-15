@@ -499,7 +499,7 @@ function getValueDisplayMode(type = CFG.type) {
 const EMERGENCY_SERIES_COLORS = ['#574595', '#d081a1'];
 const EMERGENCY_PIE_PALETTE = ['#4f2c8c', '#6c3db5', '#8a4de0', '#a75cf1', '#c26ef0', '#d381ba', '#c46287', '#9f436d', '#723a82', '#503070'];
 const PIE_COLOR_CLASS_COUNT = 10;
-const DIAGRAM_GROUP_SLOT_COUNT = 3 + PIE_COLOR_CLASS_COUNT;
+const DIAGRAM_GROUP_SLOT_COUNT = 6;
 const LEGACY_AXIS_COLOR = '#0f172a';
 const LEGACY_GRID_COLOR = '#e5e7eb';
 const LEGACY_TEXT_COLOR = '#333333';
@@ -758,10 +758,10 @@ function resolveDiagramPaletteData(options = {}) {
   const emergencyGroupPalette = hasGroupPalette ? [] : buildEmergencyGroupPalette();
   const paletteEntries = ensurePalette(sanitizedGroupPalette, DIAGRAM_GROUP_SLOT_COUNT, emergencyGroupPalette);
   const singleSeriesColor =
-    paletteEntries[0] || paletteEntries[1] || paletteEntries[2] || emergencyGroupPalette[0] || EMERGENCY_SERIES_COLORS[0];
+    paletteEntries[0] || paletteEntries[1] || emergencyGroupPalette[0] || EMERGENCY_SERIES_COLORS[0];
   const multiSeriesColors = [
-    paletteEntries[1] || singleSeriesColor,
-    paletteEntries[2] || paletteEntries[1] || singleSeriesColor
+    paletteEntries[0] || singleSeriesColor,
+    paletteEntries[1] || paletteEntries[0] || singleSeriesColor
   ];
   const seriesBase = requestedSeriesCount <= 1 ? [singleSeriesColor] : multiSeriesColors;
   const seriesFallback = hasGroupPalette ? [] : EMERGENCY_SERIES_COLORS;
@@ -770,7 +770,7 @@ function resolveDiagramPaletteData(options = {}) {
   if (overrides.length) {
     seriesPalette = seriesPalette.map((color, index) => overrides[index] || color);
   }
-  const pieBase = paletteEntries.slice(3, 3 + PIE_COLOR_CLASS_COUNT);
+  const pieBase = paletteEntries.slice();
   const pieFallback = hasGroupPalette ? [] : EMERGENCY_PIE_PALETTE;
   const piePalette = ensurePalette(pieBase, PIE_COLOR_CLASS_COUNT, pieFallback);
 

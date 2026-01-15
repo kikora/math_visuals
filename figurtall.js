@@ -100,10 +100,10 @@ function isValidColor(value) {
   let figurtallAiAppliedSignature = null;
   let pendingAltTextReason = 'auto';
   const MAX_DIM = 20;
-    const MAX_COLORS = 3;
+    const MAX_COLORS = 6;
     const LABEL_MODES = ['hidden', 'count', 'custom'];
     const FIGURE_TYPES = ['square', 'square-outline', 'circle', 'circle-outline', 'star'];
-    const FILL_COLOR_COUNT = 3;
+    const FILL_COLOR_COUNT = 6;
     let isSyncingTheme = false;
     let themeObserver = null;
     let rows = 3;
@@ -116,7 +116,7 @@ function isValidColor(value) {
     if (!inp) break;
     colorInputs.push(inp);
   }
-  const LEGACY_COLOR_PALETTE = ['#B25FE3', '#6C1BA2', '#534477', '#873E79'];
+  const LEGACY_COLOR_PALETTE = ['#B25FE3', '#6C1BA2', '#534477', '#873E79', '#E3B660', '#2C395B'];
   const FIGURE_GROUP_ID = 'figurtall';
   let activeFillColorIndex = sanitizeFillIndex(STATE.activeFillColorIndex, FILL_COLOR_COUNT);
   STATE.activeFillColorIndex = activeFillColorIndex;
