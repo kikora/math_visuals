@@ -1,6 +1,6 @@
 'use strict';
 
-const MAX_COLORS = 48;
+const MAX_COLORS = 49;
 const DEFAULT_PROJECT = 'campus';
 
 const PROJECT_FALLBACKS = deepFreeze({
@@ -18,7 +18,10 @@ const RAW_COLOR_SLOT_GROUPS = [
     slots: [
       { index: 0, label: 'Graf 1', description: 'Standardfarge for første graf.' },
       { index: 46, label: 'Graf 2', description: 'Standardfarge for andre graf.' },
-      { index: 47, label: 'Graf 3', description: 'Standardfarge for tredje graf.' }
+      { index: 47, label: 'Graf 3', description: 'Standardfarge for tredje graf.' },
+      { index: 25, label: 'Graf 4', description: 'Standardfarge for fjerde graf.' },
+      { index: 26, label: 'Graf 5', description: 'Standardfarge for femte graf.' },
+      { index: 36, label: 'Graf 6', description: 'Standardfarge for sjette graf.' }
     ]
   },
   {
@@ -34,37 +37,40 @@ const RAW_COLOR_SLOT_GROUPS = [
   {
     groupId: 'diagram',
     title: 'Diagram',
-    description: 'Standardfarger for stolpe- og sektordiagram.',
+    description: 'Standardfarger for stolpe-, linje- og sektordiagram.',
     slots: [
-      { index: 4, label: 'En stolpe', description: 'Når et stolpediagram har én dataserie.' },
-      { index: 5, label: 'Stolpe1', description: 'Første dataserie i sammenlignende stolpediagram.' },
-      { index: 6, label: 'Stolpe2', description: 'Andre dataserie i sammenlignende stolpediagram.' },
-      { index: 7, label: 'Sektor1', description: 'Første sektor i sektordiagram.' },
-      { index: 8, label: 'Sektor2', description: 'Andre sektor i sektordiagram.' },
-      { index: 9, label: 'Sektor3', description: 'Tredje sektor i sektordiagram.' },
-      { index: 10, label: 'Sektor4', description: 'Fjerde sektor i sektordiagram.' },
-      { index: 11, label: 'Sektor5', description: 'Femte sektor i sektordiagram.' },
-      { index: 12, label: 'Sektor6', description: 'Sjette sektor i sektordiagram.' }
+      { index: 4, label: 'Farge 1', description: 'Standardfarge 1 i diagram.' },
+      { index: 5, label: 'Farge 2', description: 'Standardfarge 2 i diagram.' },
+      { index: 6, label: 'Farge 3', description: 'Standardfarge 3 i diagram.' },
+      { index: 7, label: 'Farge 4', description: 'Standardfarge 4 i diagram.' },
+      { index: 8, label: 'Farge 5', description: 'Standardfarge 5 i diagram.' },
+      { index: 9, label: 'Farge 6', description: 'Standardfarge 6 i diagram.' }
     ]
   },
   {
     groupId: 'fractions',
     title: 'Brøk og tenkeblokker',
-    description: 'Farger for linjer og fyll i brøkmodeller og tenkeblokker.',
+    description: 'Farger for fyll i brøkmodeller og tenkeblokker.',
     slots: [
-      { index: 13, label: 'Fyll', description: 'Fyllfarge for brøker og tenkeblokker.' },
-      { index: 14, label: 'Linje', description: 'Konturer i brøker og tenkeblokker.' }
+      { index: 13, label: 'Fyll 1', description: 'Fyllfarge 1 for brøker og tenkeblokker.' },
+      { index: 14, label: 'Fyll 2', description: 'Fyllfarge 2 for brøker og tenkeblokker.' },
+      { index: 18, label: 'Fyll 3', description: 'Fyllfarge 3 for brøker og tenkeblokker.' },
+      { index: 19, label: 'Fyll 4', description: 'Fyllfarge 4 for brøker og tenkeblokker.' },
+      { index: 20, label: 'Fyll 5', description: 'Fyllfarge 5 for brøker og tenkeblokker.' },
+      { index: 48, label: 'Fyll 6', description: 'Fyllfarge 6 for brøker og tenkeblokker.' }
     ]
   },
   {
     groupId: 'figurtall',
     title: 'Figurtall',
-    description: 'Fire standardfarger for figurer i mønstre.',
+    description: 'Seks standardfarger for figurer i mønstre.',
     slots: [
       { index: 15, label: 'Fyll 1', description: 'Første farge i figurtall.' },
       { index: 16, label: 'Fyll 2', description: 'Andre farge i figurtall.' },
       { index: 17, label: 'Fyll 3', description: 'Tredje farge i figurtall.' },
-      { index: 18, label: 'Fyll 4', description: 'Fjerde farge i figurtall.' }
+      { index: 10, label: 'Fyll 4', description: 'Fjerde farge i figurtall.' },
+      { index: 11, label: 'Fyll 5', description: 'Femte farge i figurtall.' },
+      { index: 12, label: 'Fyll 6', description: 'Sjette farge i figurtall.' }
     ]
   },
   {
@@ -79,15 +85,6 @@ const RAW_COLOR_SLOT_GROUPS = [
     ]
   },
   {
-    groupId: 'tallinje',
-    title: 'Tallinje',
-    description: 'Standardfarger for tallinjen.',
-    slots: [
-      { index: 25, label: 'Linje', description: 'Selve tallinjen og markeringer.' },
-      { index: 26, label: 'Fyll', description: 'Utfylling av områder på tallinjen.' }
-    ]
-  },
-  {
     groupId: 'kvikkbilder',
     title: 'Kvikkbilder',
     description: 'Fyllfargen i kvikkbilder.',
@@ -98,8 +95,12 @@ const RAW_COLOR_SLOT_GROUPS = [
     title: '3D-figurer',
     description: 'Standardfarger for romfigurer.',
     slots: [
-      { index: 28, label: 'Linje', description: 'Kanter og hjelpelinjer i romfigurer.' },
-      { index: 29, label: 'Fyll', description: 'Fyllfarge for romfigurer.' }
+      { index: 28, label: 'Farge 1', description: 'Standardfarge 1 for romfigurer.' },
+      { index: 29, label: 'Farge 2', description: 'Standardfarge 2 for romfigurer.' },
+      { index: 37, label: 'Farge 3', description: 'Standardfarge 3 for romfigurer.' },
+      { index: 43, label: 'Farge 4', description: 'Standardfarge 4 for romfigurer.' },
+      { index: 44, label: 'Farge 5', description: 'Standardfarge 5 for romfigurer.' },
+      { index: 45, label: 'Farge 6', description: 'Standardfarge 6 for romfigurer.' }
     ]
   },
   {
@@ -113,15 +114,6 @@ const RAW_COLOR_SLOT_GROUPS = [
       { index: 33, label: 'Fyll 4', description: 'Fjerde nivå i brøkveggen.' },
       { index: 34, label: 'Fyll 5', description: 'Femte nivå i brøkveggen.' },
       { index: 35, label: 'Fyll 6', description: 'Sjette nivå i brøkveggen.' }
-    ]
-  },
-  {
-    groupId: 'prikktilprikk',
-    title: 'Prikk til prikk',
-    description: 'Farger for punkter og linjer i prikk til prikk.',
-    slots: [
-      { index: 36, label: 'Prikk', description: 'Standardfarge for punktene.' },
-      { index: 37, label: 'Linje', description: 'Linjen som binder punktene sammen.' }
     ]
   },
   {
@@ -144,15 +136,6 @@ const RAW_COLOR_SLOT_GROUPS = [
       { index: 42, label: 'Tekst', description: 'Etiketter og verdiindikatorer i diagrammet.' }
     ]
   },
-  {
-    groupId: 'sortering',
-    title: 'Sortering',
-    description: 'Standardfarger for kortene i sorteringsoppgaven.',
-    slots: [
-      { index: 43, label: 'Bakgrunn', description: 'Bakgrunnsfarge for sorteringskort.' },
-      { index: 44, label: 'Ramme', description: 'Kantlinjen rundt sorteringskort.' },
-      { index: 45, label: 'Tekst', description: 'Tekst og innhold på sorteringskort.' }
-    ]
   }
 ];
 
