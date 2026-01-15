@@ -7906,7 +7906,7 @@ function setupSettingsForm() {
   const DEFAULT_COLOR_FALLBACK = normalizeColorValue(getDefaultCurveColor(0))
     || DEFAULT_FUNCTION_COLORS.fallback[0]
     || GRAFTEGNER_FALLBACK_PALETTE[0];
-  const FUNCTION_COLOR_OPTION_COUNT = 3;
+  const FUNCTION_COLOR_OPTION_COUNT = 6;
   const getRowIndex = row => {
     if (!row || !row.dataset) return 1;
     const parsed = Number.parseInt(row.dataset.index, 10);
@@ -9693,9 +9693,9 @@ function setupSettingsForm() {
     const defaultColor = computeDefaultColorForIndex(index);
     const manualColor = normalizeFunctionColorChoice(colorVal);
     const isManualColor = !!colorManual && !!manualColor;
-    const palette = resolveCurvePalette(3);
+    const palette = resolveCurvePalette(6);
     const activeColor = normalizeColorValue(colorVal)
-      || normalizeColorValue(palette[(index - 1) % 3])
+      || normalizeColorValue(palette[(index - 1) % 6])
       || DEFAULT_COLOR_FALLBACK;
     let colorControlMarkup = `
     <div class="func-color-compact" data-color-picker>
@@ -9708,7 +9708,7 @@ function setupSettingsForm() {
       <div class="color-options" hidden>
   `;
 
-    palette.slice(0, 3).forEach((color, idx) => {
+    palette.slice(0, 6).forEach((color, idx) => {
       const isSelected = normalizeColorValue(color) === activeColor;
       colorControlMarkup += `
       <button type="button" class="color-option-btn ${isSelected ? 'is-selected' : ''}" 

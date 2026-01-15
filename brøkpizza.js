@@ -110,7 +110,7 @@ const LEGACY_PIZZA_COLORS = {
   handleStroke: '#333333'
 };
 const FRACTION_GROUP_ID = 'fractions';
-const FILL_COLOR_COUNT = 3;
+const FILL_COLOR_COUNT = 6;
 const fillColorPickers =
   typeof document !== 'undefined'
     ? Array.from(document.querySelectorAll('[data-fill-color-picker]'))

@@ -83,6 +83,13 @@
 .series-settings .addFigureBtn:hover { box-shadow: 0 2px 8px rgba(0,0,0,.06); }
 .series-settings .addFigureBtn:active { transform: translateY(1px); }
 .series-settings__controls { display: flex; gap: 10px; align-items: center; align-self: center; }
+.color-picker-label { display: flex; flex-direction: column; gap: 8px; }
+.color-picker { position: relative; display: inline-flex; align-items: center; gap: 8px; }
+.color-swatch { width: 34px; height: 34px; border-radius: 999px; border: 2px solid #e5e7eb; background: #fff; box-shadow: 0 3px 6px rgba(15,23,42,.16); cursor: pointer; }
+.color-swatch:focus-visible { outline: 3px solid rgba(99,102,241,.45); outline-offset: 2px; }
+.color-options { position: absolute; top: 44px; left: 0; z-index: 10; display: grid; grid-template-columns: repeat(3, 34px); gap: 8px; padding: 10px; border-radius: 12px; background: #fff; border: 1px solid #e5e7eb; box-shadow: 0 10px 20px rgba(15,23,42,.15); }
+.color-option-btn { width: 34px; height: 34px; border-radius: 999px; border: 2px solid transparent; background: #fff; cursor: pointer; }
+.color-option-btn.is-selected { border-color: #111827; box-shadow: 0 0 0 3px rgba(15,23,42,.12); }
 #chartTitle { text-align: center; font-size: calc(var(--diagram-text-scale, 1) * 20px); margin: 0 0 6px; }
 
 /* Akser og rutenett */

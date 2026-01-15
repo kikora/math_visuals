@@ -102,7 +102,7 @@ function loadPalettePackage() {
 }
 
 function buildLegacyPaletteConfig() {
-  const MAX_COLORS = 48;
+  const MAX_COLORS = 49;
   const DEFAULT_PROJECT = 'campus';
   const PROJECT_FALLBACKS = {
     campus: ['#DBE3FF', '#2C395B', '#E3B660', '#C5E5E9', '#F6E5BC', '#F1D0D9'],
@@ -154,7 +154,10 @@ function buildLegacyPaletteConfig() {
       slots: [
         { index: 13, label: 'Fyll 1', description: 'Fyllfarge 1 for brøker og tenkeblokker.' },
         { index: 14, label: 'Fyll 2', description: 'Fyllfarge 2 for brøker og tenkeblokker.' },
-        { index: 19, label: 'Fyll 3', description: 'Fyllfarge 3 for brøker og tenkeblokker.' }
+        { index: 18, label: 'Fyll 3', description: 'Fyllfarge 3 for brøker og tenkeblokker.' },
+        { index: 19, label: 'Fyll 4', description: 'Fyllfarge 4 for brøker og tenkeblokker.' },
+        { index: 20, label: 'Fyll 5', description: 'Fyllfarge 5 for brøker og tenkeblokker.' },
+        { index: 48, label: 'Fyll 6', description: 'Fyllfarge 6 for brøker og tenkeblokker.' }
       ]
     },
     {

@@ -298,7 +298,7 @@ function isValidColor(value) {
   }
   const LEGACY_COLOR_PALETTE = ['#B25FE3', '#6C1BA2', '#534477', '#873E79', '#BF4474', '#E31C3D'];
   const FRACTION_GROUP_ID = 'fractions';
-  const FILL_COLOR_COUNT = 3;
+  const FILL_COLOR_COUNT = 6;
   const fillColorPickersSelector = '[data-fill-color-picker]';
   function getThemeApi() {
     const theme = typeof window !== 'undefined' ? window.MathVisualsTheme : null;
