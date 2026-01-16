@@ -472,6 +472,10 @@ jobs:
           PATHS="${CLOUDFRONT_INVALIDATION_PATHS:-/*}"
           set +o noglob
 
+          if [[ " $PATHS " != *" /* "* ]]; then
+            PATHS="$PATHS /*"
+          fi
+
           echo "Using invalidation paths: $PATHS"
           IFS=' ' read -r -a path_args <<< "$PATHS"
 
