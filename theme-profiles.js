@@ -229,7 +229,7 @@
   const PROFILES = {
     kikora: {
       id: 'kikora',
-      label: 'Kikora',
+      label: 'Under utvikling',
       palettes: {
         fractions: {
           byCount: {
@@ -291,7 +291,7 @@
     },
     campus: {
       id: 'campus',
-      label: 'Campus',
+      label: 'Produksjon',
       palettes: campusProfile.palettes,
       colors: campusProfile.colors
     },

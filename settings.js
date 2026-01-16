@@ -44,13 +44,13 @@
 
   const MAX_COLORS = paletteConfig.MAX_COLORS;
   const PROJECT_LABELS = {
-    kikora: 'Kikora',
-    campus: 'Campus',
+    kikora: 'Under utvikling',
+    campus: 'Produksjon',
     annet: 'Annet'
   };
   const PROJECT_HEADINGS = {
-    kikora: 'Kikora',
-    campus: 'Campus',
+    kikora: 'Under utvikling',
+    campus: 'Produksjon',
     annet: 'Annet'
   };
   const PROJECT_FALLBACKS = paletteConfig.PROJECT_FALLBACKS;
