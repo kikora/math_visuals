@@ -15,12 +15,12 @@ const RAW_COLOR_SLOT_GROUPS = [
     description:
       'Farger som brukes av graftegner, diagram, brøksirkler, brøkfigurer, tallfigurer, kvikkbilder, tenkeblokker, brøkvegg og 3D-figurer.',
     slots: [
-      { index: 4, label: 'Farge 1', description: 'Felles farge 1 for appene.' },
-      { index: 5, label: 'Farge 2', description: 'Felles farge 2 for appene.' },
-      { index: 6, label: 'Farge 3', description: 'Felles farge 3 for appene.' },
-      { index: 7, label: 'Farge 4', description: 'Felles farge 4 for appene.' },
-      { index: 8, label: 'Farge 5', description: 'Felles farge 5 for appene.' },
-      { index: 9, label: 'Farge 6', description: 'Felles farge 6 for appene.' }
+      { index: 4, label: 'Linje 1', description: 'Linjefarge til fyllfarge 1.' },
+      { index: 5, label: 'Fyllfarge 1', description: 'Fyllfarge til linje 1.' },
+      { index: 6, label: 'Linje 2', description: 'Linjefarge til fyllfarge 2.' },
+      { index: 7, label: 'Fyllfarge 2', description: 'Fyllfarge til linje 2.' },
+      { index: 8, label: 'Linje 3', description: 'Linjefarge til fyllfarge 3.' },
+      { index: 9, label: 'Fyllfarge 3', description: 'Fyllfarge til linje 3.' }
     ]
   },
   {
