@@ -298,7 +298,9 @@ function isValidColor(value) {
   }
   const LEGACY_COLOR_PALETTE = ['#B25FE3', '#6C1BA2', '#534477', '#873E79', '#BF4474', '#E31C3D'];
   const SHARED_GROUP_ID = 'graftegner';
-  const FILL_COLOR_COUNT = 6;
+  const PALETTE_PAIR_COUNT = 3;
+  const PALETTE_SLOT_COUNT = PALETTE_PAIR_COUNT * 2;
+  const FILL_COLOR_COUNT = PALETTE_PAIR_COUNT;
   const fillColorPickersSelector = '[data-fill-color-picker]';
   function getThemeApi() {
     const theme = typeof window !== 'undefined' ? window.MathVisualsTheme : null;
@@ -811,13 +813,24 @@ function isValidColor(value) {
     if (Array.isArray(palette) && palette[index]) return palette[index];
     return LEGACY_COLOR_PALETTE[index % LEGACY_COLOR_PALETTE.length];
   }
-  function getFillPalette() {
-    const palette = getColors();
-    if (Array.isArray(palette) && palette.length) {
-      return palette.slice(0, FILL_COLOR_COUNT);
+  function getLineFillPalettes() {
+    const palette = ensurePaletteSize(getColors(), getPaletteFromTheme(PALETTE_SLOT_COUNT), PALETTE_SLOT_COUNT);
+    const lineColors = [];
+    const fillColors = [];
+    for (let index = 0; index < palette.length; index += 2) {
+      lineColors.push(palette[index] || '#000');
+      fillColors.push(palette[index + 1] || palette[index] || '#fff');
     }
-    const themePalette = getPaletteFromTheme(FILL_COLOR_COUNT);
-    return Array.isArray(themePalette) ? themePalette.slice(0, FILL_COLOR_COUNT) : [];
+    return {
+      lineColors,
+      fillColors
+    };
+  }
+  function getFillPalette() {
+    return getLineFillPalettes().fillColors.slice(0, FILL_COLOR_COUNT);
+  }
+  function getLinePalette() {
+    return getLineFillPalettes().lineColors.slice(0, FILL_COLOR_COUNT);
   }
   function sanitizeFillIndex(value, paletteLength) {
     const numeric = Number.parseInt(value, 10);
@@ -991,15 +1004,15 @@ function isValidColor(value) {
   let showOutlineGlobal = typeof STATE.showOutline === 'boolean' ? STATE.showOutline : true;
   STATE.showOutline = showOutlineGlobal;
   if (showOutlineInp) showOutlineInp.checked = showOutlineGlobal;
-  const maxColors = Math.max(FILL_COLOR_COUNT, colorInputs.length || 0, 1);
+  const maxColors = Math.max(PALETTE_SLOT_COUNT, colorInputs.length || 0, 1);
   const defaultColorCount = clampInt(
-    (_colorCountInp$value = colorCountInp === null || colorCountInp === void 0 ? void 0 : colorCountInp.value) !== null && _colorCountInp$value !== void 0 ? _colorCountInp$value : FILL_COLOR_COUNT,
+    (_colorCountInp$value = colorCountInp === null || colorCountInp === void 0 ? void 0 : colorCountInp.value) !== null && _colorCountInp$value !== void 0 ? _colorCountInp$value : PALETTE_SLOT_COUNT,
     1,
-    FILL_COLOR_COUNT
+    PALETTE_SLOT_COUNT
   );
-  const stateColorCount = STATE.colorCount != null ? clampInt(STATE.colorCount, 1, FILL_COLOR_COUNT) : null;
+  const stateColorCount = STATE.colorCount != null ? clampInt(STATE.colorCount, 1, PALETTE_SLOT_COUNT) : null;
   let colorCount = stateColorCount || defaultColorCount;
-  colorCount = FILL_COLOR_COUNT;
+  colorCount = PALETTE_SLOT_COUNT;
   STATE.colorCount = colorCount;
   const MAX_ROWS = 3;
   const MAX_COLS = 3;
@@ -1217,14 +1230,14 @@ function isValidColor(value) {
     STATE.showOutline = showOutlineGlobal;
     if (showOutlineInp) showOutlineInp.checked = showOutlineGlobal;
     colorCount = clampInt(STATE.colorCount, 1, maxColors);
-    colorCount = FILL_COLOR_COUNT;
+    colorCount = PALETTE_SLOT_COUNT;
     STATE.colorCount = colorCount;
-    activeFillColorIndex = sanitizeFillIndex(STATE.activeFillColorIndex, colorCount);
+    activeFillColorIndex = sanitizeFillIndex(STATE.activeFillColorIndex, FILL_COLOR_COUNT);
     STATE.activeFillColorIndex = activeFillColorIndex;
     if (colorCountInp) {
       colorCountInp.value = String(colorCount);
-      colorCountInp.min = String(FILL_COLOR_COUNT);
-      colorCountInp.max = String(FILL_COLOR_COUNT);
+      colorCountInp.min = String(PALETTE_SLOT_COUNT);
+      colorCountInp.max = String(PALETTE_SLOT_COUNT);
       colorCountInp.disabled = true;
     }
     ensureColorDefaults(colorCount);
@@ -1532,7 +1545,7 @@ function isValidColor(value) {
       figures: []
     };
     if (figureIds.length === 0) return summary;
-    const paletteLength = getColors().length;
+    const paletteLength = getFillPalette().length;
     figureIds.forEach((id, index) => {
       const figState = ensureFigureState(id);
       const shape = typeof (figState == null ? void 0 : figState.shape) === 'string' ? figState.shape : 'rectangle';
@@ -2132,6 +2145,9 @@ function isValidColor(value) {
         const nodes = [border.rendNode, border.rendNodeFront && border.rendNodeFront !== border.rendNode ? border.rendNodeFront : null];
         for (const node of nodes) {
           if (!node) continue;
+          const stroke = typeof node.getAttribute === 'function' ? node.getAttribute('stroke') : null;
+          const strokeWidth = typeof node.getAttribute === 'function' ? Number(node.getAttribute('stroke-width')) : NaN;
+          if (stroke === 'none' || strokeWidth === 0) continue;
           node.setAttribute('stroke-linecap', 'round');
           node.setAttribute('stroke-linejoin', 'round');
           markDivisionNode(node);
@@ -2212,7 +2228,7 @@ function isValidColor(value) {
         outline.setAttribute('rx', radius.toFixed(3));
         outline.setAttribute('ry', radius.toFixed(3));
         outline.setAttribute('fill', 'none');
-        outline.setAttribute('stroke', '#000');
+        outline.setAttribute('stroke', activeLineColor);
         outline.setAttribute('stroke-width', String(OUTLINE_STROKE_WIDTH));
         outline.setAttribute('pointer-events', 'none');
       }
@@ -2221,15 +2237,15 @@ function isValidColor(value) {
       if (!showDivisionLinesGlobal) return null;
       const [p1, p2] = extend ? extendSegmentEndpoints(start, end) : [clonePoint(start), clonePoint(end)];
       const seg = board.create('segment', [p1, p2], Object.assign({
-        strokeColor: '#000',
+        strokeColor: activeLineColor,
         strokeWidth: 2,
-        dash: 2,
+        dash: 0,
         highlight: false,
-        highlightStrokeColor: '#000',
+        highlightStrokeColor: activeLineColor,
         highlightStrokeOpacity: 1,
         highlightStrokeWidth: 2,
         fixed: true,
-        linecap: 'butt',
+        linecap: 'round',
         layer: 10
       }, options));
       preventDivisionClick(seg);
@@ -2286,7 +2302,7 @@ function isValidColor(value) {
         suppressToggle = false;
         return;
       }
-      const colors = getColors();
+      const colors = getFillPalette();
       const current = filled.get(i) || 0;
       const targetIndex = getFigureFillIndex(id);
       const next = current === targetIndex ? 0 : targetIndex;
@@ -2325,6 +2341,9 @@ function isValidColor(value) {
       return false;
     }
     let rectWidthScale = 1;
+    let activeLineColor = '#000';
+    let linePalette = [];
+    let fillPalette = [];
     function updateBoxLayout(shape) {
       if (!panel) return;
       const box = panel.querySelector('.box');
@@ -2378,10 +2397,13 @@ function isValidColor(value) {
       figState.shape = (shapeSel === null || shapeSel === void 0 ? void 0 : shapeSel.value) || shape;
       figState.division = division;
       figState.allowWrong = allowWrong;
-      const colors = getColors();
+      fillPalette = getFillPalette();
+      linePalette = getLinePalette();
+      const lineIndex = sanitizeFillIndex(getFigureFillIndex(id), linePalette.length);
+      activeLineColor = linePalette[lineIndex - 1] || linePalette[0] || '#000';
       const colorFor = idx => {
         const c = filled.get(idx);
-        return c ? colors[c - 1] || '#fff' : '#fff';
+        return c ? fillPalette[c - 1] || '#fff' : '#fff';
       };
       if (shape === 'circle') drawCircle(n, division, allowWrong, colorFor);else if (shape === 'rectangle' || shape === 'square') drawRect(n, division, colorFor);else drawTriangle(n, division, allowWrong, colorFor);
       applyClip(shape, division);
@@ -2418,8 +2440,8 @@ function isValidColor(value) {
               y2 = (rIdx + 1) / rows;
             const poly = board.create('polygon', [[x1, y1], [x2, y1], [x2, y2], [x1, y2]], {
               borders: {
-                strokeColor: '#fff',
-                strokeWidth: 6
+                strokeColor: 'none',
+                strokeWidth: 0
               },
               vertices: {
                 visible: false,
@@ -2450,7 +2472,7 @@ function isValidColor(value) {
         }
         if (showOutlineGlobal) {
           board.create('circle', [[cx, cy], r], {
-            strokeColor: '#000',
+            strokeColor: activeLineColor,
             strokeWidth: OUTLINE_STROKE_WIDTH,
             fillColor: 'none',
             highlight: false,
@@ -2470,8 +2492,8 @@ function isValidColor(value) {
           boundaryPts.push(p1);
           const sector = board.create('sector', [center, p1, p2], {
             withLines: true,
-            strokeColor: '#fff',
-            strokeWidth: 6,
+            strokeColor: 'none',
+            strokeWidth: 0,
             fillColor: colorFor(i),
             fillOpacity: 1,
             highlight: false,
@@ -2482,13 +2504,11 @@ function isValidColor(value) {
           attachToggleHandler(sector, i);
         }
         for (const p of boundaryPts) {
-          createDivisionSegment(center, p, {
-            strokeColor: '#000'
-          }, false);
+          createDivisionSegment(center, p, {}, false);
         }
         if (showOutlineGlobal) {
           board.create('circle', [center, r], {
-            strokeColor: '#000',
+            strokeColor: activeLineColor,
             strokeWidth: OUTLINE_STROKE_WIDTH,
             fillColor: 'none',
             highlight: false,
@@ -2509,8 +2529,8 @@ function isValidColor(value) {
           const pts = [corners[i], corners[(i + 1) % 4], c];
           const poly = board.create('polygon', pts, {
             borders: {
-              strokeColor: '#fff',
-              strokeWidth: 6
+              strokeColor: 'none',
+              strokeWidth: 0
             },
             vertices: {
               visible: false,
@@ -2529,9 +2549,7 @@ function isValidColor(value) {
           });
           attachToggleHandler(poly, i);
           markPolygonBorders(poly);
-          createDivisionSegment(c, corners[i], {
-            strokeColor: '#000'
-          }, false);
+          createDivisionSegment(c, corners[i], {}, false);
         }
       } else if (division === 'grid') {
         const {
@@ -2548,8 +2566,8 @@ function isValidColor(value) {
             const pts = [[x1, y1], [x2, y1], [x2, y2], [x1, y2]];
             const poly = board.create('polygon', pts, {
               borders: {
-                strokeColor: '#fff',
-                strokeWidth: 6
+                strokeColor: 'none',
+                strokeWidth: 0
               },
               vertices: {
                 visible: false,
@@ -2592,10 +2610,10 @@ function isValidColor(value) {
             pts = [[0, y1], [width, y1], [width, y2], [0, y2]];
           }
         const poly = board.create('polygon', pts, {
-          borders: {
-            strokeColor: '#fff',
-            strokeWidth: 6
-          },
+            borders: {
+              strokeColor: 'none',
+              strokeWidth: 0
+            },
           vertices: {
             visible: false,
             name: '',
@@ -2671,10 +2689,10 @@ function isValidColor(value) {
           for (let c = 0; c < r; c++) {
             const pts = [rows[r][c], rows[r][c + 1], rows[r - 1][c]];
             const poly = board.create('polygon', pts, {
-              borders: {
-                strokeColor: '#fff',
-                strokeWidth: 6
-              },
+            borders: {
+              strokeColor: 'none',
+              strokeWidth: 0
+            },
               vertices: {
                 visible: false,
                 name: '',
@@ -2700,8 +2718,8 @@ function isValidColor(value) {
             const pts = [rows[r][c], rows[r][c + 1], rows[r + 1][c + 1]];
             const poly = board.create('polygon', pts, {
               borders: {
-                strokeColor: '#fff',
-                strokeWidth: 6
+                strokeColor: 'none',
+                strokeWidth: 0
               },
               vertices: {
                 visible: false,
@@ -2731,7 +2749,7 @@ function isValidColor(value) {
         if (showOutlineGlobal) {
           board.create('polygon', [toEqTri([0, 1]), toEqTri([1, 1]), toEqTri([0.5, 0])], {
             borders: {
-              strokeColor: '#000',
+              strokeColor: activeLineColor,
               strokeWidth: 6,
               linecap: 'round',
               linejoin: 'round'
@@ -2780,8 +2798,8 @@ function isValidColor(value) {
         pts = pts.map(toEq);
         const poly = board.create('polygon', pts, {
           borders: {
-            strokeColor: '#fff',
-            strokeWidth: 6
+            strokeColor: 'none',
+            strokeWidth: 0
           },
           vertices: {
             visible: false,
@@ -2829,7 +2847,7 @@ function isValidColor(value) {
       if (showOutlineGlobal) {
         board.create('polygon', [toEq([0, 0]), toEq([1, 0]), toEq([0, 1])], {
           borders: {
-            strokeColor: '#000',
+            strokeColor: activeLineColor,
             strokeWidth: 6,
             linecap: 'round',
             linejoin: 'round'
