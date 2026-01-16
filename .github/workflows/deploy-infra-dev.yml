@@ -40,7 +40,7 @@ jobs:
       # Default to the template's dev stage when the secret is missing so the
       # deploy step doesn't fail with an empty StageName parameter.
       API_STAGE_NAME: ${{ secrets.API_STAGE_NAME_DEV || 'dev' }}
-      CLOUDFRONT_INVALIDATION_PATHS: ${{ github.event.inputs.cloudfront_invalidation_paths || secrets.CLOUDFRONT_INVALIDATION_PATHS_DEV || '/ /index.html' }}
+      CLOUDFRONT_INVALIDATION_PATHS: ${{ github.event.inputs.cloudfront_invalidation_paths || secrets.CLOUDFRONT_INVALIDATION_PATHS_DEV || '/*' }}
       # Stack names and defaults
       STATIC_STACK_NAME: math-visuals-static-site-dev
       API_STACK_NAME: math-visuals-api-dev
