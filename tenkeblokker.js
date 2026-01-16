@@ -223,11 +223,29 @@ function sanitizeFillIndex(value, paletteLength) {
   return Math.min(numeric, max);
 }
 function getFillPalette() {
-  const palette = resolveFractionPalette(FILL_COLOR_COUNT);
+  return getLineFillPalettes().fillColors.slice(0, FILL_COLOR_COUNT);
+}
+
+function getLinePalette() {
+  return getLineFillPalettes().lineColors.slice(0, FILL_COLOR_COUNT);
+}
+
+function getLineFillPalettes() {
+  const targetCount = FILL_COLOR_COUNT * 2;
+  const palette = resolveFractionPalette(targetCount);
   const fallbackPalette = resolveProjectFractionFallback(resolvePaletteProjectName());
   const fallback =
     Array.isArray(fallbackPalette) && fallbackPalette.length ? fallbackPalette : FRACTION_FALLBACK_COLORS;
-  return ensurePaletteCount(palette, fallback, FILL_COLOR_COUNT);
+  const normalized = ensurePaletteCount(palette, fallback, targetCount);
+  const fillColors = [];
+  const lineColors = [];
+  for (let index = 0; index < targetCount; index += 2) {
+    const fill = normalized[index];
+    const line = normalized[index + 1];
+    fillColors.push(fill || line || FRACTION_FALLBACK_COLORS[0]);
+    lineColors.push(line || fill || '#000000');
+  }
+  return { fillColors, lineColors };
 }
 function getBlockFillIndex(cfg, paletteLength) {
   const value = cfg && Object.prototype.hasOwnProperty.call(cfg, 'fillColorIndex') ? cfg.fillColorIndex : DEFAULT_FILL_COLOR_INDEX;
@@ -236,15 +254,16 @@ function getBlockFillIndex(cfg, paletteLength) {
   return index;
 }
 
-function resolveBlockPalette(cfg, paletteOverride) {
+function resolveBlockPalette(cfg, paletteOverride, linePaletteOverride) {
   const palette = Array.isArray(paletteOverride) ? paletteOverride : getFillPalette();
+  const linePalette = Array.isArray(linePaletteOverride) ? linePaletteOverride : getLinePalette();
   const index = getBlockFillIndex(cfg, palette.length);
   const fill = palette[index - 1] || palette[0] || FRACTION_FALLBACK_COLORS[0];
   return {
     palette,
     index,
     fill,
-    line: '#000000',
+    line: linePalette[index - 1] || linePalette[0] || '#000000',
     text: getContrastTextColor(fill)
   };
 }
@@ -272,11 +291,12 @@ function updateBlockFillPicker(block, paletteData) {
   });
 }
 
-function renderBlockFillPickerOptions(block, paletteOverride) {
+function renderBlockFillPickerOptions(block, paletteOverride, linePaletteOverride) {
   if (!block || !block.fillPicker) return;
   const { optionsPanel } = block.fillPicker;
   if (!optionsPanel) return;
   const palette = Array.isArray(paletteOverride) ? paletteOverride : getFillPalette();
+  const linePalette = Array.isArray(linePaletteOverride) ? linePaletteOverride : getLinePalette();
   optionsPanel.innerHTML = '';
   palette.forEach((color, index) => {
     const btn = document.createElement('button');
@@ -290,13 +310,13 @@ function renderBlockFillPickerOptions(block, paletteOverride) {
       event.stopPropagation();
       if (!block.cfg) return;
       block.cfg.fillColorIndex = sanitizeFillIndex(index + 1, palette.length);
-      updateBlockFillPicker(block, resolveBlockPalette(block.cfg, palette));
+      updateBlockFillPicker(block, resolveBlockPalette(block.cfg, palette, linePalette));
       optionsPanel.hidden = true;
       draw(true);
     });
     optionsPanel.appendChild(btn);
   });
-  updateBlockFillPicker(block, resolveBlockPalette(block.cfg, palette));
+  updateBlockFillPicker(block, resolveBlockPalette(block.cfg, palette, linePalette));
 }
 
 function createBlockFillPicker(block, fieldset) {
@@ -709,12 +729,14 @@ function getPaletteTargets() {
 
 function applyFractionPalette(force = false) {
   if (typeof document === 'undefined') return;
-  const palette = getFillPalette();
+  const { fillColors, lineColors } = getLineFillPalettes();
+  const palette = fillColors.slice(0, FILL_COLOR_COUNT);
+  const linePalette = lineColors.slice(0, FILL_COLOR_COUNT);
   BLOCKS.forEach(block => {
     if (!block || !block.cfg) return;
-    const resolved = resolveBlockPalette(block.cfg, palette);
+    const resolved = resolveBlockPalette(block.cfg, palette, linePalette);
     applyBlockPalette(block, resolved);
-    renderBlockFillPickerOptions(block, palette);
+    renderBlockFillPickerOptions(block, palette, linePalette);
   });
   refreshTenkeblokkerPaletteAttributes();
 }
