@@ -501,8 +501,26 @@ function getFractionPalette(count) {
 SIMPLE.fillColorIndex = sanitizeFillIndex(SIMPLE.fillColorIndex, FILL_COLOR_COUNT);
 
 function getFillPalette() {
-  const result = getFractionPalette(FILL_COLOR_COUNT);
-  return Array.isArray(result.palette) ? result.palette.slice(0, FILL_COLOR_COUNT) : [];
+  return getLineFillPalettes().fillColors.slice(0, FILL_COLOR_COUNT);
+}
+
+function getLinePalette() {
+  return getLineFillPalettes().lineColors.slice(0, FILL_COLOR_COUNT);
+}
+
+function getLineFillPalettes() {
+  const targetCount = FILL_COLOR_COUNT * 2;
+  const result = getFractionPalette(targetCount);
+  const palette = Array.isArray(result.palette) ? result.palette : [];
+  const lineColors = [];
+  const fillColors = [];
+  for (let index = 0; index < targetCount; index += 2) {
+    const fill = palette[index];
+    const line = palette[index + 1];
+    fillColors.push(fill || line || '#fff');
+    lineColors.push(line || fill || '#000');
+  }
+  return { fillColors, lineColors };
 }
 
 function sanitizeFillIndex(value, paletteLength) {
@@ -608,13 +626,20 @@ function getPizzaFillColor(index) {
   return colors[fillIndex - 1] || colors[0] || LEGACY_PIZZA_COLORS.fill;
 }
 
+function getPizzaLineColor(index) {
+  const colors = getLinePalette();
+  const fillIndex = getPizzaFillIndex(index);
+  return colors[fillIndex - 1] || colors[0] || '#000000';
+}
+
 function getPizzaColors() {
+  const lineColor = getPizzaLineColor(0);
   const base = {
     fill: getThemeColor('pizza.fill', getPizzaFillColor(0)),
-    rim: getThemeColor('pizza.rim', '#000000'),
-    dash: getThemeColor('pizza.dash', '#000000'),
+    rim: getThemeColor('pizza.rim', lineColor),
+    dash: getThemeColor('pizza.dash', lineColor),
     handle: getThemeColor('pizza.handle', LEGACY_PIZZA_COLORS.handle),
-    handleStroke: getThemeColor('pizza.handleStroke', '#000000')
+    handleStroke: getThemeColor('pizza.handleStroke', lineColor)
   };
   return {
     fill: base.fill,
@@ -683,10 +708,20 @@ function applyPizzaColors() {
     const svg = doc.getElementById(map.svgId);
     if (!svg || !svg.style) return;
     const fill = getPizzaFillColor(index);
+    const line = getPizzaLineColor(index);
     if (typeof fill === 'string' && fill) {
       svg.style.setProperty('--pizza-fill', fill);
     } else {
       svg.style.removeProperty('--pizza-fill');
+    }
+    if (typeof line === 'string' && line) {
+      svg.style.setProperty('--pizza-rim', line);
+      svg.style.setProperty('--pizza-dash', line);
+      svg.style.setProperty('--pizza-handle-stroke', line);
+    } else {
+      svg.style.removeProperty('--pizza-rim');
+      svg.style.removeProperty('--pizza-dash');
+      svg.style.removeProperty('--pizza-handle-stroke');
     }
   });
 }

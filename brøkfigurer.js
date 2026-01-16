@@ -298,7 +298,7 @@ function isValidColor(value) {
   }
   const LEGACY_COLOR_PALETTE = ['#B25FE3', '#6C1BA2', '#534477', '#873E79', '#BF4474', '#E31C3D'];
   const SHARED_GROUP_ID = 'graftegner';
-  const PALETTE_PAIR_COUNT = 3;
+  const PALETTE_PAIR_COUNT = 6;
   const PALETTE_SLOT_COUNT = PALETTE_PAIR_COUNT * 2;
   const FILL_COLOR_COUNT = PALETTE_PAIR_COUNT;
   const fillColorPickersSelector = '[data-fill-color-picker]';
@@ -818,8 +818,8 @@ function isValidColor(value) {
     const lineColors = [];
     const fillColors = [];
     for (let index = 0; index < palette.length; index += 2) {
-      lineColors.push(palette[index] || '#000');
-      fillColors.push(palette[index + 1] || palette[index] || '#fff');
+      fillColors.push(palette[index] || palette[index + 1] || '#fff');
+      lineColors.push(palette[index + 1] || palette[index] || '#000');
     }
     return {
       lineColors,
