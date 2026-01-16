@@ -4,10 +4,62 @@ const MAX_COLORS = 49;
 const DEFAULT_PROJECT = 'campus';
 
 const PROJECT_FALLBACKS = deepFreeze({
-  campus: ['#DBE3FF', '#2C395B', '#E3B660', '#C5E5E9', '#F6E5BC', '#F1D0D9'],
-  annet: ['#FCEDE4', '#355070', '#F3722C', '#43AA8B', '#577590', '#F9C74F'],
-  kikora: ['#FF5C5C', '#FF9F1C', '#2EC4B6', '#3A86FF', '#8338EC', '#FFE066'],
-  default: ['#1F4DE2', '#475569', '#EF4444', '#0EA5E9', '#10B981', '#F59E0B']
+  campus: [
+    '#DC6A4B',
+    '#6B1F0B',
+    '#528BFF',
+    '#002266',
+    '#4F9566',
+    '#000000',
+    '#13A2B6',
+    '#04343A',
+    '#DC5D85',
+    '#400115',
+    '#9780C0',
+    '#190A35'
+  ],
+  annet: [
+    '#DC6A4B',
+    '#6B1F0B',
+    '#528BFF',
+    '#002266',
+    '#4F9566',
+    '#000000',
+    '#13A2B6',
+    '#04343A',
+    '#DC5D85',
+    '#400115',
+    '#9780C0',
+    '#190A35'
+  ],
+  kikora: [
+    '#DC6A4B',
+    '#6B1F0B',
+    '#528BFF',
+    '#002266',
+    '#4F9566',
+    '#000000',
+    '#13A2B6',
+    '#04343A',
+    '#DC5D85',
+    '#400115',
+    '#9780C0',
+    '#190A35'
+  ],
+  default: [
+    '#DC6A4B',
+    '#6B1F0B',
+    '#528BFF',
+    '#002266',
+    '#4F9566',
+    '#000000',
+    '#13A2B6',
+    '#04343A',
+    '#DC5D85',
+    '#400115',
+    '#9780C0',
+    '#190A35'
+  ]
 });
 
 const RAW_COLOR_SLOT_GROUPS = [
@@ -17,12 +69,18 @@ const RAW_COLOR_SLOT_GROUPS = [
     description:
       'Farger som brukes av graftegner, diagram, brøksirkler, brøkfigurer, tallfigurer, kvikkbilder, tenkeblokker, brøkvegg og 3D-figurer.',
     slots: [
-      { index: 4, label: 'Farge 1', description: 'Felles farge 1 for appene.' },
-      { index: 5, label: 'Farge 2', description: 'Felles farge 2 for appene.' },
-      { index: 6, label: 'Farge 3', description: 'Felles farge 3 for appene.' },
-      { index: 7, label: 'Farge 4', description: 'Felles farge 4 for appene.' },
-      { index: 8, label: 'Farge 5', description: 'Felles farge 5 for appene.' },
-      { index: 9, label: 'Farge 6', description: 'Felles farge 6 for appene.' }
+      { index: 5, label: 'Fyll 1', description: 'Fyllfarge til linje 1.' },
+      { index: 4, label: 'Linje 1', description: 'Linjefarge til fyll 1.' },
+      { index: 7, label: 'Fyll 2', description: 'Fyllfarge til linje 2.' },
+      { index: 6, label: 'Linje 2', description: 'Linjefarge til fyll 2.' },
+      { index: 9, label: 'Fyll 3', description: 'Fyllfarge til linje 3.' },
+      { index: 8, label: 'Linje 3', description: 'Linjefarge til fyll 3.' },
+      { index: 10, label: 'Fyll 4', description: 'Fyllfarge til linje 4.' },
+      { index: 11, label: 'Linje 4', description: 'Linjefarge til fyll 4.' },
+      { index: 12, label: 'Fyll 5', description: 'Fyllfarge til linje 5.' },
+      { index: 13, label: 'Linje 5', description: 'Linjefarge til fyll 5.' },
+      { index: 14, label: 'Fyll 6', description: 'Fyllfarge til linje 6.' },
+      { index: 15, label: 'Linje 6', description: 'Linjefarge til fyll 6.' }
     ]
   },
   {

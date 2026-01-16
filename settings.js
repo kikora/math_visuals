@@ -1046,6 +1046,9 @@
 
       const table = document.createElement('div');
       table.className = 'color-table';
+      if (normalizedGroupId) {
+        table.dataset.groupId = normalizedGroupId;
+      }
       group.slots.forEach(slot => {
         appendSlotToTable(table, createColorSlotElement(slot));
       });
