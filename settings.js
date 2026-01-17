@@ -115,6 +115,7 @@
   let colors = [];
   const slotBindings = new Map();
   const groupStatusElements = new Map();
+  const graftegnerContrastRows = [];
 
   function resolveSettingsApi() {
     if (typeof window === 'undefined') return null;
@@ -442,6 +443,12 @@
     return (lighter + 0.05) / (darker + 0.05);
   }
 
+  function calculateContrastRatioBetweenColors(colorA, colorB) {
+    const luminanceA = calculateRelativeLuminance(colorA);
+    const luminanceB = calculateRelativeLuminance(colorB);
+    return calculateContrastRatio(luminanceA, luminanceB);
+  }
+
   function calculateBestTextContrast(color) {
     const luminance = calculateRelativeLuminance(color);
     if (typeof luminance !== 'number') return null;
@@ -525,6 +532,38 @@
       display,
       passes: contrast.passes
     };
+  }
+
+  function resolveContrastColor(index) {
+    if (!Number.isInteger(index) || index < 0) return null;
+    const project = ensureActiveProject();
+    return sanitizeColor(colors[index]) || getFallbackColorForIndex(project, index);
+  }
+
+  function formatContrastValue(ratio) {
+    const formatted = formatContrastRatio(ratio);
+    return formatted || 'ikke tilgjengelig';
+  }
+
+  function buildGraftegnerContrastMessage(fillIndex, lineIndex) {
+    const fillColor = resolveContrastColor(fillIndex);
+    const lineColor = resolveContrastColor(lineIndex);
+    const between = calculateContrastRatioBetweenColors(fillColor, lineColor);
+    const fillOnWhite = calculateContrastRatioBetweenColors(fillColor, '#ffffff');
+    const lineOnWhite = calculateContrastRatioBetweenColors(lineColor, '#ffffff');
+    return `Kontrast fyll/linje: ${formatContrastValue(between)} · Fyll mot hvit: ${formatContrastValue(
+      fillOnWhite
+    )} · Linje mot hvit: ${formatContrastValue(lineOnWhite)}`;
+  }
+
+  function updateGraftegnerContrastRows() {
+    if (!graftegnerContrastRows.length) return;
+    graftegnerContrastRows.forEach(row => {
+      if (!row) return;
+      const fillIndex = Number(row.dataset.fillIndex);
+      const lineIndex = Number(row.dataset.lineIndex);
+      row.textContent = buildGraftegnerContrastMessage(fillIndex, lineIndex);
+    });
   }
 
   function getSanitizedFallbackBase(project) {
@@ -917,6 +956,7 @@
     assignColorToPalette(palette, index, clean);
     state.colorsByProject.set(project, cloneProjectPalette(palette));
     updateBindingsForIndex(index, clean);
+    updateGraftegnerContrastRows();
   }
 
   function handleColorInput(index, event) {
@@ -941,6 +981,7 @@
       updateBindingsForIndex(index, fallback);
     }
     clearStatus();
+    updateGraftegnerContrastRows();
   }
 
   function registerSlotBinding(index, binding) {
@@ -997,6 +1038,17 @@
     return item;
   }
 
+  function createGraftegnerContrastRow(slotIndex, fillIndex, lineIndex) {
+    const row = document.createElement('div');
+    row.className = 'color-contrast-row';
+    row.dataset.rowIndex = String(slotIndex);
+    row.dataset.fillIndex = String(fillIndex);
+    row.dataset.lineIndex = String(lineIndex);
+    row.textContent = buildGraftegnerContrastMessage(fillIndex, lineIndex);
+    graftegnerContrastRows.push(row);
+    return row;
+  }
+
   function appendSlotToTable(container, slotElement) {
     if (!container || !slotElement) return;
     container.appendChild(slotElement);
@@ -1049,9 +1101,26 @@
       if (normalizedGroupId) {
         table.dataset.groupId = normalizedGroupId;
       }
-      group.slots.forEach(slot => {
-        appendSlotToTable(table, createColorSlotElement(slot));
-      });
+      if (normalizedGroupId === 'graftegner') {
+        graftegnerContrastRows.length = 0;
+        group.slots.forEach((slot, slotIndex) => {
+          appendSlotToTable(table, createColorSlotElement(slot));
+          if (slotIndex % 2 === 1) {
+            const fillSlot = group.slots[slotIndex - 1];
+            const lineSlot = group.slots[slotIndex];
+            if (fillSlot && lineSlot) {
+              appendSlotToTable(
+                table,
+                createGraftegnerContrastRow(slotIndex, fillSlot.index, lineSlot.index)
+              );
+            }
+          }
+        });
+      } else {
+        group.slots.forEach(slot => {
+          appendSlotToTable(table, createColorSlotElement(slot));
+        });
+      }
       section.appendChild(table);
       colorGroupsContainer.appendChild(section);
     });
@@ -1061,6 +1130,7 @@
     for (let index = 0; index < colors.length; index += 1) {
       updateBindingsForIndex(index, colors[index]);
     }
+    updateGraftegnerContrastRows();
   }
 
   function renderColors(projectName) {
