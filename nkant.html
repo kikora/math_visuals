@@ -40,15 +40,9 @@
       max-width: 100%;
     }
     .figure svg {
-      width: min(
-        100%,
-        max(
-          240px,
-          calc(var(--figure-available-height, calc(100vh - 200px)) * (900 / 560))
-        )
-      );
-      height: auto;
-      max-height: 100%;
+      width: auto;
+      max-width: 100%;
+      height: min(100%, var(--figure-available-height, calc(100vh - 200px)));
       display: block;
     }
     .wrap {
