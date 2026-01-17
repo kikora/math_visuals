@@ -104,6 +104,8 @@ function isValidColor(value) {
     const LABEL_MODES = ['hidden', 'count', 'custom'];
     const FIGURE_TYPES = ['square', 'square-outline', 'circle', 'circle-outline', 'star'];
     const FILL_COLOR_COUNT = 6;
+    const STATE = typeof window.STATE === 'object' && window.STATE ? window.STATE : {};
+    window.STATE = STATE;
     let isSyncingTheme = false;
     let themeObserver = null;
     let rows = 3;
@@ -230,8 +232,6 @@ function isValidColor(value) {
     if (Array.isArray(palette) && palette[index]) return palette[index];
     return LEGACY_COLOR_PALETTE[index % LEGACY_COLOR_PALETTE.length];
   }
-  const STATE = typeof window.STATE === 'object' && window.STATE ? window.STATE : {};
-  window.STATE = STATE;
   const modifiedColorIndexes = new Set();
   if (Array.isArray(STATE.colors)) {
     STATE.colors.forEach((color, idx) => {
