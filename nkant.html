@@ -67,6 +67,63 @@
       gap: 4px;
       align-items: center;
     }
+    .fill-color-picker{display:flex;align-items:center;gap:10px;font-size:13px;color:#4b5563;flex-wrap:wrap;}
+    .fill-color-picker__label{font-weight:500;color:#4b5563;}
+    .color-picker{position:relative;display:flex;align-items:center;justify-content:center;width:40px;height:40px;}
+    .color-swatch--active{
+      width:32px;
+      height:32px;
+      border-radius:50%;
+      border:2px solid #fff;
+      box-shadow:0 0 0 1px #d1d5db;
+      cursor:pointer;
+      padding:0;
+      transition:transform 0.1s;
+    }
+    .color-swatch--active:hover{transform:scale(1.1);box-shadow:0 0 0 1px #9ca3af;}
+    .color-swatch--triple{
+      background:linear-gradient(90deg,var(--swatch-color-1) 0 33%,var(--swatch-color-2) 33% 66%,var(--swatch-color-3) 66% 100%);
+    }
+    .color-options{
+      position:absolute;
+      top:100%;
+      left:50%;
+      transform:translateX(-50%);
+      background:white;
+      border:1px solid #e5e7eb;
+      border-radius:99px;
+      padding:8px;
+      display:flex;
+      gap:8px;
+      box-shadow:0 4px 15px rgba(0,0,0,0.15);
+      z-index:100;
+      margin-top:8px;
+    }
+    .color-options::before{
+      content:'';
+      position:absolute;
+      top:-6px;
+      left:50%;
+      margin-left:-6px;
+      border-width:6px;
+      border-style:solid;
+      border-color:transparent transparent #fff transparent;
+    }
+    .color-option-btn{
+      width:24px;
+      height:24px;
+      border-radius:50%;
+      border:1px solid rgba(0,0,0,0.1);
+      cursor:pointer;
+      padding:0;
+      transition:transform 0.1s;
+    }
+    .color-option-btn--triple{
+      background:linear-gradient(90deg,var(--swatch-color-1) 0 33%,var(--swatch-color-2) 33% 66%,var(--swatch-color-3) 66% 100%);
+    }
+    .color-option-btn:hover{transform:scale(1.2);}
+    .color-option-btn.is-selected{outline:2px solid #6366f1;outline-offset:2px;}
+    .color-options[hidden]{display:none !important;}
     .figure-controls { display: grid; gap: 10px; }
     .figure-controls__header { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
     .figure-list { display: grid; gap: 12px; }
@@ -289,6 +346,14 @@
                 <option value="rotate">Roter tekst</option>
                 <option value="no-rotate">Ikke roter tekst</option>
               </select>
+            </div>
+            <div>
+              <label>Farger</label>
+              <div class="fill-color-picker" data-nkant-color-picker>
+                <button type="button" class="color-swatch color-swatch--active color-swatch--triple" aria-label="Velg fargesett" aria-haspopup="true" aria-expanded="false"></button>
+                <div class="color-options" hidden></div>
+              </div>
+              <div class="small">Fyll, linje og vinkel.</div>
             </div>
           </div>
         </div>
