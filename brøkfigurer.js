@@ -283,7 +283,7 @@ function isValidColor(value) {
   const CLIP_PAD_EXTRA_PERCENT = 2;
   const CLIP_PAD_PERCENT = CLIP_PADDING_PERCENT + CLIP_PAD_EXTRA_PERCENT;
   const CIRCLE_RADIUS = 0.45;
-  const OUTLINE_STROKE_WIDTH = 6;
+  const OUTLINE_STROKE_WIDTH = 3;
   const RECT_CORNER_RADIUS_RATIO = 0.01;
   const DIVISION_SEGMENT_EXTENSION = 0;
   const colorCountInp = document.getElementById('colorCount');
@@ -1848,6 +1848,10 @@ function isValidColor(value) {
       board.resizeContainer(width, height);
       board.update();
       updateRoundedRectFrame();
+      const figState = ensureFigureState(id);
+      const shape = figState.shape || (shapeSel && shapeSel.value) || 'rectangle';
+      const division = figState.division || (divSel && divSel.value) || 'horizontal';
+      applyClip(shape, division);
     }
     function disableHitDetection(element) {
       if (element && typeof element.hasPoint === 'function') {
@@ -2750,7 +2754,7 @@ function isValidColor(value) {
           board.create('polygon', [toEqTri([0, 1]), toEqTri([1, 1]), toEqTri([0.5, 0])], {
             borders: {
               strokeColor: activeLineColor,
-              strokeWidth: 6,
+              strokeWidth: OUTLINE_STROKE_WIDTH,
               linecap: 'round',
               linejoin: 'round'
             },
@@ -2846,12 +2850,12 @@ function isValidColor(value) {
       }
       if (showOutlineGlobal) {
         board.create('polygon', [toEq([0, 0]), toEq([1, 0]), toEq([0, 1])], {
-          borders: {
-            strokeColor: activeLineColor,
-            strokeWidth: 6,
-            linecap: 'round',
-            linejoin: 'round'
-          },
+        borders: {
+          strokeColor: activeLineColor,
+          strokeWidth: OUTLINE_STROKE_WIDTH,
+          linecap: 'round',
+          linejoin: 'round'
+        },
           vertices: {
             visible: false,
             name: '',
