@@ -86,6 +86,7 @@ const STATE = {
   defaults: { ...DEFAULT_GLOBAL_DEFAULTS },
   textSize: "medium",
   rotateText: true,
+  colorSetIndex: 1,
   figures: [],
   layout: "grid", // 2x2 matrise
   altText: "",
@@ -202,6 +203,7 @@ function ensureStateDefaults() {
   });
   STATE.specsText = STATE.figures.map(fig => fig && typeof fig.specText === "string" ? fig.specText : "").join("\n");
   STATE.textSize = sanitizeTextSize(STATE.textSize);
+  STATE.colorSetIndex = sanitizeColorSetIndex(STATE.colorSetIndex);
   return STATE;
 }
   function syncSpecsTextFromFigures() {
@@ -908,8 +910,14 @@ const STYLE_DEFAULTS = {
 };
 
 const STYLE = { ...STYLE_DEFAULTS };
-const NKANT_GROUP_PALETTE_SIZE = 6; // Vi trenger ca 4-6 farger
+const NKANT_COLOR_SET_SIZE = 3;
+const NKANT_COLOR_SET_COUNT = 6;
+const NKANT_GROUP_PALETTE_SIZE = NKANT_COLOR_SET_SIZE * NKANT_COLOR_SET_COUNT;
 const SETTINGS_FALLBACK_PALETTE = ["#1F4DE2", "#475569", "#ef4444", "#0ea5e9", "#10b981", "#f59e0b"];
+const NKANT_FALLBACK_PALETTE = Array.from({ length: NKANT_GROUP_PALETTE_SIZE }, (_, idx) => {
+  const fallback = SETTINGS_FALLBACK_PALETTE.length ? SETTINGS_FALLBACK_PALETTE : ["#111827"];
+  return fallback[idx % fallback.length];
+});
 
 // Hjelpere for å finne API-er
 function getThemeApi() {
@@ -1020,9 +1028,11 @@ function getThemeColor(token, fallback) {
   return fallback;
 }
 
-// --- PATCH START: Manglende tema-funksjon ---
+let nkantPaletteCache = [];
+let nkantColorPickerEl = null;
+let nkantColorPickerBound = false;
 
-function refreshNkantTheme(options = {}) {
+function resolveNkantPalette() {
   const project = getActiveProjectName();
   const paletteApi = getPaletteApi();
   const theme = getThemeApi();
@@ -1034,7 +1044,6 @@ function refreshNkantTheme(options = {}) {
 
   let groupPalette = [];
 
-  // Prøv Palette API først
   if (paletteApi && typeof paletteApi.getGroupPalette === 'function') {
     try {
       const res = paletteApi.getGroupPalette('nkant', request);
@@ -1042,7 +1051,6 @@ function refreshNkantTheme(options = {}) {
     } catch (_) {}
   }
 
-  // Fallback til Theme API
   if ((!groupPalette || !groupPalette.length) && theme && typeof theme.getGroupPalette === 'function') {
     try {
       const res = theme.getGroupPalette('nkant', request);
@@ -1050,37 +1058,118 @@ function refreshNkantTheme(options = {}) {
     } catch (_) {}
   }
 
-  // Sikre at vi har nok farger
-  const finalPalette = ensurePalette(groupPalette, NKANT_GROUP_PALETTE_SIZE, SETTINGS_FALLBACK_PALETTE);
+  return ensurePalette(groupPalette, NKANT_GROUP_PALETTE_SIZE, NKANT_FALLBACK_PALETTE);
+}
 
-  // Oppdater STYLE-objektet
-  // MAPPING: 0=Linje, 1=Vinkel, 2=Fyll
-  const primaryColor = finalPalette[0] || STYLE_DEFAULTS.edgeStroke;
-  const secondaryColor = finalPalette[1] || primaryColor || STYLE_DEFAULTS.angStroke;
-  const tertiaryColor = finalPalette[2] || STYLE_DEFAULTS.faceFill;
+function applyNkantPaletteSelection(palette, options = {}) {
+  const { render = true } = options;
+  const finalPalette = Array.isArray(palette) ? palette : resolveNkantPalette();
+  nkantPaletteCache = finalPalette.slice();
+  const safeIndex = sanitizeColorSetIndex(STATE.colorSetIndex);
+  STATE.colorSetIndex = safeIndex;
+  const baseIndex = (safeIndex - 1) * NKANT_COLOR_SET_SIZE;
+  const fillColor = finalPalette[baseIndex] || STYLE_DEFAULTS.faceFill;
+  const lineColor = finalPalette[baseIndex + 1] || STYLE_DEFAULTS.edgeStroke;
+  const angleColor = finalPalette[baseIndex + 2] || STYLE_DEFAULTS.angStroke;
 
   const textColor = getThemeColor('ui.primary', STYLE_DEFAULTS.textFill);
   const constructionColor = getThemeColor('dots.default', STYLE_DEFAULTS.constructionStroke);
 
   Object.assign(STYLE, STYLE_DEFAULTS, {
-    edgeStroke: primaryColor,
-    angStroke: secondaryColor,
-    radiusStroke: secondaryColor,
-    faceFill: tertiaryColor,
+    edgeStroke: lineColor,
+    angStroke: angleColor,
+    radiusStroke: angleColor,
+    faceFill: fillColor,
     textFill: textColor,
     constructionStroke: constructionColor,
-    angFill: withAlphaColor(secondaryColor, 0.25, 'rgba(0,0,0,0.1)')
+    angFill: withAlphaColor(angleColor, 0.25, 'rgba(0,0,0,0.1)')
   });
 
-  // Tegn på nytt hvis funksjonen er tilgjengelig
-  if (typeof renderCombined === 'function') {
-    // Bruk scheduleRender for å unngå race conditions
+  if (render && typeof renderCombined === 'function') {
     if (typeof scheduleRender === 'function') {
-        scheduleRender();
+      scheduleRender();
     } else {
-        renderCombined();
+      renderCombined();
     }
   }
+}
+
+function setTripleSwatchStyle(element, fillColor, lineColor, angleColor) {
+  if (!element) return;
+  element.style.setProperty('--swatch-color-1', fillColor);
+  element.style.setProperty('--swatch-color-2', lineColor);
+  element.style.setProperty('--swatch-color-3', angleColor);
+}
+
+function updateNkantColorPickerSelection(palette) {
+  if (!nkantColorPickerEl) return;
+  const activeButton = nkantColorPickerEl.querySelector('.color-swatch--active');
+  const optionsPanel = nkantColorPickerEl.querySelector('.color-options');
+  if (!activeButton || !optionsPanel) return;
+  const colors = Array.isArray(palette) ? palette : nkantPaletteCache;
+  const safeIndex = sanitizeColorSetIndex(STATE.colorSetIndex);
+  const baseIndex = (safeIndex - 1) * NKANT_COLOR_SET_SIZE;
+  const fillColor = colors[baseIndex] || STYLE_DEFAULTS.faceFill;
+  const lineColor = colors[baseIndex + 1] || STYLE_DEFAULTS.edgeStroke;
+  const angleColor = colors[baseIndex + 2] || STYLE_DEFAULTS.angStroke;
+  setTripleSwatchStyle(activeButton, fillColor, lineColor, angleColor);
+  optionsPanel.querySelectorAll('.color-option-btn').forEach(btn => {
+    const btnIndex = sanitizeColorSetIndex(btn.dataset.colorIndex);
+    btn.classList.toggle('is-selected', btnIndex === safeIndex);
+  });
+}
+
+function renderNkantColorPicker(palette) {
+  if (!nkantColorPickerEl) return;
+  const activeButton = nkantColorPickerEl.querySelector('.color-swatch--active');
+  const optionsPanel = nkantColorPickerEl.querySelector('.color-options');
+  if (!activeButton || !optionsPanel) return;
+  const colors = Array.isArray(palette) ? palette : resolveNkantPalette();
+  optionsPanel.innerHTML = '';
+  for (let index = 0; index < NKANT_COLOR_SET_COUNT; index += 1) {
+    const baseIndex = index * NKANT_COLOR_SET_SIZE;
+    const fillColor = colors[baseIndex] || STYLE_DEFAULTS.faceFill;
+    const lineColor = colors[baseIndex + 1] || STYLE_DEFAULTS.edgeStroke;
+    const angleColor = colors[baseIndex + 2] || STYLE_DEFAULTS.angStroke;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'color-option-btn color-option-btn--triple';
+    btn.dataset.colorIndex = String(index + 1);
+    setTripleSwatchStyle(btn, fillColor, lineColor, angleColor);
+    btn.setAttribute('aria-label', `Velg fargesett ${index + 1}`);
+    btn.addEventListener('click', event => {
+      event.stopPropagation();
+      const nextIndex = sanitizeColorSetIndex(index + 1);
+      updateState(state => {
+        state.colorSetIndex = nextIndex;
+      }, { render: false });
+      applyNkantPaletteSelection(colors, { render: true });
+      updateNkantColorPickerSelection(colors);
+      optionsPanel.hidden = true;
+    });
+    optionsPanel.appendChild(btn);
+  }
+  if (!nkantColorPickerBound) {
+    activeButton.addEventListener('click', event => {
+      event.stopPropagation();
+      optionsPanel.hidden = !optionsPanel.hidden;
+    });
+    document.addEventListener('click', event => {
+      if (!nkantColorPickerEl.contains(event.target)) {
+        optionsPanel.hidden = true;
+      }
+    });
+    nkantColorPickerBound = true;
+  }
+  updateNkantColorPickerSelection(colors);
+}
+
+// --- PATCH START: Manglende tema-funksjon ---
+
+function refreshNkantTheme(options = {}) {
+  const palette = resolveNkantPalette();
+  applyNkantPaletteSelection(palette, { render: true });
+  renderNkantColorPicker(palette);
 }
 
 // Hjelpefunksjon for å unngå spamming av refresh
@@ -1140,6 +1229,12 @@ function sanitizeThemePaletteValue(value) {
   if (typeof value !== "string") return "";
   const trimmed = value.trim();
   return trimmed || "";
+}
+
+function sanitizeColorSetIndex(value) {
+  const numeric = Number.parseInt(value, 10);
+  if (!Number.isFinite(numeric) || numeric < 1) return 1;
+  return Math.min(numeric, NKANT_COLOR_SET_COUNT);
 }
 
 function ensurePalette(base, count, fallback) {
@@ -5128,6 +5223,12 @@ function createCleanNKantSaveState() {
     opt.rotateText = rotateText;
   }
 
+  const normalizedColorSetIndex = sanitizeColorSetIndex(STATE.colorSetIndex);
+  const defaultColorSetIndex = sanitizeColorSetIndex(DEFAULT_STATE && DEFAULT_STATE.colorSetIndex);
+  if (normalizedColorSetIndex !== defaultColorSetIndex) {
+    opt.colorSet = normalizedColorSetIndex;
+  }
+
   const defaultsDiff = {};
   if (defaults.sides && defaults.sides !== baseDefaults.sides) {
     defaultsDiff.sides = defaults.sides;
@@ -5285,6 +5386,9 @@ function loadCleanNKantState(rawState) {
     nextState.textSize = sanitizeTextSize(opt.textSize);
     if (typeof opt.rotateText === "boolean") {
       nextState.rotateText = opt.rotateText;
+    }
+    if (opt.colorSet != null) {
+      nextState.colorSetIndex = sanitizeColorSetIndex(opt.colorSet);
     }
     if (opt.defaults && typeof opt.defaults === "object") {
       nextState.defaults = {
@@ -5613,6 +5717,7 @@ function bindUI() {
   const btnDraw = $("#btnDraw");
   const addFigureBtn = $("#btnAddFigure");
   const figureListEl = $("#figureList");
+  nkantColorPickerEl = document.querySelector('[data-nkant-color-picker]');
   const globalDefaultSidesWrap = $("#globalDefaultSidesWrap");
   const globalDefaultAnglesWrap = $("#globalDefaultAnglesWrap");
   rotateTextSelect = $("#rotateTextSelect");
@@ -5860,6 +5965,10 @@ function bindUI() {
   syncGlobalDefaultsToUI = syncGlobalDefaultsUI;
   applyFigureSpecsToUI = renderFigureForms;
     renderFigureForms();
+    if (nkantColorPickerEl) {
+      const palette = nkantPaletteCache.length ? nkantPaletteCache : resolveNkantPalette();
+      renderNkantColorPicker(palette);
+    }
     if (textSizeSelect) {
       const normalized = sanitizeTextSize(STATE.textSize);
       STATE.textSize = normalized;
@@ -6070,6 +6179,7 @@ function applyStateToUI() {
   if (typeof applyFigureSpecsToUI === 'function') {
     applyFigureSpecsToUI();
   }
+  updateNkantColorPickerSelection(nkantPaletteCache);
   updateLabelEditorUI();
 }
 function applyExamplesConfig() {
