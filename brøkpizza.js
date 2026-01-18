@@ -789,23 +789,8 @@ function ensureTaskCheckControlsAppended() {
   });
 }
 
-function normalizeAppMode(mode) {
-  const normalized = typeof mode === 'string' ? mode.trim().toLowerCase() : '';
-  if (
-    normalized === 'task' ||
-    normalized === 'preview' ||
-    normalized === 'forhandsvisning' ||
-    normalized === 'forhåndsvisning' ||
-    normalized === 'task-mode' ||
-    normalized === 'preview-mode'
-  ) {
-    return 'task';
-  }
-  return 'default';
-}
-
 function isTaskLikeMode(mode) {
-  return normalizeAppMode(mode) === 'task';
+  return normalizeMode(mode) === 'task';
 }
 
 function applyAppModeToTaskControls(mode) {
@@ -839,15 +824,11 @@ function applyAppModeToTaskControls(mode) {
   }
 }
 
-function syncBodyAppMode(mode) {
-  if (typeof document === 'undefined') return;
-  const body = document.body;
-  if (!body || !body.dataset) return;
-  const normalized = normalizeAppMode(mode);
-  if (body.dataset.appMode !== normalized) {
-    body.dataset.appMode = normalized;
-  }
-}
+const appModeModule = typeof window !== 'undefined' ? window.MathVisualsAppMode : null;
+const normalizeMode =
+  appModeModule && typeof appModeModule.normalizeMode === 'function'
+    ? appModeModule.normalizeMode
+    : value => (typeof value === 'string' && value.trim().toLowerCase() === 'task' ? 'task' : 'default');
 
 function getCurrentAppMode() {
   if (typeof window === 'undefined') return 'default';
@@ -856,7 +837,7 @@ function getCurrentAppMode() {
     try {
       const mode = mv.getAppMode();
       if (typeof mode === 'string' && mode) {
-        return normalizeAppMode(mode);
+        return normalizeMode(mode);
       }
     } catch (_) {
       // fall through
@@ -866,7 +847,7 @@ function getCurrentAppMode() {
     const params = new URLSearchParams(window.location && window.location.search ? window.location.search : '');
     const fromQuery = params.get('mode');
     if (typeof fromQuery === 'string' && fromQuery.trim()) {
-      return normalizeAppMode(fromQuery);
+      return normalizeMode(fromQuery);
     }
   } catch (_) {}
   return 'default';
@@ -876,8 +857,7 @@ function handleAppModeChanged(event) {
   if (!event) return;
   const detail = event.detail;
   if (!detail || typeof detail.mode !== 'string') return;
-  syncBodyAppMode(detail.mode);
-  applyAppModeToTaskControls(detail.mode);
+  applyAppModeToTaskControls(normalizeMode(detail.mode));
 }
 
 const TASK_APP_ID = 'brøkpizza';
@@ -941,11 +921,14 @@ function clearCheckStatus() {
 }
 
 if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
-  window.addEventListener('math-visuals:app-mode-changed', handleAppModeChanged);
+  if (appModeModule && typeof appModeModule.onModeChanged === 'function') {
+    appModeModule.onModeChanged(mode => applyAppModeToTaskControls(normalizeMode(mode)));
+  } else {
+    window.addEventListener('math-visuals:app-mode-changed', handleAppModeChanged);
+  }
 }
 
-const initialAppMode = getCurrentAppMode() || 'task';
-syncBodyAppMode(initialAppMode);
+const initialAppMode = normalizeMode(getCurrentAppMode()) || 'task';
 applyAppModeToTaskControls(initialAppMode);
 
 if (checkButton) {

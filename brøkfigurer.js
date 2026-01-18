@@ -549,23 +549,14 @@ function isValidColor(value) {
     });
   }
 
-  function normalizeAppMode(mode) {
-    const normalized = typeof mode === 'string' ? mode.trim().toLowerCase() : '';
-    if (
-      normalized === 'task' ||
-      normalized === 'preview' ||
-      normalized === 'forhandsvisning' ||
-      normalized === 'forhåndsvisning' ||
-      normalized === 'task-mode' ||
-      normalized === 'preview-mode'
-    ) {
-      return 'task';
-    }
-    return 'default';
-  }
+  const appModeModule = typeof window !== 'undefined' ? window.MathVisualsAppMode : null;
+  const normalizeMode =
+    appModeModule && typeof appModeModule.normalizeMode === 'function'
+      ? appModeModule.normalizeMode
+      : value => (typeof value === 'string' && value.trim().toLowerCase() === 'task' ? 'task' : 'default');
 
   function isTaskLikeMode(mode) {
-    return normalizeAppMode(mode) === 'task';
+    return normalizeMode(mode) === 'task';
   }
   function setCheckStatus(type, heading, detailLines) {
     if (!checkStatus) return;
@@ -626,49 +617,8 @@ function isValidColor(value) {
     }
   }
 
-  function syncBodyAppMode(mode) {
-    if (typeof document === 'undefined') return;
-    const body = document.body;
-    if (!body || !body.dataset) return;
-    const normalized = normalizeAppMode(mode);
-    if (body.dataset.appMode !== normalized) {
-      body.dataset.appMode = normalized;
-    }
-  }
-  function getModeFromUrl() {
-    if (typeof window === 'undefined') return null;
-    try {
-      const params = new URLSearchParams(window.location && window.location.search ? window.location.search : '');
-      const fromQuery = params.get('mode');
-      if (typeof fromQuery === 'string' && fromQuery.trim()) {
-        return normalizeAppMode(fromQuery);
-      }
-    } catch (_) {}
-    return null;
-  }
-  function getCurrentAppMode() {
-    if (typeof window === 'undefined') return 'default';
-    const fromUrl = getModeFromUrl();
-    if (fromUrl) {
-      return fromUrl;
-    }
-    const mv = window.mathVisuals;
-    if (mv && typeof mv.getAppMode === 'function') {
-      try {
-        const mode = mv.getAppMode();
-        if (typeof mode === 'string' && mode) {
-          return normalizeAppMode(mode);
-        }
-      } catch (_) {}
-    }
-    return 'default';
-  }
-  function handleAppModeChanged(event) {
-    if (!event) return;
-    const detail = event.detail;
-    if (!detail || typeof detail.mode !== 'string') return;
-    syncBodyAppMode(detail.mode);
-    applyAppModeToTaskControls(detail.mode);
+  function handleAppModeChanged(mode) {
+    applyAppModeToTaskControls(normalizeMode(mode));
   }
   const TASK_APP_ID = 'brøkfigurer';
   function getTaskApi() {
@@ -696,18 +646,10 @@ function isValidColor(value) {
     });
   }
   registerTaskAdapter();
-  if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
-    window.addEventListener('math-visuals:app-mode-changed', handleAppModeChanged);
-  }
-  const initialAppMode = getCurrentAppMode() || 'task';
-  syncBodyAppMode(initialAppMode);
-  applyAppModeToTaskControls(initialAppMode);
-  const urlMode = getModeFromUrl();
-  const body = typeof document !== 'undefined' ? document.body : null;
-  if (urlMode === 'task' && body && body.dataset) {
-    if (body.dataset.appMode === 'default') {
-      body.dataset.appMode = 'task';
-    }
+  if (appModeModule && typeof appModeModule.onModeChanged === 'function') {
+    appModeModule.onModeChanged(handleAppModeChanged);
+  } else {
+    handleAppModeChanged('default');
   }
   if (checkButton) {
     checkButton.addEventListener('click', () => {
