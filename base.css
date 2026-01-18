@@ -719,6 +719,11 @@ body[data-app-mode="task"] .card--examples .example-description .example-descrip
   transition: all 0.2s ease;
 }
 
+body[data-app-mode="task"] .card--examples .example-description .example-description-preview[data-empty="true"] {
+  display: block !important;
+  min-height: 60px;
+}
+
 body[data-app-mode="task"] .card--examples .example-description .example-description-preview:hover {
   background-color: #f3f4f6;
   border-color: #d1d5db;
@@ -727,7 +732,7 @@ body[data-app-mode="task"] .card--examples .example-description .example-descrip
 /* 7. Redigeringsmodus: vis tekstfeltet og skjul preview */
 body[data-app-mode="task"] .card--examples .example-description.is-editing textarea {
   display: block !important;
-  min-height: 200px;
+  min-height: 120px;
   opacity: 1 !important;
   height: auto !important;
   resize: vertical !important;
