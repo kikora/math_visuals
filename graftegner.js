@@ -7378,14 +7378,13 @@ function serializeBoardSvg(clone) {
     const ratio = typeof window !== 'undefined' && window.devicePixelRatio ? window.devicePixelRatio : 1;
     const renderScale = Math.max(Number.isFinite(scale) && scale > 0 ? scale : 2, ratio);
     try {
-    const canvas = await html2canvas(target, {
-      backgroundColor: bg,
-      scale: renderScale,
-      useCORS: true,
-      foreignObjectRendering: true,
-      allowTaint: true,
-      logging: false
-    });
+      const canvas = await html2canvas(target, {
+        backgroundColor: bg,
+        scale: renderScale,
+        useCORS: true,
+        foreignObjectRendering: true,
+        logging: false
+      });
       if (!canvas) return false;
       let blob = null;
       if (typeof canvas.toBlob === 'function') {
