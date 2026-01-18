@@ -861,7 +861,21 @@ function isValidColor(value) {
       activeFillColorIndex = safeIndex;
       STATE.activeFillColorIndex = activeFillColorIndex;
     }
+    syncFigureFilledColors(id, safeIndex);
     return safeIndex;
+  }
+  function syncFigureFilledColors(id, fillIndex) {
+    const figState = ensureFigureState(id);
+    const safeIndex = sanitizeFillIndex(fillIndex, FILL_COLOR_COUNT);
+    const normalized = sanitizeFilledEntries(figState.filled);
+    if (!normalized.length) return;
+    const updated = normalized.map(([partIndex]) => [partIndex, safeIndex]);
+    const fig = figures[id];
+    if (fig && typeof fig.setFilled === 'function') {
+      fig.setFilled(new Map(updated));
+      return;
+    }
+    figState.filled = updated;
   }
   function updateFillPickerSelection(picker, palette) {
     if (!picker) return;
@@ -906,6 +920,7 @@ function isValidColor(value) {
           }
           updateFillPickerSelection(picker, colors);
           optionsPanel.hidden = true;
+          window.render();
         });
         optionsPanel.appendChild(btn);
       });
@@ -1249,6 +1264,9 @@ function isValidColor(value) {
     for (const id of getActiveFigureIds()) {
       const figState = ensureFigureState(id);
       figState.allowWrong = allowWrongGlobal;
+      const safeFillIndex = sanitizeFillIndex(figState.fillColorIndex, FILL_COLOR_COUNT);
+      figState.fillColorIndex = safeFillIndex;
+      syncFigureFilledColors(id, safeFillIndex);
       if (typeof figState.allowDenominatorChange !== 'boolean') {
         figState.allowDenominatorChange = false;
       }
