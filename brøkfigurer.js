@@ -626,8 +626,23 @@ function isValidColor(value) {
       body.dataset.appMode = normalized;
     }
   }
+  function getModeFromUrl() {
+    if (typeof window === 'undefined') return null;
+    try {
+      const params = new URLSearchParams(window.location && window.location.search ? window.location.search : '');
+      const fromQuery = params.get('mode');
+      if (typeof fromQuery === 'string' && fromQuery.trim()) {
+        return fromQuery.trim().toLowerCase();
+      }
+    } catch (_) {}
+    return null;
+  }
   function getCurrentAppMode() {
     if (typeof window === 'undefined') return 'default';
+    const fromUrl = getModeFromUrl();
+    if (fromUrl) {
+      return fromUrl;
+    }
     const mv = window.mathVisuals;
     if (mv && typeof mv.getAppMode === 'function') {
       try {
@@ -637,13 +652,6 @@ function isValidColor(value) {
         }
       } catch (_) {}
     }
-    try {
-      const params = new URLSearchParams(window.location && window.location.search ? window.location.search : '');
-      const fromQuery = params.get('mode');
-      if (typeof fromQuery === 'string' && fromQuery.trim()) {
-        return isTaskLikeMode(fromQuery) ? 'task' : 'default';
-      }
-    } catch (_) {}
     return 'default';
   }
   function handleAppModeChanged(event) {
@@ -685,6 +693,13 @@ function isValidColor(value) {
   const initialAppMode = getCurrentAppMode() || 'task';
   syncBodyAppMode(initialAppMode);
   applyAppModeToTaskControls(initialAppMode);
+  const urlMode = getModeFromUrl();
+  const body = typeof document !== 'undefined' ? document.body : null;
+  if (urlMode && isTaskLikeMode(urlMode) && body && body.dataset) {
+    if (body.dataset.appMode === 'default') {
+      body.dataset.appMode = 'task';
+    }
+  }
   if (checkButton) {
     checkButton.addEventListener('click', () => {
       const taskApi = getTaskApi();
