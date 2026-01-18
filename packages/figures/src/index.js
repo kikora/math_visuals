@@ -223,7 +223,14 @@ function normalizeAppIdentifier(value) {
   if (!trimmed) {
     return '';
   }
-  return trimmed;
+  let normalized = trimmed;
+  if (normalized.normalize) {
+    normalized = normalized.normalize('NFKD');
+  }
+  normalized = normalized.replace(/[\u0300-\u036f]/g, '');
+  normalized = normalized.toLowerCase();
+  normalized = normalized.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return normalized;
 }
 
 function normalizeAppList(value) {
