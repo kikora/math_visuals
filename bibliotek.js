@@ -22,6 +22,8 @@ const editorDialog = document.querySelector('[data-custom-editor]');
 const editorForm = editorDialog?.querySelector('[data-editor-form]') || null;
 const editorNameInput = editorDialog?.querySelector('[data-editor-name]') || null;
 const editorCategoryInput = editorDialog?.querySelector('[data-editor-category]') || null;
+const editorScaleLabelField = editorDialog?.querySelector('[data-editor-scale-field]') || null;
+const editorScaleLabelInput = editorDialog?.querySelector('[data-editor-scale-label]') || null;
 const editorErrorEl = editorDialog?.querySelector('[data-editor-error]') || null;
 const editorCancelButton = editorDialog?.querySelector('[data-editor-cancel]') || null;
 const categoryDialog = document.querySelector('[data-category-dialog]');
@@ -935,6 +937,87 @@ function getCategoryApps(category) {
     return sanitizeCategoryApps(category.categoryApps, { includeDefaults: false });
   }
   return sanitizeCategoryApps(undefined);
+}
+
+function normalizeScaleLabel(value) {
+  if (typeof value !== 'string') return '';
+  const trimmed = value.trim();
+  return trimmed;
+}
+
+function extractScaleLabelFromFileName(fileName) {
+  if (typeof fileName !== 'string') {
+    return '';
+  }
+  const stripped = fileName.replace(/\.[^.]*$/, '');
+  let decoded = stripped;
+  try {
+    decoded = decodeURI(stripped);
+  } catch (_) {
+    decoded = stripped;
+  }
+  const normalized = decoded
+    .replace(/[_\s]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!normalized) {
+    return '';
+  }
+  const match = normalized.match(/(?:^|\D)1\s*[:xX\-_/\\]?\s*([0-9]+(?:[.,][0-9]+)?)(?:\b|$)/);
+  if (!match) {
+    return '';
+  }
+  const raw = match[1].replace(',', '.');
+  const parsed = Number.parseFloat(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return '';
+  }
+  const clean = Number.isInteger(parsed) ? String(parsed) : String(parsed).replace(/\.0+$/, '');
+  return `1:${clean}`;
+}
+
+function isMeasurementApp(appId) {
+  if (!appId) return false;
+  const normalized = slugifyString(appId);
+  return normalized === 'maling';
+}
+
+function shouldShowScaleLabelForApps(apps) {
+  if (!Array.isArray(apps)) return false;
+  return apps.some((appId) => isMeasurementApp(appId));
+}
+
+function resolveEntryFileName(entry) {
+  if (!entry || typeof entry !== 'object') return '';
+  if (typeof entry.fileName === 'string' && entry.fileName.trim()) {
+    return entry.fileName.trim();
+  }
+  if (
+    entry.files &&
+    entry.files.svg &&
+    typeof entry.files.svg.filename === 'string' &&
+    entry.files.svg.filename.trim()
+  ) {
+    return entry.files.svg.filename.trim();
+  }
+  if (
+    entry.files &&
+    entry.files.svg &&
+    typeof entry.files.svg.fileName === 'string' &&
+    entry.files.svg.fileName.trim()
+  ) {
+    return entry.files.svg.fileName.trim();
+  }
+  return '';
+}
+
+function resolveScaleLabelForEntry(entry) {
+  if (!entry || typeof entry !== 'object') return '';
+  const direct = normalizeScaleLabel(entry.scaleLabel || entry.scale);
+  if (direct) return direct;
+  const fileName = resolveEntryFileName(entry);
+  if (!fileName) return '';
+  return extractScaleLabelFromFileName(fileName);
 }
 
 function findCategoryByValue(rawValue) {
@@ -2649,6 +2732,14 @@ function setupEditorDialog() {
   if (editorCancelButton) {
     editorCancelButton.addEventListener('click', () => closeCustomEditor());
   }
+  if (editorCategoryInput) {
+    editorCategoryInput.addEventListener('input', () => {
+      const entry = editingEntryId ? customEntryMap.get(editingEntryId) : null;
+      const fallbackCategoryId = entry && entry.categoryId ? entry.categoryId : null;
+      const categoryDetails = resolveCategoryDetails(editorCategoryInput.value || '', fallbackCategoryId);
+      updateEditorScaleLabelState(categoryDetails.apps || [], entry);
+    });
+  }
   if (typeof editorDialog.addEventListener === 'function') {
     editorDialog.addEventListener('cancel', (event) => {
       event.preventDefault();
@@ -3020,6 +3111,10 @@ function serializeCustomEntry(entry) {
     dataUrl: entry.dataUrl,
     summary: entry.summary,
     createdAt: entry.createdAt,
+    fileName: resolveEntryFileName(entry) || undefined,
+    scaleLabel: Object.prototype.hasOwnProperty.call(entry, 'scaleLabel')
+      ? normalizeScaleLabel(entry.scaleLabel)
+      : undefined,
   };
   if (typeof entry.tool === 'string' && entry.tool.trim()) {
     result.tool = entry.tool.trim();
@@ -3083,6 +3178,8 @@ function normalizeCustomEntry(entry) {
     : entry.category && Array.isArray(entry.category.apps)
       ? sanitizeCategoryApps(entry.category.apps, { includeDefaults: false })
       : sanitizeCategoryApps(undefined);
+  const fileName = resolveEntryFileName(entry);
+  const scaleLabel = normalizeScaleLabel(entry.scaleLabel);
   const normalized = {
     id,
     slug: slug || id,
@@ -3095,6 +3192,8 @@ function normalizeCustomEntry(entry) {
     createdAt: typeof entry.createdAt === 'string' ? entry.createdAt : new Date().toISOString(),
     svg: svgMarkup,
     png: typeof entry.png === 'string' ? entry.png : null,
+    fileName,
+    scaleLabel: scaleLabel || (fileName ? extractScaleLabelFromFileName(fileName) : ''),
   };
   if (typeof entry.tool === 'string' && entry.tool.trim()) {
     normalized.tool = entry.tool.trim();
@@ -3206,6 +3305,9 @@ function normalizeServerEntry(entry) {
     : Array.isArray(entry.categoryApps)
       ? sanitizeCategoryApps(entry.categoryApps, { includeDefaults: false })
       : sanitizeCategoryApps(undefined);
+  const fileName = resolveEntryFileName(entry);
+  const scaleLabel = normalizeScaleLabel(entry.scaleLabel || entry.scale)
+    || (fileName ? extractScaleLabelFromFileName(fileName) : '');
   const normalized = {
     id,
     slug: slug || id,
@@ -3218,6 +3320,8 @@ function normalizeServerEntry(entry) {
     createdAt: typeof entry.createdAt === 'string' && entry.createdAt ? entry.createdAt : new Date().toISOString(),
     svg: svgMarkup,
     png: typeof entry.png === 'string' ? entry.png : null,
+    fileName,
+    scaleLabel,
   };
   if (rawSvgUrl) {
     normalized.assetUrl = rawSvgUrl;
@@ -3262,6 +3366,15 @@ function upsertCustomEntryLocal(entry) {
     normalized.categoryApps = sanitizeCategoryApps(normalized.categoryApps, { includeDefaults: false });
   } else {
     normalized.categoryApps = sanitizeCategoryApps(undefined);
+  }
+  normalized.fileName = resolveEntryFileName(normalized);
+  if (Object.prototype.hasOwnProperty.call(normalized, 'scaleLabel')) {
+    const sanitizedScaleLabel = normalizeScaleLabel(normalized.scaleLabel);
+    normalized.scaleLabel = sanitizedScaleLabel || (
+      normalized.fileName ? extractScaleLabelFromFileName(normalized.fileName) : ''
+    );
+  } else if (normalized.fileName) {
+    normalized.scaleLabel = extractScaleLabelFromFileName(normalized.fileName);
   }
   const existingIndex = customEntries.findIndex((item) => item && item.id === id);
   if (existingIndex >= 0) {
@@ -3727,6 +3840,13 @@ function buildFigureEntryPayload(entry, options = {}) {
     tool: toolValue,
     summary: entry.summary || '',
   };
+  if (Object.prototype.hasOwnProperty.call(entry, 'scaleLabel')) {
+    payload.scaleLabel = normalizeScaleLabel(entry.scaleLabel);
+  }
+  const fileName = resolveEntryFileName(entry);
+  if (fileName) {
+    payload.fileName = fileName;
+  }
   if (entry.createdAt) {
     payload.createdAt = entry.createdAt;
   }
@@ -3958,6 +4078,10 @@ async function handleUploadSubmit(event) {
       const name = determineUploadName(files.length, index, file.name);
       const categoryDetails = resolveCategoryDetails(categoryInputValue, null, name);
       const id = createCustomEntryId(name, reservedUploadIds);
+      const fileName = typeof file.name === 'string' ? file.name : '';
+      const scaleLabel = shouldShowScaleLabelForApps(categoryDetails.apps)
+        ? extractScaleLabelFromFileName(fileName)
+        : '';
       const entry = {
         id,
         slug: id,
@@ -3970,6 +4094,8 @@ async function handleUploadSubmit(event) {
         dataUrl: encodeSvgToDataUrl(svgText),
         svg: svgText,
         tool: FIGURE_LIBRARY_TOOL,
+        fileName,
+        scaleLabel,
       };
       const savedEntry = await submitFigureEntry(entry, { method: 'POST' });
       const finalEntry = savedEntry || entry;
@@ -4108,6 +4234,24 @@ function extractApiErrorMessage(error, fallbackMessage) {
   return fallbackMessage;
 }
 
+function updateEditorScaleLabelState(categoryApps, entry = null) {
+  if (!editorScaleLabelField || !editorScaleLabelInput) {
+    return;
+  }
+  const shouldShow = shouldShowScaleLabelForApps(categoryApps);
+  editorScaleLabelField.hidden = !shouldShow;
+  editorScaleLabelInput.disabled = !shouldShow;
+  if (!shouldShow) {
+    editorScaleLabelInput.value = '';
+    return;
+  }
+  const resolved = entry ? resolveScaleLabelForEntry(entry) : '';
+  const currentValue = normalizeScaleLabel(editorScaleLabelInput.value);
+  if (!currentValue) {
+    editorScaleLabelInput.value = resolved || '';
+  }
+}
+
 function openCustomEditor(entryId, trigger) {
   if (!editorDialog || !entryId) return;
   const entry = customEntryMap.get(entryId);
@@ -4122,6 +4266,7 @@ function openCustomEditor(entryId, trigger) {
   if (editorCategoryInput) {
     editorCategoryInput.value = entry.categoryName || '';
   }
+  updateEditorScaleLabelState(entry.categoryApps || [], entry);
   if (editorErrorEl) {
     editorErrorEl.hidden = true;
     editorErrorEl.textContent = '';
@@ -4155,6 +4300,13 @@ function closeCustomEditor() {
   }
   if (editorNameInput) editorNameInput.value = '';
   if (editorCategoryInput) editorCategoryInput.value = '';
+  if (editorScaleLabelInput) editorScaleLabelInput.value = '';
+  if (editorScaleLabelField) {
+    editorScaleLabelField.hidden = true;
+  }
+  if (editorScaleLabelInput) {
+    editorScaleLabelInput.disabled = true;
+  }
   const returnTarget = editorReturnFocus;
   editingEntryId = null;
   editorReturnFocus = null;
@@ -4190,6 +4342,9 @@ async function handleEditorSubmit(event) {
   entry.categoryId = categoryDetails.id;
   entry.categoryName = categoryDetails.name;
   entry.categoryApps = categoryDetails.apps;
+  if (shouldShowScaleLabelForApps(categoryDetails.apps)) {
+    entry.scaleLabel = normalizeScaleLabel(editorScaleLabelInput?.value || '');
+  }
   const normalizedSlug = typeof entry.slug === 'string' && entry.slug.trim() ? entry.slug.trim() : '';
   if (normalizedSlug) {
     entry.slug = normalizedSlug;
