@@ -30,6 +30,7 @@ const CFG = {
 const VALUE_DISPLAY_OPTIONS = ['none', 'number', 'fraction', 'percent'];
 const PIE_LABEL_POSITIONS = ['outside', 'inside'];
 const SERIES_COLOR_OPTION_COUNT = 6;
+const DIAGRAM_FILL_COLOR_COUNT = 6;
 function sanitizeValueDisplay(value) {
   if (typeof value !== 'string') return 'none';
   const normalized = value.trim().toLowerCase();
@@ -499,7 +500,7 @@ function getValueDisplayMode(type = CFG.type) {
 const EMERGENCY_SERIES_COLORS = ['#574595', '#d081a1'];
 const EMERGENCY_PIE_PALETTE = ['#4f2c8c', '#6c3db5', '#8a4de0', '#a75cf1', '#c26ef0', '#d381ba', '#c46287', '#9f436d', '#723a82', '#503070'];
 const PIE_COLOR_CLASS_COUNT = 10;
-const DIAGRAM_GROUP_SLOT_COUNT = 6;
+const DIAGRAM_GROUP_SLOT_COUNT = DIAGRAM_FILL_COLOR_COUNT * 2;
 const SHARED_GROUP_ID = 'graftegner';
 const LEGACY_AXIS_COLOR = '#0f172a';
 const LEGACY_GRID_COLOR = '#e5e7eb';
@@ -758,11 +759,12 @@ function resolveDiagramPaletteData(options = {}) {
   const hasGroupPalette = sanitizedGroupPalette.length > 0;
   const emergencyGroupPalette = hasGroupPalette ? [] : buildEmergencyGroupPalette();
   const paletteEntries = ensurePalette(sanitizedGroupPalette, DIAGRAM_GROUP_SLOT_COUNT, emergencyGroupPalette);
+  const fillPaletteEntries = getFillPaletteEntries(paletteEntries, emergencyGroupPalette);
   const singleSeriesColor =
-    paletteEntries[0] || paletteEntries[1] || emergencyGroupPalette[0] || EMERGENCY_SERIES_COLORS[0];
+    fillPaletteEntries[0] || paletteEntries[0] || emergencyGroupPalette[0] || EMERGENCY_SERIES_COLORS[0];
   const multiSeriesColors = [
-    paletteEntries[0] || singleSeriesColor,
-    paletteEntries[1] || paletteEntries[0] || singleSeriesColor
+    fillPaletteEntries[0] || singleSeriesColor,
+    fillPaletteEntries[1] || fillPaletteEntries[0] || singleSeriesColor
   ];
   const seriesBase = requestedSeriesCount <= 1 ? [singleSeriesColor] : multiSeriesColors;
   const seriesFallback = hasGroupPalette ? [] : EMERGENCY_SERIES_COLORS;
@@ -779,6 +781,7 @@ function resolveDiagramPaletteData(options = {}) {
     seriesPalette,
     piePalette,
     paletteEntries,
+    fillPaletteEntries,
     normalizedProfileName
   };
 }
@@ -835,6 +838,12 @@ function getSeriesColorOptionPalette(paletteEntries = []) {
   return [];
 }
 
+function getFillPaletteEntries(paletteEntries = [], fallback = []) {
+  const sanitized = Array.isArray(paletteEntries) ? paletteEntries.filter(color => !!color) : [];
+  const fillEntries = sanitized.filter((_, index) => index % 2 === 0);
+  return ensurePalette(fillEntries, DIAGRAM_FILL_COLOR_COUNT, fallback);
+}
+
 function setSeriesColorOverride(seriesIndex, color) {
   const normalized = sanitizeThemePaletteValue(color);
   if (!normalized) return;
@@ -857,7 +866,7 @@ function updateSeriesColorPickers() {
     paletteSize: getEffectivePaletteSize(),
     seriesOverrides: overrides
   });
-  const optionColors = getSeriesColorOptionPalette(paletteData.paletteEntries);
+  const optionColors = getSeriesColorOptionPalette(paletteData.fillPaletteEntries);
   seriesColorPickers.forEach(picker => {
     if (!picker || !picker.activeButton || !picker.optionsPanel) return;
     const activeColor = overrides[picker.seriesIndex]
