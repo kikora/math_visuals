@@ -217,28 +217,50 @@ const FIGURE_LIBRARY_APP_KEY = 'maling';
   const TAPE_HOUSING_HANDOFF_TOLERANCE_PX = 6;
   const zeroOffset = { x: 0, y: 0 };
   const SEGMENT_LABEL_OFFSET_PX = 32;
-  const figureData = buildFigureData({
-    app: FIGURE_LIBRARY_APP_KEY,
-    extractRealWorldSizeFromText
-  });
-  const figurePickerData = {
-    ...figureData,
-    categories: Array.isArray(figureData.categories)
-      ? figureData.categories.filter(category => category && category.id !== CUSTOM_CATEGORY_ID)
-      : []
-  };
-  if (!storageWarningMessage) {
-    storageWarningMessage = resolveStorageWarningMessage(figureData.metadata);
+  let figureData = null;
+  let figurePickerData = null;
+  let figurePicker = null;
+  let figurePickerRequiresScaleLabel = true;
+
+  function buildFigureLibraryBundle(requireScaleLabel = true) {
+    const data = buildFigureData({
+      app: FIGURE_LIBRARY_APP_KEY,
+      extractRealWorldSizeFromText,
+      requireScaleLabel
+    });
+    const pickerData = {
+      ...data,
+      categories: Array.isArray(data.categories)
+        ? data.categories.filter(category => category && category.id !== CUSTOM_CATEGORY_ID)
+        : []
+    };
+    return { data, pickerData };
   }
-  const figurePicker = createFigurePickerHelpers({
-    doc,
-    figureData: figurePickerData,
-    getFigureValue: figure => (figure && figure.id != null ? String(figure.id) : ''),
-    fallbackCategoryId:
-      figurePickerData.categories && figurePickerData.categories.length
-        ? figurePickerData.categories[0].id
-        : CUSTOM_CATEGORY_ID
-  });
+
+  function refreshFigureLibrary(requireScaleLabel) {
+    let bundle = buildFigureLibraryBundle(requireScaleLabel);
+    if (requireScaleLabel && (!bundle.pickerData.categories || bundle.pickerData.categories.length === 0)) {
+      bundle = buildFigureLibraryBundle(false);
+      requireScaleLabel = false;
+    }
+    figureData = bundle.data;
+    figurePickerData = bundle.pickerData;
+    figurePickerRequiresScaleLabel = requireScaleLabel;
+    if (!storageWarningMessage) {
+      storageWarningMessage = resolveStorageWarningMessage(figureData.metadata);
+    }
+    figurePicker = createFigurePickerHelpers({
+      doc,
+      figureData: figurePickerData,
+      getFigureValue: figure => (figure && figure.id != null ? String(figure.id) : ''),
+      fallbackCategoryId:
+        figurePickerData.categories && figurePickerData.categories.length
+          ? figurePickerData.categories[0].id
+          : CUSTOM_CATEGORY_ID
+    });
+  }
+
+  refreshFigureLibrary(true);
   function findDefaultPreset() {
     if (!figureData || !Array.isArray(figureData.categories)) {
       return null;
@@ -1629,6 +1651,10 @@ const FIGURE_LIBRARY_APP_KEY = 'maling';
           rememberUnitLabel('withScale', updatedLabel);
         }
         nextPartial.unitLabel = updatedLabel;
+        const desiredRequireScaleLabel = !nextWithoutScale;
+        if (desiredRequireScaleLabel !== figurePickerRequiresScaleLabel) {
+          refreshFigureLibrary(desiredRequireScaleLabel);
+        }
       }
     }
     if (
