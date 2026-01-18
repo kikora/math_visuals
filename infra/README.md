@@ -171,12 +171,3 @@ Løsning: legg til en policy på GitHub Actions-rollen som gir
 `cloudfront:GetFunction` (eventuelt begrenset til funksjonen
 `math-visuals-static-site-viewer-router`). Når tilgangen er på plass vil neste
 deploy fullføre uten rollback.
-
-Hvis deployen stopper med `Access denied for operation
-'AWS::CloudFront::ResponseHeadersPolicy'` betyr det at GitHub Actions-rollen
-mangler tilgang til å opprette/oppdatere CloudFront response headers-policyer.
-Legg til `cloudfront:CreateResponseHeadersPolicy`,
-`cloudfront:UpdateResponseHeadersPolicy` og `cloudfront:GetResponseHeadersPolicy`
-(eventuelt begrenset til policyen `NoCacheStaticAssetsHeadersPolicy`).
-Når disse rettighetene er på plass vil CloudFormation kunne oppdatere den
-tilsvarende ressursen uten rollback.
