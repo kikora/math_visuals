@@ -533,6 +533,38 @@ select:disabled {
   transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
+.card--examples .example-description-toggle {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  align-self: flex-start;
+}
+
+.card--examples .example-description-toggle__button {
+  border: none;
+  background: transparent;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+}
+
+.card--examples .example-description-toggle__button[aria-pressed="true"] {
+  background: #1d4ed8;
+  color: #fff;
+}
+
+.card--examples .example-description-toggle__button:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
 .card--examples .example-description [data-task-check-host] {
   margin-top: 12px;
   display: flex;
@@ -641,6 +673,10 @@ body[data-app-mode="preview"] .card--examples .example-description {
   display: flex !important;
   flex-direction: column;
   gap: 10px;
+}
+
+body[data-app-mode="task"] .card--examples .example-description .example-description-toggle {
+  display: flex;
 }
 
 /* 6. Click-to-edit: vis forhåndsvisning som standard i task-modus */
