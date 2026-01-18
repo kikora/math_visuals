@@ -35,9 +35,41 @@ body {
   margin-bottom: clamp(20px, 4vw, 32px);
 }
 
+.svg-archive__header-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .svg-archive__header h1 {
   font-size: clamp(1.9rem, 4vw, 2.6rem);
   margin: 0;
+}
+
+.svg-archive__header-toggle {
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  background: #fff;
+  color: #1f2937;
+  font-weight: 600;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.svg-archive__header-toggle:hover,
+.svg-archive__header-toggle:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.12);
+  border-color: rgba(37, 99, 235, 0.45);
+  outline: none;
+}
+
+.svg-archive__header-toggle:focus-visible {
+  outline: 3px solid rgba(59, 130, 246, 0.45);
+  outline-offset: 3px;
 }
 
 .svg-archive__header p {
@@ -61,17 +93,15 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 20px;
 }
 
-.svg-archive__actions {
+.svg-archive__toolbar {
   position: sticky;
   top: clamp(10px, 1.8vw, 24px);
   z-index: 5;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 16px;
+  flex-direction: column;
+  gap: 14px;
   padding: 12px 16px;
   margin-bottom: 20px;
   border-radius: 16px;
@@ -86,6 +116,13 @@ body {
   border-color: rgba(37, 99, 235, 0.45);
   box-shadow: 0 18px 36px rgba(37, 99, 235, 0.18);
   background: linear-gradient(135deg, rgba(219, 234, 254, 0.96), rgba(191, 219, 254, 0.92));
+}
+
+.svg-archive__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
 }
 
 .svg-archive__checkbox-label {
@@ -239,6 +276,12 @@ body {
 }
 
 @media (max-width: 720px) {
+  .svg-archive__toolbar {
+    gap: 12px;
+  }
+}
+
+@media (max-width: 720px) {
   .svg-archive__actions {
     gap: 12px;
   }
@@ -252,6 +295,19 @@ body {
     width: 100%;
     text-align: center;
   }
+}
+
+.svg-archive__compact-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.svg-archive__compact-toggle input {
+  width: 18px;
+  height: 18px;
 }
 
 .svg-archive__filter {
@@ -979,10 +1035,6 @@ dialog.svg-archive__dialog::backdrop {
     padding: 20px clamp(14px, 6vw, 26px) 48px;
   }
 
-  .svg-archive__controls {
-    justify-content: stretch;
-  }
-
   .svg-archive__filter select {
     width: 100%;
   }
@@ -1003,5 +1055,77 @@ dialog.svg-archive__dialog::backdrop {
 
   .svg-archive__dialog-action {
     flex-basis: 100%;
+  }
+}
+
+.svg-archive-page--compact .svg-archive {
+  padding: clamp(14px, 2vw, 28px) clamp(16px, 2.8vw, 36px) clamp(40px, 6vw, 64px);
+}
+
+.svg-archive-page--compact .svg-archive__header {
+  gap: 8px;
+  margin-bottom: clamp(16px, 3vw, 24px);
+}
+
+.svg-archive-page--compact .svg-archive__header h1 {
+  font-size: clamp(1.6rem, 3.2vw, 2.2rem);
+}
+
+.svg-archive-page--compact .svg-archive__header p,
+.svg-archive-page--compact .svg-archive__selection-count,
+.svg-archive-page--compact .svg-archive__note {
+  line-height: 1.4;
+}
+
+.svg-archive-page--compact .svg-archive__toolbar {
+  padding: 10px 12px;
+  gap: 10px;
+}
+
+.svg-archive-page--compact .svg-archive__controls {
+  gap: 10px;
+}
+
+.svg-archive-page--compact .svg-archive__filter,
+.svg-archive-page--compact .svg-archive__sort {
+  font-size: 0.88rem;
+}
+
+.svg-archive-page--compact .svg-archive__filter span,
+.svg-archive-page--compact .svg-archive__sort span,
+.svg-archive-page--compact .svg-archive__compact-toggle span {
+  white-space: nowrap;
+}
+
+.svg-archive-page--compact .svg-archive__filter select,
+.svg-archive-page--compact .svg-archive__sort select {
+  min-width: 200px;
+  padding: 6px 10px;
+}
+
+.svg-archive-page--compact .svg-archive__trash-toggle {
+  padding: 8px 14px;
+  font-size: 0.88rem;
+}
+
+.svg-archive-page--compact .svg-archive__actions-button {
+  padding: 7px 14px;
+}
+
+@media (max-width: 640px) {
+  .svg-archive__controls {
+    justify-content: stretch;
+  }
+
+  .svg-archive-page--compact .svg-archive__filter,
+  .svg-archive-page--compact .svg-archive__sort,
+  .svg-archive-page--compact .svg-archive__compact-toggle {
+    width: 100%;
+    align-items: flex-start;
+  }
+
+  .svg-archive-page--compact .svg-archive__filter select,
+  .svg-archive-page--compact .svg-archive__sort select {
+    width: 100%;
   }
 }

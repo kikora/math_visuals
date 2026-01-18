@@ -12,44 +12,65 @@
     <div class="grid">
       <main class="svg-archive" aria-labelledby="page-title">
         <header class="svg-archive__header">
-          <h1 id="page-title">Eksempelarkiv</h1>
-          <p>
-            Utforsk lagrede SVG-er fra verktøyene. Bruk filteret for å finne filer fra et bestemt verktøy.
-          </p>
-          <p class="svg-archive__note" data-storage-note hidden></p>
+          <div class="svg-archive__header-top">
+            <h1 id="page-title">Eksempelarkiv</h1>
+            <button
+              type="button"
+              class="svg-archive__header-toggle"
+              data-header-toggle
+              data-label-expanded="Skjul info"
+              data-label-collapsed="Vis info"
+              aria-expanded="true"
+              aria-controls="archive-header-info"
+            >
+              Skjul info
+            </button>
+          </div>
+          <div class="svg-archive__header-info" id="archive-header-info" data-header-info>
+            <p>
+              Utforsk lagrede SVG-er fra verktøyene. Bruk filteret for å finne filer fra et bestemt verktøy.
+            </p>
+            <p class="svg-archive__note" data-storage-note hidden></p>
+          </div>
         </header>
 
-        <section class="svg-archive__controls" aria-label="Filtrering og alternativer">
-          <label class="svg-archive__filter" data-filter-wrapper hidden>
-            <span>Filtrer etter verktøy</span>
-            <select data-tool-filter>
-              <option value="all">Alle verktøy</option>
-            </select>
-          </label>
-          <label class="svg-archive__sort">
-            <span>Sorter</span>
-            <select data-sort-order>
-              <option value="newest">Nyeste først</option>
-              <option value="oldest">Eldste først</option>
-              <option value="az">A–Å</option>
-              <option value="size">Størrelse</option>
-            </select>
-          </label>
-          <button
-            type="button"
-            class="svg-archive__trash-toggle"
-            data-trash-toggle
-            data-label-default="Vis slettede figurer"
-            data-label-active="Skjul slettede figurer"
-            aria-expanded="false"
-            aria-controls="trash-archive-panel"
-          >
-            Vis slettede figurer
-          </button>
-        </section>
+        <section class="svg-archive__toolbar" data-selection-bar aria-label="Filtrering og valg">
+          <section class="svg-archive__controls" aria-label="Filtrering og alternativer">
+            <label class="svg-archive__filter" data-filter-wrapper hidden>
+              <span>Filtrer etter verktøy</span>
+              <select data-tool-filter>
+                <option value="all">Alle verktøy</option>
+              </select>
+            </label>
+            <label class="svg-archive__sort">
+              <span>Sorter</span>
+              <select data-sort-order>
+                <option value="newest">Nyeste først</option>
+                <option value="oldest">Eldste først</option>
+                <option value="az">A–Å</option>
+                <option value="size">Størrelse</option>
+              </select>
+            </label>
+            <label class="svg-archive__compact-toggle">
+              <input type="checkbox" data-compact-toggle aria-label="Kompakt visning">
+              <span>Kompakt visning</span>
+            </label>
+            <button
+              type="button"
+              class="svg-archive__trash-toggle"
+              data-trash-toggle
+              data-label-default="Vis slettede figurer"
+              data-label-active="Skjul slettede figurer"
+              aria-expanded="false"
+              aria-controls="trash-archive-panel"
+            >
+              Vis slettede figurer
+            </button>
+          </section>
 
-        <section class="svg-archive__actions" data-selection-bar aria-label="Valg for figurer">
-          <p class="svg-archive__selection-count" data-selection-count aria-live="polite" hidden></p>
+          <section class="svg-archive__actions" aria-label="Valg for figurer">
+            <p class="svg-archive__selection-count" data-selection-count aria-live="polite" hidden></p>
+          </section>
         </section>
 
         <p class="svg-archive__status" data-status role="status">Laster eksempelarkivet …</p>
