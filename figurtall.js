@@ -90,13 +90,8 @@ function isValidColor(value) {
 
 (function () {
   const boxes = [];
-  const appModeModule = typeof window !== 'undefined' ? window.MathVisualsAppMode : null;
-  const normalizeMode =
-    appModeModule && typeof appModeModule.normalizeMode === 'function'
-      ? appModeModule.normalizeMode
-      : value => (typeof value === 'string' && value.trim().toLowerCase() === 'task' ? 'task' : 'default');
   let taskStudentCells = null;
-  let currentAppMode = resolveInitialAppMode();
+  let isReadOnlyPreview = false;
   let altTextManager = null;
   let altTextRefreshTimer = null;
   let lastAltTextSignature = null;
@@ -323,7 +318,7 @@ function isValidColor(value) {
     return STATE.figures.length - 1;
   }
   function isTaskModeActive() {
-    return currentAppMode === 'task';
+    return isReadOnlyPreview;
   }
   function isStudentFigureIndex(index) {
     return STATE.lastFigureIsAnswer && isTaskModeActive() && index === getLastFigureIndex();
@@ -917,19 +912,9 @@ function isValidColor(value) {
     const taskApi = getTaskApi();
     if (!taskApi || typeof taskApi.registerTaskAdapter !== 'function') return;
     taskApi.registerTaskAdapter(TASK_APP_ID, {
-      collectInputs() {
-        if (typeof taskApi.evaluateDescriptionInputs === 'function') {
-          taskApi.evaluateDescriptionInputs();
-        }
-      },
       evaluateAnswers() {
         runTaskCheck();
         return null;
-      },
-      resetAnswers() {
-        if (typeof taskApi.resetDescriptionInputs === 'function') {
-          taskApi.resetDescriptionInputs();
-        }
       }
     });
   }
@@ -950,11 +935,9 @@ function isValidColor(value) {
     taskStatusEl.className = `status status--${normalizedType}`;
     taskStatusEl.hidden = !text;
   }
-  function applyAppModeToTaskControls(mode) {
+  function applyReadOnlyPreviewControls() {
     if (!taskCheckHost) return;
-    const normalized = typeof mode === 'string' ? mode.toLowerCase() : '';
-    const isTaskMode = normalized === 'task';
-    const shouldShow = isTaskMode && STATE.lastFigureIsAnswer;
+    const shouldShow = isReadOnlyPreview && STATE.lastFigureIsAnswer;
     if (shouldShow) {
       ensureTaskControlsHost();
       taskCheckHost.hidden = false;
@@ -1013,61 +996,23 @@ function isValidColor(value) {
     if (textResult != null) return textResult;
     return false;
   }
-  function isTaskLikeMode(value) {
-    return normalizeMode(value) === 'task';
-  }
-  function applyAppModeChange(mode) {
-    const normalized = normalizeMode(mode);
-    const changed = normalized !== currentAppMode;
-    currentAppMode = normalized;
-    if (STATE.lastFigureIsAnswer && currentAppMode === 'task') {
+  function setReadOnlyPreview(enabled) {
+    const next = !!enabled;
+    if (next === isReadOnlyPreview) return;
+    isReadOnlyPreview = next;
+    if (STATE.lastFigureIsAnswer && isReadOnlyPreview) {
       ensureTaskStudentCells(true);
     }
-    if (changed) {
+    if (isReadOnlyPreview) {
       render();
-    } else if (currentAppMode === 'task') {
-      updateCellColors();
-      updateGridVisibility();
-    }
-    applyAppModeToTaskControls(currentAppMode);
-    if (currentAppMode !== 'task') {
+    } else {
+      render();
       updateTaskStatus('');
     }
+    applyReadOnlyPreviewControls();
   }
-  function handleAppModeChanged(mode) {
-    applyAppModeChange(mode);
-  }
-  function resolveInitialAppMode() {
-    let resolved = 'default';
-    if (typeof window === 'undefined') return resolved;
-    const mv = window.mathVisuals;
-    if (mv && typeof mv.getAppMode === 'function') {
-      try {
-        const mode = mv.getAppMode();
-        const normalized = normalizeMode(mode);
-        if (normalized === 'task') {
-          resolved = normalized;
-        }
-      } catch (_) {}
-    }
-    if (resolved === 'default' && typeof document !== 'undefined' && document.body && document.body.dataset) {
-      const bodyMode = document.body.dataset.appMode;
-      const normalized = normalizeMode(bodyMode);
-      if (normalized === 'task') {
-        resolved = normalized;
-      }
-    }
-    if (resolved === 'default') {
-      try {
-        const params = new URLSearchParams(window.location && window.location.search ? window.location.search : '');
-        const fromQuery = params.get('mode');
-        const normalized = normalizeMode(fromQuery);
-        if (normalized === 'task') {
-          resolved = normalized;
-        }
-      } catch (_) {}
-    }
-    return resolved;
+  function setEditMode() {
+    setReadOnlyPreview(false);
   }
   function applyStateToControls() {
     if (rowsInput) rowsInput.value = String(rows);
@@ -1188,7 +1133,7 @@ function isValidColor(value) {
         updateGridVisibility();
       }
       updateAnswerFieldState();
-      applyAppModeToTaskControls(currentAppMode);
+      applyReadOnlyPreviewControls();
       scheduleAltTextRefresh('grid');
     });
   }
@@ -2138,6 +2083,23 @@ function isValidColor(value) {
     figurtallAiPendingSignature = null;
     figurtallAiAppliedSignature = null;
   }
+  function normalizeCleanStatePayload(payload) {
+    if (payload == null) return null;
+    if (typeof payload === 'string') {
+      try {
+        return normalizeCleanStatePayload(JSON.parse(payload));
+      } catch (_) {
+        return null;
+      }
+    }
+    if (payload && typeof payload === 'object' && payload.v === 1) {
+      return payload;
+    }
+    if (payload && typeof payload === 'object' && payload.state && payload.state.v === 1) {
+      return payload.state;
+    }
+    return null;
+  }
   function createCleanState() {
     sanitizeState();
     const colors = getColors();
@@ -2226,6 +2188,11 @@ function isValidColor(value) {
     render();
     return true;
   }
+  function serializeCleanState(payload) {
+    const normalized = normalizeCleanStatePayload(payload);
+    if (!normalized) return false;
+    return loadCleanState(normalized);
+  }
   function render() {
     sanitizeState();
     applyStateToControls();
@@ -2234,7 +2201,7 @@ function isValidColor(value) {
       ensureTaskStudentCells(true);
       updateCellColors();
     }
-    applyAppModeToTaskControls(currentAppMode);
+    applyReadOnlyPreviewControls();
     scheduleAltTextRefresh('render');
   }
   resetBtn === null || resetBtn === void 0 || resetBtn.addEventListener('click', () => {
@@ -2263,11 +2230,12 @@ function isValidColor(value) {
     }
   }
   window.render = render;
-  window.createCleanFigurtallState = createCleanState;
-  window.loadCleanFigurtallState = loadCleanState;
   window.figurtallApi = {
-    createCleanState: (...args) => createCleanState(...args),
-    loadCleanState: (...args) => loadCleanState(...args)
+    cleanJSON: (...args) => createCleanState(...args),
+    normalize: normalizeCleanStatePayload,
+    serialize: serializeCleanState,
+    setReadOnlyPreview,
+    setEditMode
   };
   function handleProjectProfileMessage(event) {
     const data = event && event.data;
@@ -2306,7 +2274,4 @@ function isValidColor(value) {
     syncThemeAndPalette();
   }
   initProjectProfileSync();
-  if (appModeModule && typeof appModeModule.onModeChanged === 'function') {
-    appModeModule.onModeChanged(handleAppModeChanged, { immediate: false });
-  }
 })();

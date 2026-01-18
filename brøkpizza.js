@@ -749,8 +749,6 @@ function getThemeColor(token, fallback) {
 
 const checkButton = typeof document !== 'undefined' ? document.getElementById('btnCheck') : null;
 const checkStatus = typeof document !== 'undefined' ? document.getElementById('checkStatus') : null;
-const taskCheckHost = typeof document !== 'undefined' ? document.querySelector('[data-task-check-host]') : null;
-const taskCheckControls = [checkButton, checkStatus].filter(Boolean);
 
 function normalizeSingleSolution(solution) {
   const data = solution && typeof solution === 'object' ? solution : {};
@@ -780,86 +778,6 @@ function normalizeSolution(solution) {
   return normalized;
 }
 
-function ensureTaskCheckControlsAppended() {
-  if (!taskCheckHost) return;
-  taskCheckControls.forEach(control => {
-    if (control && control.parentElement !== taskCheckHost) {
-      taskCheckHost.appendChild(control);
-    }
-  });
-}
-
-function isTaskLikeMode(mode) {
-  return normalizeMode(mode) === 'task';
-}
-
-function applyAppModeToTaskControls(mode) {
-  if (!taskCheckHost) return;
-  const isTaskMode = isTaskLikeMode(mode);
-  if (isTaskMode) {
-    ensureTaskCheckControlsAppended();
-    taskCheckHost.hidden = false;
-    taskCheckControls.forEach(control => {
-      if (!control) return;
-      if (control === checkButton) {
-        control.hidden = false;
-        if (control.dataset) delete control.dataset.prevHidden;
-        return;
-      }
-      if (control.dataset && 'prevHidden' in control.dataset) {
-        const wasHidden = control.dataset.prevHidden === '1';
-        delete control.dataset.prevHidden;
-        control.hidden = wasHidden;
-      }
-    });
-  } else {
-    taskCheckHost.hidden = true;
-    taskCheckControls.forEach(control => {
-      if (!control) return;
-      if (control.dataset) {
-        control.dataset.prevHidden = control.hidden ? '1' : '0';
-      }
-      control.hidden = true;
-    });
-  }
-}
-
-const appModeModule = typeof window !== 'undefined' ? window.MathVisualsAppMode : null;
-const normalizeMode =
-  appModeModule && typeof appModeModule.normalizeMode === 'function'
-    ? appModeModule.normalizeMode
-    : value => (typeof value === 'string' && value.trim().toLowerCase() === 'task' ? 'task' : 'default');
-
-function getCurrentAppMode() {
-  if (typeof window === 'undefined') return 'default';
-  const mv = window.mathVisuals;
-  if (mv && typeof mv.getAppMode === 'function') {
-    try {
-      const mode = mv.getAppMode();
-      if (typeof mode === 'string' && mode) {
-        return normalizeMode(mode);
-      }
-    } catch (_) {
-      // fall through
-    }
-  }
-  try {
-    const params = new URLSearchParams(window.location && window.location.search ? window.location.search : '');
-    const fromQuery = params.get('mode');
-    if (typeof fromQuery === 'string' && fromQuery.trim()) {
-      return normalizeMode(fromQuery);
-    }
-  } catch (_) {}
-  return 'default';
-}
-
-function handleAppModeChanged(event) {
-  if (!event) return;
-  const detail = event.detail;
-  if (!detail || typeof detail.mode !== 'string') return;
-  applyAppModeToTaskControls(normalizeMode(detail.mode));
-}
-
 const TASK_APP_ID = 'brøkpizza';
 
 function getTaskApi() {
@@ -871,19 +789,9 @@ function registerTaskAdapter() {
   const taskApi = getTaskApi();
   if (!taskApi || typeof taskApi.registerTaskAdapter !== 'function') return;
   taskApi.registerTaskAdapter(TASK_APP_ID, {
-    collectInputs() {
-      if (typeof taskApi.evaluateDescriptionInputs === 'function') {
-        taskApi.evaluateDescriptionInputs();
-      }
-    },
     evaluateAnswers() {
       runTaskCheck();
       return null;
-    },
-    resetAnswers() {
-      if (typeof taskApi.resetDescriptionInputs === 'function') {
-        taskApi.resetDescriptionInputs();
-      }
     }
   });
 }
@@ -919,17 +827,6 @@ function setCheckStatus(type, heading, detailLines) {
 function clearCheckStatus() {
   setCheckStatus(null);
 }
-
-if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
-  if (appModeModule && typeof appModeModule.onModeChanged === 'function') {
-    appModeModule.onModeChanged(mode => applyAppModeToTaskControls(normalizeMode(mode)));
-  } else {
-    window.addEventListener('math-visuals:app-mode-changed', handleAppModeChanged);
-  }
-}
-
-const initialAppMode = normalizeMode(getCurrentAppMode()) || 'task';
-applyAppModeToTaskControls(initialAppMode);
 
 if (checkButton) {
   checkButton.addEventListener('click', () => {
@@ -2841,6 +2738,18 @@ function loadCleanState(payload) {
   refreshAltText('manual-load');
   return true;
 }
+let isReadOnlyPreview = false;
+function setReadOnlyPreview(enabled) {
+  isReadOnlyPreview = !!enabled;
+}
+function setEditMode() {
+  setReadOnlyPreview(false);
+}
+function serializeCleanState(payload) {
+  const normalized = normalizeCleanStatePayload(payload);
+  if (!normalized) return false;
+  return loadCleanState(normalized);
+}
 
 /* =======================
    SETUP & SYNC (ANTI-FLIMMER & DOM-OVERVÅKNING)
@@ -2917,7 +2826,13 @@ function setupThemeSync() {
 if (typeof window !== 'undefined') {
   window.applyConfig = applyExamplesConfig;
   window.render = applyExamplesConfig;
-  window.brøkpizzaApi = { createCleanState, loadCleanState };
+  window.brøkpizzaApi = {
+    cleanJSON: createCleanState,
+    normalize: normalizeCleanStatePayload,
+    serialize: serializeCleanState,
+    setReadOnlyPreview,
+    setEditMode
+  };
 
   setupThemeSync();
 }

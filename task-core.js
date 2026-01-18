@@ -1708,6 +1708,50 @@
     taskTextApi.setEditing(enabled, options);
   }
 
+  function getActiveToolApi() {
+    if (!global) return null;
+    const mv = global.mathVisuals && typeof global.mathVisuals === 'object' ? global.mathVisuals : null;
+    if (mv) {
+      if (typeof mv.getActiveTool === 'function') {
+        try {
+          const tool = mv.getActiveTool();
+          if (tool && typeof tool === 'object') return tool;
+        } catch (_) {}
+      }
+      if (mv.activeTool && typeof mv.activeTool === 'object') {
+        return mv.activeTool;
+      }
+    }
+    const examplesApi = global.MathVisExamples && typeof global.MathVisExamples === 'object' ? global.MathVisExamples : null;
+    if (examplesApi) {
+      if (typeof examplesApi.getActiveTool === 'function') {
+        try {
+          const tool = examplesApi.getActiveTool();
+          if (tool && typeof tool === 'object') return tool;
+        } catch (_) {}
+      }
+      if (examplesApi.activeTool && typeof examplesApi.activeTool === 'object') {
+        return examplesApi.activeTool;
+      }
+    }
+    return null;
+  }
+
+  function applyActiveToolPreviewState(mode) {
+    const tool = getActiveToolApi();
+    if (!tool) return;
+    const isReadOnly = mode === 'task';
+    if (typeof tool.setReadOnlyPreview === 'function') {
+      tool.setReadOnlyPreview(isReadOnly);
+    }
+    if (typeof tool.setPreviewMode === 'function') {
+      tool.setPreviewMode(isReadOnly);
+    }
+    if (!isReadOnly && typeof tool.setEditMode === 'function') {
+      tool.setEditMode();
+    }
+  }
+
   function postParentAppMode(mode) {
     if (typeof window === 'undefined') return;
     if (!window.parent || window.parent === window) return;
@@ -1732,6 +1776,7 @@
     if (force || normalized !== lastAppliedAppMode) {
       applyDefaultUiForMode(normalized);
     }
+    applyActiveToolPreviewState(normalized);
     if (normalized === 'task') {
       taskTextApi.ensureTaskModeDescriptionRendered();
       setTaskModeDescriptionEditing(true, { force: true, focus: false });

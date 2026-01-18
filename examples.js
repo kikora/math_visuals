@@ -6105,11 +6105,15 @@ initExamples();
   function requestActiveToolCleanState() {
     if (typeof window === 'undefined') return null;
     const activeTool = getActiveToolApi();
-    const createCleanStateFn = activeTool && typeof activeTool.createCleanState === 'function'
-      ? activeTool.createCleanState
-      : typeof window.createCleanState === 'function'
-        ? window.createCleanState
-        : null;
+    const createCleanStateFn = activeTool && typeof activeTool.cleanJSON === 'function'
+      ? activeTool.cleanJSON
+      : activeTool && typeof activeTool.createCleanState === 'function'
+        ? activeTool.createCleanState
+        : typeof window.cleanJSON === 'function'
+          ? window.cleanJSON
+          : typeof window.createCleanState === 'function'
+            ? window.createCleanState
+            : null;
     if (!createCleanStateFn) return null;
     try {
       const result = createCleanStateFn();
@@ -6325,6 +6329,9 @@ initExamples();
     const getActiveCleanStateLoader = () => {
       if (typeof window === 'undefined') return null;
       const activeTool = getActiveToolApi();
+      if (activeTool && typeof activeTool.serialize === 'function') {
+        return activeTool.serialize;
+      }
       if (activeTool && typeof activeTool.loadCleanState === 'function') {
         return activeTool.loadCleanState;
       }
