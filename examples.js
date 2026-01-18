@@ -1210,6 +1210,22 @@ initExamples();
 (function () {
   const globalScope = typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : null;
   const DEFAULT_APP_MODE = 'default';
+  const normalizeAppMode = mode => {
+    if (typeof mode !== 'string') return DEFAULT_APP_MODE;
+    const normalized = mode.trim().toLowerCase();
+    if (!normalized) return DEFAULT_APP_MODE;
+    if (
+      normalized === 'task' ||
+      normalized === 'task-mode' ||
+      normalized === 'preview' ||
+      normalized === 'preview-mode' ||
+      normalized === 'forhandsvisning' ||
+      normalized === 'forhåndsvisning'
+    ) {
+      return 'task';
+    }
+    return DEFAULT_APP_MODE;
+  };
   const getTaskCore = () => (globalScope && globalScope.MathVisualsTaskCore ? globalScope.MathVisualsTaskCore : null);
   let taskCore = getTaskCore();
   const getTaskTextModule = () => {
@@ -1220,19 +1236,21 @@ initExamples();
     if (typeof document === 'undefined') return DEFAULT_APP_MODE;
     const body = document.body;
     if (body && body.dataset && body.dataset.appMode) {
-      return body.dataset.appMode;
+      return normalizeAppMode(body.dataset.appMode);
     }
     return DEFAULT_APP_MODE;
   };
   let currentAppMode =
-    taskCore && typeof taskCore.getAppMode === 'function' ? taskCore.getAppMode() : resolveFallbackAppMode();
+    taskCore && typeof taskCore.getAppMode === 'function'
+      ? normalizeAppMode(taskCore.getAppMode())
+      : resolveFallbackAppMode();
   let taskCoreInitAttempted = false;
   let modeListenerAttached = false;
   const attachModeListener = () => {
     if (modeListenerAttached) return;
     if (taskCore && typeof taskCore.onModeChange === 'function') {
       taskCore.onModeChange(mode => {
-        currentAppMode = mode || DEFAULT_APP_MODE;
+        currentAppMode = normalizeAppMode(mode);
       });
       modeListenerAttached = true;
       return;
@@ -1240,7 +1258,7 @@ initExamples();
     if (typeof window !== 'undefined') {
       window.addEventListener('math-visuals:app-mode-changed', event => {
         const detail = event && typeof event.detail === 'object' ? event.detail : {};
-        currentAppMode = detail.mode || resolveFallbackAppMode();
+        currentAppMode = normalizeAppMode(detail.mode) || resolveFallbackAppMode();
       });
       modeListenerAttached = true;
     }
