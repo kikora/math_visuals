@@ -1210,7 +1210,8 @@ initExamples();
 (function () {
   const globalScope = typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : null;
   const DEFAULT_APP_MODE = 'default';
-  const taskCore = globalScope && globalScope.MathVisualsTaskCore ? globalScope.MathVisualsTaskCore : null;
+  const getTaskCore = () => (globalScope && globalScope.MathVisualsTaskCore ? globalScope.MathVisualsTaskCore : null);
+  let taskCore = getTaskCore();
   const getTaskTextModule = () => {
     if (taskCore && taskCore.taskText) return taskCore.taskText;
     return globalScope && globalScope.MathVisualsTaskText ? globalScope.MathVisualsTaskText : null;
@@ -1225,17 +1226,30 @@ initExamples();
   };
   let currentAppMode =
     taskCore && typeof taskCore.getAppMode === 'function' ? taskCore.getAppMode() : resolveFallbackAppMode();
-  if (taskCore && typeof taskCore.onModeChange === 'function') {
-    taskCore.onModeChange(mode => {
-      currentAppMode = mode || DEFAULT_APP_MODE;
-    });
-  } else if (typeof window !== 'undefined') {
-    window.addEventListener('math-visuals:app-mode-changed', event => {
-      const detail = event && typeof event.detail === 'object' ? event.detail : {};
-      currentAppMode = detail.mode || resolveFallbackAppMode();
-    });
-  }
-  if (taskCore && typeof taskCore.init === 'function') {
+  let taskCoreInitAttempted = false;
+  let modeListenerAttached = false;
+  const attachModeListener = () => {
+    if (modeListenerAttached) return;
+    if (taskCore && typeof taskCore.onModeChange === 'function') {
+      taskCore.onModeChange(mode => {
+        currentAppMode = mode || DEFAULT_APP_MODE;
+      });
+      modeListenerAttached = true;
+      return;
+    }
+    if (typeof window !== 'undefined') {
+      window.addEventListener('math-visuals:app-mode-changed', event => {
+        const detail = event && typeof event.detail === 'object' ? event.detail : {};
+        currentAppMode = detail.mode || resolveFallbackAppMode();
+      });
+      modeListenerAttached = true;
+    }
+  };
+  const initTaskCoreBridge = () => {
+    if (taskCoreInitAttempted) return;
+    taskCore = getTaskCore();
+    if (!taskCore || typeof taskCore.init !== 'function') return;
+    taskCoreInitAttempted = true;
     taskCore.init({
       getExamples,
       getActiveExampleIndex,
@@ -1243,9 +1257,17 @@ initExamples();
       normalizeDescriptionString,
       getExampleId: (example, index) => resolveExampleId(example, index)
     });
-  }
-  if (taskCore && typeof taskCore.attachSettings === 'function' && globalScope && globalScope.MathVisualsSettings) {
-    taskCore.attachSettings(globalScope.MathVisualsSettings);
+    if (typeof taskCore.attachSettings === 'function' && globalScope && globalScope.MathVisualsSettings) {
+      taskCore.attachSettings(globalScope.MathVisualsSettings);
+    }
+    attachModeListener();
+  };
+  initTaskCoreBridge();
+  attachModeListener();
+  if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+    window.addEventListener('math-visuals:task-core-ready', () => {
+      initTaskCoreBridge();
+    });
   }
   const STORAGE_GLOBAL_KEY = '__EXAMPLES_STORAGE__';
   function createMemoryStorage(initialData) {

@@ -2003,4 +2003,9 @@
   };
 
   initAppMode();
+  if (typeof global.dispatchEvent === 'function') {
+    try {
+      global.dispatchEvent(new CustomEvent('math-visuals:task-core-ready'));
+    } catch (_) {}
+  }
 })(typeof window !== 'undefined' ? window : undefined);
