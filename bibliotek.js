@@ -310,7 +310,7 @@ function updateCategoryAppFieldsetState(context) {
 }
 
 function renderCategoryAppControls() {
-  const options = getCategoryAppOptions();
+  const options = getCategoryAppOptions().filter((option) => option.id !== DEFAULT_CATEGORY_APP);
   Object.entries(categoryAppFormContexts).forEach(([context, config]) => {
     if (!config || !config.container) return;
     const previousSelection = getCategoryAppSelectionFromInputs(context);
