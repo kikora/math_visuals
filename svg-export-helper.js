@@ -745,6 +745,8 @@
         backgroundColor: options.backgroundColor || '#fff',
         scale,
         useCORS: true,
+        foreignObjectRendering: true,
+        allowTaint: true,
         logging: false
       });
       if (!canvas) {
