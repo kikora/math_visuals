@@ -180,6 +180,31 @@ body[data-app="graftegner"] .layout--sidebar:not(.split-enabled) > :not(.side) {
   grid-row: 1;
 }
 
+@media (min-width: 981px) {
+  body.app-layout {
+    overflow: hidden;
+  }
+
+  body.app-layout .wrap {
+    height: 100vh;
+  }
+
+  body.app-layout .layout--sidebar {
+    height: 100%;
+  }
+
+  body.app-layout .layout--sidebar > .side {
+    max-height: 100%;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+
+  body.app-layout .layout--sidebar > :not(.side) {
+    position: sticky;
+    top: var(--gap);
+  }
+}
+
 @media (max-width: 980px) {
   .layout--sidebar {
     grid-template-columns: minmax(0, 1fr);
