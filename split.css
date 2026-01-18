@@ -37,6 +37,17 @@
   grid-area: main;
   min-width: 0;
 }
+body.app-layout .grid.split-enabled {
+  height: 100%;
+}
+body.app-layout .grid.split-enabled > .side {
+  max-height: 100%;
+  overflow-y: auto;
+}
+body.app-layout .grid.split-enabled > :not(.side):not(.splitter) {
+  position: sticky;
+  top: var(--gap);
+}
 @media (max-width:980px){
   .grid.split-enabled {
     grid-template-columns: 1fr !important;
