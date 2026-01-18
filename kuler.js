@@ -1145,6 +1145,21 @@ function buildKulerExportMeta(exportData) {
     const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
     const meta = buildKulerExportMeta(exportData);
     const filename = exportFileName(idx, exportData.count, "svg");
+    const htmlTarget = document.querySelector('.figure') || exportData.svg;
+    if (helper && typeof helper.exportGraphicWithArchiveWithFallback === 'function') {
+      await helper.exportGraphicWithArchiveWithFallback({
+        svgElement: exportData.svg,
+        htmlTarget,
+        suggestedName: filename,
+        toolId: 'kuler',
+        svgString: data,
+        description: meta.description,
+        slug: meta.slug,
+        defaultBaseName: meta.defaultBaseName,
+        summary: meta.summary
+      });
+      return;
+    }
     if (helper && typeof helper.exportSvgWithArchive === 'function') {
       await helper.exportSvgWithArchive(exportData.svg, filename, 'kuler', {
         svgString: data,

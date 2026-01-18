@@ -984,53 +984,129 @@
       if (!canvas) {
         throw new Error('html2canvas returnerte ingen canvas');
       }
-      let blob = null;
-      if (typeof canvas.convertToBlob === 'function') {
-        try {
-          blob = await canvas.convertToBlob({ type: 'image/png' });
-        } catch (error) {
-          blob = null;
-        }
-      }
-      if (!blob && typeof canvas.toBlob === 'function') {
-        blob = await new Promise(resolve => {
-          try {
-            canvas.toBlob(result => resolve(result || null), 'image/png');
-          } catch (error) {
-            resolve(null);
-          }
-        });
-      }
-      let dataUrl = null;
-      if (blob) {
-        dataUrl = await blobToDataUrl(blob);
-      }
-      if (!dataUrl) {
-        try {
-          dataUrl = canvas.toDataURL('image/png');
-        } catch (error) {
-          const logMessage = buildTaintLogMessage('html2canvas PNG-eksport feilet', preprocessInfo, error);
-          console.error(logMessage);
-          throw new Error(logMessage);
-        }
-        if (!blob) {
-          blob = dataUrlToBlob(dataUrl);
-        }
-      }
-      if (!blob) {
-        throw new Error('Kunne ikke lage PNG-blob');
-      }
-      return {
-        dataUrl,
-        blob,
-        width: canvas.width,
-        height: canvas.height
-      };
+      return await canvasToPngData(canvas, 'html2canvas PNG-eksport feilet', preprocessInfo);
     } finally {
       if (host && host.parentNode) {
         host.parentNode.removeChild(host);
       }
     }
+  }
+
+  async function canvasToPngData(canvas, contextLabel, preprocessInfo) {
+    if (!canvas) {
+      throw new Error('Kunne ikke lage PNG uten canvas');
+    }
+    let blob = null;
+    if (typeof canvas.convertToBlob === 'function') {
+      try {
+        blob = await canvas.convertToBlob({ type: 'image/png' });
+      } catch (error) {
+        blob = null;
+      }
+    }
+    if (!blob && typeof canvas.toBlob === 'function') {
+      blob = await new Promise(resolve => {
+        try {
+          canvas.toBlob(result => resolve(result || null), 'image/png');
+        } catch (error) {
+          resolve(null);
+        }
+      });
+    }
+    let dataUrl = null;
+    if (blob) {
+      dataUrl = await blobToDataUrl(blob);
+    }
+    if (!dataUrl) {
+      try {
+        dataUrl = canvas.toDataURL('image/png');
+      } catch (error) {
+        const logMessage = buildTaintLogMessage(contextLabel || 'PNG-eksport feilet', preprocessInfo, error);
+        console.error(logMessage);
+        throw new Error(logMessage);
+      }
+      if (!blob) {
+        blob = dataUrlToBlob(dataUrl);
+      }
+    }
+    if (!blob) {
+      throw new Error('Kunne ikke lage PNG-blob');
+    }
+    return {
+      dataUrl,
+      blob,
+      width: canvas.width,
+      height: canvas.height
+    };
+  }
+
+  async function renderHtmlTargetToPng(htmlTarget, options = {}) {
+    if (!htmlTarget || typeof htmlTarget !== 'object') return null;
+    const doc = htmlTarget.ownerDocument || (typeof document !== 'undefined' ? document : null);
+    if (!doc || !doc.body) {
+      throw new Error('document mangler');
+    }
+    const html2canvas = await ensureHtml2Canvas(doc);
+    if (typeof html2canvas !== 'function') return null;
+    await waitForDocumentFonts(doc);
+    const ratio = typeof global.devicePixelRatio === 'number' && global.devicePixelRatio > 0 ? global.devicePixelRatio : 1;
+    const scale = Math.max(2, ratio);
+    const canvas = await html2canvas(htmlTarget, {
+      backgroundColor: options.backgroundColor || '#fff',
+      scale,
+      useCORS: true,
+      foreignObjectRendering: true,
+      logging: false
+    });
+    if (!canvas) {
+      throw new Error('html2canvas returnerte ingen canvas');
+    }
+    return canvasToPngData(canvas, 'html2canvas PNG-eksport feilet', null);
+  }
+
+  async function resolvePngExport({
+    doc,
+    svgElement,
+    svgUrl,
+    svgString,
+    dimensions,
+    backgroundColor,
+    htmlTarget,
+    fallbackOrder
+  }) {
+    const resolvedOrder = fallbackOrder === 'svg-first' ? ['svg', 'html'] : ['html', 'svg'];
+    let pngResult = null;
+    let pngError = null;
+    for (const strategy of resolvedOrder) {
+      try {
+        if (strategy === 'svg') {
+          pngResult = await renderSvgToPng(doc, svgUrl, svgString, dimensions, {
+            sourceElement: svgElement,
+            backgroundColor
+          });
+        } else {
+          if (htmlTarget) {
+            pngResult = await renderHtmlTargetToPng(htmlTarget, {
+              backgroundColor
+            });
+          } else if (svgElement) {
+            pngResult = await renderSvgToPngWithHtml2Canvas(svgElement, {
+              backgroundColor,
+              bounds: dimensions || {}
+            });
+          } else {
+            pngResult = null;
+          }
+        }
+        if (pngResult) {
+          pngError = null;
+          break;
+        }
+      } catch (error) {
+        pngError = error;
+      }
+    }
+    return { pngResult, pngError };
   }
 
   async function exportGraphicWithArchive(svgElement, suggestedName, toolId, options = {}) {
@@ -1087,26 +1163,18 @@
 
     let pngData = null;
     let pngUrl = null;
-    let pngError = null;
-    let pngResult = null;
-    try {
-      pngResult = await renderSvgToPngWithHtml2Canvas(exportSvg, {
-        backgroundColor: options.backgroundColor || '#fff',
-        bounds: dimensions
-      });
-    } catch (error) {
-      pngError = error;
-    }
-    if (!pngResult) {
-      try {
-        pngResult = await renderSvgToPng(doc, svgUrl, svgString, dimensions, {
-          sourceElement: svgElement,
-          backgroundColor: options.backgroundColor || '#fff'
-        });
-      } catch (error) {
-        pngError = error;
-      }
-    }
+    const fallbackOrder = options.pngFallbackOrder === 'svg-first' ? 'svg-first' : 'html-first';
+    const htmlTarget = options.htmlTarget || null;
+    const { pngResult, pngError } = await resolvePngExport({
+      doc,
+      svgElement: exportSvg,
+      svgUrl,
+      svgString,
+      dimensions,
+      backgroundColor: options.backgroundColor || '#fff',
+      htmlTarget,
+      fallbackOrder
+    });
     if (pngResult) {
       pngData = pngResult;
       if (pngData && pngData.blob && !pngData.dataUrl) {
@@ -1337,7 +1405,20 @@
     };
   }
 
+  async function exportGraphicWithArchiveWithFallback(config = {}) {
+    if (!config || typeof config !== 'object') {
+      throw new Error('exportGraphicWithArchiveWithFallback trenger et konfigurasjonsobjekt');
+    }
+    const { svgElement, htmlTarget, suggestedName, toolId, ...options } = config;
+    return exportGraphicWithArchive(svgElement, suggestedName, toolId, {
+      ...options,
+      htmlTarget,
+      pngFallbackOrder: 'svg-first'
+    });
+  }
+
   helper.exportGraphicWithArchive = exportGraphicWithArchive;
+  helper.exportGraphicWithArchiveWithFallback = exportGraphicWithArchiveWithFallback;
   helper.exportSvgWithArchive = exportSvgWithArchive;
   helper.slugify = slugify;
   helper.showToast = showToast;

@@ -7607,6 +7607,31 @@ const FIGURE_LIBRARY_APP_KEY = 'maling';
     const suggestedBase = meta.baseName || 'maling';
     const suggestedName = suggestedBase.toLowerCase().endsWith('.svg') ? suggestedBase : `${suggestedBase}.svg`;
 
+    const htmlTarget = document.querySelector('.figure') || exportSvgElement;
+    if (helper && typeof helper.exportGraphicWithArchiveWithFallback === 'function') {
+      try {
+        const elementForHelper =
+          helper && typeof helper.cloneSvgForExport === 'function'
+            ? helper.cloneSvgForExport(exportSvgElement)
+            : exportSvgElement.cloneNode(true);
+        await helper.exportGraphicWithArchiveWithFallback({
+          svgElement: elementForHelper,
+          htmlTarget,
+          suggestedName,
+          toolId: 'maling',
+          svgString: svgMarkup,
+          slug: meta.slug,
+          defaultBaseName: meta.baseName,
+          description: meta.description,
+          summary: meta.summary,
+          title: meta.title,
+          alt: meta.altText
+        });
+        return;
+      } catch (error) {
+        // Faller tilbake til nedlasting dersom eksporthjelper feiler.
+      }
+    }
     if (helper && typeof helper.exportSvgWithArchive === 'function') {
       try {
         const elementForHelper =

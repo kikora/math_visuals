@@ -1912,6 +1912,37 @@
       });
       const filename = getExportFileName(index, 'svg');
       const helper = svgExportHelper;
+      if (helper && typeof helper.exportGraphicWithArchiveWithFallback === 'function' && typeof document !== 'undefined') {
+        try {
+          const exportSvg = document.createElementNS(SVG_NS, 'svg');
+          const width = Number.isFinite(snapshot.width) ? snapshot.width : snapshot.canvas.width;
+          const height = Number.isFinite(snapshot.height) ? snapshot.height : snapshot.canvas.height;
+          if (Number.isFinite(width) && Number.isFinite(height)) {
+            exportSvg.setAttribute('width', String(width));
+            exportSvg.setAttribute('height', String(height));
+            exportSvg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+          }
+          const meta = buildFigureExportMeta(info, index);
+          const htmlTarget =
+            (Array.isArray(figureWrappers) && figureWrappers[index]) ||
+            (snapshot && snapshot.canvas) ||
+            exportSvg;
+          await helper.exportGraphicWithArchiveWithFallback({
+            svgElement: exportSvg,
+            htmlTarget,
+            suggestedName: filename,
+            toolId: 'trefigurer',
+            svgString: svgContent,
+            description: meta.description,
+            defaultBaseName: meta.defaultBaseName,
+            summary: meta.summary,
+            title: meta.title
+          });
+          return;
+        } catch (error) {
+          console.error('Klarte ikke eksportere via arkivet.', error);
+        }
+      }
       if (helper && typeof helper.exportSvgWithArchive === 'function' && typeof document !== 'undefined') {
         try {
           const exportSvg = document.createElementNS(SVG_NS, 'svg');

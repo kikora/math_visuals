@@ -457,6 +457,21 @@
     const data = svgToString(svgEl);
     const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
     const meta = buildNumbervisualExportMeta();
+    const htmlTarget = document.querySelector('.figure') || svgEl;
+    if (helper && typeof helper.exportGraphicWithArchiveWithFallback === 'function') {
+      helper.exportGraphicWithArchiveWithFallback({
+        svgElement: svgEl,
+        htmlTarget,
+        suggestedName,
+        toolId: 'numbervisuals',
+        svgString: data,
+        description: meta.description,
+        slug: meta.slug,
+        defaultBaseName: meta.defaultBaseName,
+        summary: meta.summary
+      });
+      return;
+    }
     if (helper && typeof helper.exportSvgWithArchive === 'function') {
       helper.exportSvgWithArchive(svgEl, suggestedName, 'numbervisuals', {
         svgString: data,

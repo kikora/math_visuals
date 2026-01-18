@@ -1058,6 +1058,27 @@ const paletteService = typeof require === 'function'
   downloadSvgButton === null || downloadSvgButton === void 0 || downloadSvgButton.addEventListener('click', async () => {
     const suggestedName = 'brokvegg.svg';
     const helper = svgExportHelper;
+    const htmlTarget = document.querySelector('.figure') || svg;
+    if (helper && typeof helper.exportGraphicWithArchiveWithFallback === 'function') {
+      try {
+        const svgString = svgToString(svg);
+        const meta = buildFractionWallExportMeta();
+        await helper.exportGraphicWithArchiveWithFallback({
+          svgElement: svg,
+          htmlTarget,
+          suggestedName,
+          toolId: 'brøkvegg',
+          svgString,
+          description: meta.description || buildFractionWallAltText(),
+          defaultBaseName: meta.defaultBaseName,
+          summary: meta.summary,
+          title: getFractionWallTitle()
+        });
+        return;
+      } catch (error) {
+        console.error('Klarte ikke eksportere via arkivet.', error);
+      }
+    }
     if (helper && typeof helper.exportSvgWithArchive === 'function') {
       try {
         const svgString = svgToString(svg);

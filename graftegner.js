@@ -7560,6 +7560,19 @@ if (btnSvg) {
     if (!svgExport || !svgExport.markup) return;
     const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
     const suggestedName = `${getSuggestedFilename()}.svg`;
+    const htmlTarget = document.querySelector('.figure');
+    if (helper && typeof helper.exportGraphicWithArchiveWithFallback === 'function') {
+      helper.exportGraphicWithArchiveWithFallback({
+        svgElement: svgExport.node,
+        htmlTarget,
+        suggestedName,
+        toolId: 'graftegner',
+        svgString: svgExport.markup,
+        alt: svgExport.altText,
+        description: svgExport.altText
+      });
+      return;
+    }
     if (helper && typeof helper.exportSvgWithArchive === 'function') {
       helper.exportSvgWithArchive(svgExport.node, suggestedName, 'graftegner', {
         svgString: svgExport.markup,

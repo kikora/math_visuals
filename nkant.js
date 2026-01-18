@@ -5524,6 +5524,21 @@ async function downloadSVG(svgEl, filename) {
   const data = svgToString(svgEl);
   const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
   const meta = buildNkantExportMeta(lastRenderSummary);
+  const htmlTarget = document.querySelector('.card .figure') || document.querySelector('.figure') || svgEl;
+  if (helper && typeof helper.exportGraphicWithArchiveWithFallback === 'function') {
+    await helper.exportGraphicWithArchiveWithFallback({
+      svgElement: svgEl,
+      htmlTarget,
+      suggestedName,
+      toolId: 'nkant',
+      svgString: data,
+      description: meta.description,
+      slug: meta.slug,
+      defaultBaseName: meta.defaultBaseName,
+      summary: lastRenderSummary
+    });
+    return;
+  }
   if (helper && typeof helper.exportSvgWithArchive === 'function') {
     await helper.exportSvgWithArchive(svgEl, suggestedName, 'nkant', {
       svgString: data,
