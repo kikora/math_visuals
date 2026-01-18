@@ -119,6 +119,20 @@
       gap:12px;
       align-items:stretch;
     }
+    @media (min-width:981px){
+      body[data-app="graftegner"]{ overflow:hidden; }
+      body[data-app="graftegner"] .wrap{ height:100vh; }
+      body[data-app="graftegner"] .layout--sidebar{ height:100%; }
+      body[data-app="graftegner"] .layout--sidebar > .side{
+        max-height:100%;
+        overflow-y:auto;
+        padding-right:4px;
+      }
+      body[data-app="graftegner"] .layout--sidebar > .card{
+        position:sticky;
+        top:var(--gap);
+      }
+    }
     .func-row--markers{
       display:flex;
       gap:12px;
