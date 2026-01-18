@@ -538,26 +538,6 @@ function isValidColor(value) {
   applyThemeToDocument();
   const checkButton = typeof document !== 'undefined' ? document.getElementById('btnCheck') : null;
   const checkStatus = typeof document !== 'undefined' ? document.getElementById('checkStatus') : null;
-  const taskCheckHost = typeof document !== 'undefined' ? document.querySelector('[data-task-check-host]') : null;
-  const taskCheckControls = [checkButton, checkStatus].filter(Boolean);
-  function ensureTaskCheckControlsAppended() {
-    if (!taskCheckHost) return;
-    taskCheckControls.forEach(control => {
-      if (control && control.parentElement !== taskCheckHost) {
-        taskCheckHost.appendChild(control);
-      }
-    });
-  }
-
-  const appModeModule = typeof window !== 'undefined' ? window.MathVisualsAppMode : null;
-  const normalizeMode =
-    appModeModule && typeof appModeModule.normalizeMode === 'function'
-      ? appModeModule.normalizeMode
-      : value => (typeof value === 'string' && value.trim().toLowerCase() === 'task' ? 'task' : 'default');
-
-  function isTaskLikeMode(mode) {
-    return normalizeMode(mode) === 'task';
-  }
   function setCheckStatus(type, heading, detailLines) {
     if (!checkStatus) return;
     if (!type) {
@@ -586,40 +566,6 @@ function isValidColor(value) {
   function clearCheckStatus() {
     setCheckStatus(null);
   }
-  function applyAppModeToTaskControls(mode) {
-    if (!taskCheckHost) return;
-    const isTaskMode = isTaskLikeMode(mode);
-    if (isTaskMode) {
-      ensureTaskCheckControlsAppended();
-      taskCheckHost.hidden = false;
-      taskCheckControls.forEach(control => {
-        if (!control) return;
-        if (control === checkButton) {
-          control.hidden = false;
-          if (control.dataset) delete control.dataset.prevHidden;
-          return;
-        }
-        if (control.dataset && 'prevHidden' in control.dataset) {
-          const wasHidden = control.dataset.prevHidden === '1';
-          delete control.dataset.prevHidden;
-          control.hidden = wasHidden;
-        }
-      });
-    } else {
-      taskCheckHost.hidden = true;
-      taskCheckControls.forEach(control => {
-        if (!control) return;
-        if (control.dataset) {
-          control.dataset.prevHidden = control.hidden ? '1' : '0';
-        }
-        control.hidden = true;
-      });
-    }
-  }
-
-  function handleAppModeChanged(mode) {
-    applyAppModeToTaskControls(normalizeMode(mode));
-  }
   const TASK_APP_ID = 'brøkfigurer';
   function getTaskApi() {
     if (typeof window === 'undefined') return null;
@@ -629,28 +575,13 @@ function isValidColor(value) {
     const taskApi = getTaskApi();
     if (!taskApi || typeof taskApi.registerTaskAdapter !== 'function') return;
     taskApi.registerTaskAdapter(TASK_APP_ID, {
-      collectInputs() {
-        if (typeof taskApi.evaluateDescriptionInputs === 'function') {
-          taskApi.evaluateDescriptionInputs();
-        }
-      },
       evaluateAnswers() {
         runTaskCheck();
         return null;
-      },
-      resetAnswers() {
-        if (typeof taskApi.resetDescriptionInputs === 'function') {
-          taskApi.resetDescriptionInputs();
-        }
       }
     });
   }
   registerTaskAdapter();
-  if (appModeModule && typeof appModeModule.onModeChanged === 'function') {
-    appModeModule.onModeChanged(handleAppModeChanged);
-  } else {
-    handleAppModeChanged('default');
-  }
   if (checkButton) {
     checkButton.addEventListener('click', () => {
       const taskApi = getTaskApi();
@@ -3197,6 +3128,26 @@ function isValidColor(value) {
     });
     (_window$render4 = (_window4 = window).render) === null || _window$render4 === void 0 ? void 0 : _window$render4.call(_window4);
   };
+  if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+    window.addEventListener('examples:collect', handleExamplesCollect);
+  }
+  function normalizeCleanStatePayload(payload) {
+    if (payload == null) return null;
+    if (typeof payload === 'string') {
+      try {
+        return normalizeCleanStatePayload(JSON.parse(payload));
+      } catch (_) {
+        return null;
+      }
+    }
+    if (payload && typeof payload === 'object' && payload.v === 1) {
+      return payload;
+    }
+    if (payload && typeof payload === 'object' && payload.state && payload.state.v === 1) {
+      return payload.state;
+    }
+    return null;
+  }
   function createCleanState() {
     const figures = getActiveFigureIds().map(id => {
       const figState = ensureFigureState(id);
@@ -3302,6 +3253,18 @@ function isValidColor(value) {
     refreshAltText('state-load');
     return true;
   }
+  function serializeCleanState(payload) {
+    const normalized = normalizeCleanStatePayload(payload);
+    if (!normalized) return false;
+    return loadCleanState(normalized);
+  }
+  let isReadOnlyPreview = false;
+  function setReadOnlyPreview(enabled) {
+    isReadOnlyPreview = !!enabled;
+  }
+  function setEditMode() {
+    setReadOnlyPreview(false);
+  }
   function handleThemePaletteChanged() {
     applyThemeToDocument();
     refreshPaletteDefaults();
@@ -3332,9 +3295,11 @@ function isValidColor(value) {
   }
   if (typeof window !== 'undefined') {
     const api = {
-      createCleanState,
-      loadCleanState,
-      onExampleCollect: handleExamplesCollect
+      cleanJSON: createCleanState,
+      normalize: normalizeCleanStatePayload,
+      serialize: serializeCleanState,
+      setReadOnlyPreview,
+      setEditMode
     };
     window.brøkfigurerApi = api;
     if (!window.brokfigurerApi) window.brokfigurerApi = api;
