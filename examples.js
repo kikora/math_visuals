@@ -1210,214 +1210,33 @@ initExamples();
 (function () {
   const globalScope = typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : null;
   const DEFAULT_APP_MODE = 'default';
-  const getTaskTextModule = () =>
-    globalScope && globalScope.MathVisualsTaskText ? globalScope.MathVisualsTaskText : null;
-  const APP_MODE_ALIASES = {
-    task: 'task',
-    tasks: 'task',
-    oppgave: 'task',
-    oppgaver: 'task',
-    oppgavemodus: 'task',
-    student: 'task',
-    elev: 'task',
-    preview: 'task',
-    forhåndsvisning: 'task',
-    forhandsvisning: 'task',
-    default: DEFAULT_APP_MODE,
-    standard: DEFAULT_APP_MODE,
-    teacher: DEFAULT_APP_MODE,
-    undervisning: DEFAULT_APP_MODE,
-    edit: DEFAULT_APP_MODE,
-    rediger: DEFAULT_APP_MODE,
-    author: DEFAULT_APP_MODE,
-    editor: DEFAULT_APP_MODE
+  const taskCore = globalScope && globalScope.MathVisualsTaskCore ? globalScope.MathVisualsTaskCore : null;
+  const getTaskTextModule = () => {
+    if (taskCore && taskCore.taskText) return taskCore.taskText;
+    return globalScope && globalScope.MathVisualsTaskText ? globalScope.MathVisualsTaskText : null;
   };
-  const originalSplitSideWidths = new WeakMap();
-  let currentAppMode = DEFAULT_APP_MODE;
-  let lastAppliedAppMode = null;
-  let splitterObserver = null;
-  let splitterObserverStarted = false;
-  function normalizeAppMode(value) {
-    if (typeof value !== 'string') return null;
-    const trimmed = value.trim().toLowerCase();
-    if (!trimmed) return null;
-    if (APP_MODE_ALIASES[trimmed]) return APP_MODE_ALIASES[trimmed];
-    if (trimmed === 'preview-mode') return 'task';
-    if (trimmed === 'task-mode') return 'task';
-    return null;
-  }
-  function applyExampleNavigationVisibilityForMode(mode) {
-    if (typeof document === 'undefined') return;
-    const normalized = normalizeAppMode(mode) || DEFAULT_APP_MODE;
-    const isPreviewMode = normalized === 'preview';
-    const nav = document.getElementById('exampleTabs');
-    if (!nav) return;
-    if (isPreviewMode) {
-      nav.setAttribute('hidden', '');
-      nav.setAttribute('aria-hidden', 'true');
-      nav.style.display = 'none';
-    } else {
-      nav.removeAttribute('hidden');
-      nav.setAttribute('aria-hidden', 'false');
-      nav.style.removeProperty('display');
+  const resolveFallbackAppMode = () => {
+    if (typeof document === 'undefined') return DEFAULT_APP_MODE;
+    const body = document.body;
+    if (body && body.dataset && body.dataset.appMode) {
+      return body.dataset.appMode;
     }
-  }
-  function adjustSplitLayoutForMode(isTaskMode) {
-    if (typeof document === 'undefined') return;
-    const grids = document.querySelectorAll('.grid');
-    grids.forEach(grid => {
-      if (!(grid instanceof HTMLElement)) return;
-      const side = grid.querySelector('.side');
-      if (!side) return;
-      if (isTaskMode) {
-        if (!originalSplitSideWidths.has(grid)) {
-          const rect = side.getBoundingClientRect();
-          if (rect && Number.isFinite(rect.width) && rect.width > 0) {
-            originalSplitSideWidths.set(grid, `${Math.round(rect.width)}px`);
-          } else {
-            const current = grid.style.getPropertyValue('--side-width');
-            originalSplitSideWidths.set(grid, current || '');
-          }
-        }
-        grid.style.setProperty('--side-width', 'min(360px, 100%)');
-      } else if (originalSplitSideWidths.has(grid)) {
-        const previous = originalSplitSideWidths.get(grid);
-        originalSplitSideWidths.delete(grid);
-        if (previous) {
-          grid.style.setProperty('--side-width', previous);
-        } else {
-          grid.style.removeProperty('--side-width');
-        }
-      } else {
-        grid.style.removeProperty('--side-width');
-      }
+    return DEFAULT_APP_MODE;
+  };
+  let currentAppMode =
+    taskCore && typeof taskCore.getAppMode === 'function' ? taskCore.getAppMode() : resolveFallbackAppMode();
+  if (taskCore && typeof taskCore.onModeChange === 'function') {
+    taskCore.onModeChange(mode => {
+      currentAppMode = mode || DEFAULT_APP_MODE;
+    });
+  } else if (typeof window !== 'undefined') {
+    window.addEventListener('math-visuals:app-mode-changed', event => {
+      const detail = event && typeof event.detail === 'object' ? event.detail : {};
+      currentAppMode = detail.mode || resolveFallbackAppMode();
     });
   }
-  let pendingAppModeForBody = null;
-  let pendingAppModeApplyScheduled = false;
-  let descriptionVisibilityUpdateScheduled = false;
-
-  function scheduleDescriptionVisibilityUpdate(targetMode) {
-    if (descriptionVisibilityUpdateScheduled) return;
-    descriptionVisibilityUpdateScheduled = true;
-    setTimeout(() => {
-      descriptionVisibilityUpdateScheduled = false;
-      try {
-        updateDescriptionEditVisibilityForMode(targetMode);
-      } catch (_) {}
-    }, 0);
-  }
-
-  function setTaskModeDescriptionEditing(enabled, options) {
-    const taskText = getTaskTextModule();
-    if (!taskText || typeof taskText.setEditing !== 'function') return;
-    taskText.setEditing(enabled, options);
-  }
-
-  function applyAppMode(mode) {
-    if (typeof document === 'undefined') return;
-    const normalized = normalizeAppMode(mode) || DEFAULT_APP_MODE;
-    const execute = targetMode => {
-      if (typeof document === 'undefined') return;
-      const body = document.body;
-      if (!body) return;
-      if (body.dataset.appMode !== targetMode) {
-        body.dataset.appMode = targetMode;
-      }
-      const isTaskMode = targetMode === 'task';
-      adjustSplitLayoutForMode(isTaskMode);
-      updateDescriptionEditVisibilityForMode(targetMode);
-      applyExampleNavigationVisibilityForMode(targetMode);
-      if (isTaskMode) {
-        const raf =
-          typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function'
-            ? window.requestAnimationFrame
-            : null;
-        if (raf) {
-          raf(() => adjustSplitLayoutForMode(true));
-        } else {
-          setTimeout(() => adjustSplitLayoutForMode(true), 16);
-        }
-      }
-      lastAppliedAppMode = targetMode;
-    };
-    if (!document.body) {
-      pendingAppModeForBody = normalized;
-      if (!pendingAppModeApplyScheduled) {
-        pendingAppModeApplyScheduled = true;
-        const applyWhenReady = () => {
-          pendingAppModeApplyScheduled = false;
-          const target = pendingAppModeForBody != null ? pendingAppModeForBody : currentAppMode;
-          pendingAppModeForBody = null;
-          if (document.body) {
-            execute(target);
-          } else if (typeof window !== 'undefined') {
-            setTimeout(applyWhenReady, 16);
-          }
-        };
-        const schedule = () => {
-          if (document.body) {
-            applyWhenReady();
-          } else if (typeof window !== 'undefined') {
-            setTimeout(schedule, 16);
-          }
-        };
-        if (document.readyState === 'loading') {
-          document.addEventListener('DOMContentLoaded', schedule, { once: true });
-        } else {
-          schedule();
-        }
-      }
-      return;
-    }
-    execute(normalized);
-  }
-  function postParentAppMode(mode) {
-    if (typeof window === 'undefined') return;
-    if (!window.parent || window.parent === window) return;
-    try {
-      window.parent.postMessage({
-        type: 'math-visuals:mode-change',
-        mode
-      }, '*');
-    } catch (error) {}
-  }
-  function setAppMode(mode, options) {
-    const normalized = normalizeAppMode(mode) || DEFAULT_APP_MODE;
-    const opts = options && typeof options === 'object' ? options : {};
-    const notifyParent = opts.notifyParent !== false;
-    const force = opts.force === true;
-    const changed = normalized !== currentAppMode;
-    currentAppMode = normalized;
-    if (force || normalized !== lastAppliedAppMode) {
-      applyAppMode(normalized);
-    }
-    if (normalized === 'task') {
-      ensureTaskModeDescriptionRendered();
-      setTaskModeDescriptionEditing(true, { force: true, focus: false });
-    } else {
-      setTaskModeDescriptionEditing(false, { force: true });
-    }
-    if (notifyParent && (changed || opts.alwaysNotify === true)) {
-      postParentAppMode(normalized);
-    }
-    if ((changed || force) && typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
-      try {
-        window.dispatchEvent(new CustomEvent('math-visuals:app-mode-changed', {
-          detail: {
-            mode: normalized
-          }
-        }));
-      } catch (error) {}
-    }
-    return normalized;
-  }
-  const taskTextModule = getTaskTextModule();
-  if (taskTextModule && typeof taskTextModule.init === 'function') {
-    taskTextModule.init({
-      getAppMode: () => currentAppMode,
-      setAppMode: (mode, options) => setAppMode(mode, options),
-      normalizeAppMode,
+  if (taskCore && typeof taskCore.init === 'function') {
+    taskCore.init({
       getExamples,
       getActiveExampleIndex,
       extractDescriptionFromExample,
@@ -1425,142 +1244,8 @@ initExamples();
       getExampleId: (example, index) => resolveExampleId(example, index)
     });
   }
-  function parseInitialAppMode() {
-    if (typeof window === 'undefined') return null;
-    try {
-      if (typeof URLSearchParams !== 'undefined') {
-        const params = new URLSearchParams(window.location && window.location.search ? window.location.search : '');
-        const fromQuery = normalizeAppMode(params.get('mode'));
-        if (fromQuery) return fromQuery;
-      }
-    } catch (error) {}
-    return null;
-  }
-  function requestParentAppMode() {
-    if (typeof window === 'undefined') return;
-    if (!window.parent || window.parent === window) return;
-    try {
-      window.parent.postMessage({
-        type: 'math-visuals:request-mode'
-      }, '*');
-    } catch (error) {}
-  }
-  function handleParentMessage(event) {
-    if (!event) return;
-    const data = event.data;
-    if (!data || typeof data !== 'object') return;
-    if (data.type === 'math-visuals:mode-change') {
-      setAppMode(data.mode, {
-        notifyParent: false
-      });
-    }
-  }
-  function handleLocalModeEvent(event) {
-    if (!event) return;
-    const detail = event.detail;
-    if (!detail || typeof detail !== 'object') return;
-    setAppMode(detail.mode, {
-      notifyParent: detail.notifyParent !== false,
-      force: detail.force === true
-    });
-  }
-  function ensureSplitterObserver() {
-    if (typeof document === 'undefined') return;
-    if (typeof MutationObserver !== 'function') return;
-    if (splitterObserver) return;
-    splitterObserver = new MutationObserver(mutations => {
-      if (currentAppMode !== 'task') return;
-      let shouldAdjust = false;
-      mutations.forEach(mutation => {
-        if (shouldAdjust) return;
-        if (!mutation.addedNodes) return;
-        mutation.addedNodes.forEach(node => {
-          if (shouldAdjust) return;
-          if (node && node.nodeType === 1) {
-            const element = node;
-            if (element.classList && element.classList.contains('splitter')) {
-              shouldAdjust = true;
-              return;
-            }
-            if (element.querySelector && element.querySelector('.splitter')) {
-              shouldAdjust = true;
-            }
-          }
-        });
-      });
-      if (shouldAdjust) {
-        adjustSplitLayoutForMode(true);
-      }
-    });
-    const startObserving = () => {
-      if (!document.body || !splitterObserver || splitterObserverStarted) return;
-      splitterObserver.observe(document.body, {
-        childList: true,
-        subtree: true
-      });
-      splitterObserverStarted = true;
-    };
-    if (!document.body) {
-      const initWhenReady = () => {
-        if (document.body) {
-          startObserving();
-        } else if (typeof window !== 'undefined') {
-          setTimeout(initWhenReady, 16);
-        }
-      };
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initWhenReady, { once: true });
-      } else {
-        initWhenReady();
-      }
-      return;
-    }
-    startObserving();
-  }
-  ensureSplitterObserver();
-  const initialAppMode = parseInitialAppMode() || DEFAULT_APP_MODE;
-  setAppMode(initialAppMode, {
-    notifyParent: false,
-    force: true
-  });
-  if (typeof window !== 'undefined') {
-    window.addEventListener('message', handleParentMessage);
-    window.addEventListener('math-visuals:set-mode', handleLocalModeEvent);
-  }
-  if (typeof document !== 'undefined') {
-    document.addEventListener('math-visuals:set-mode', handleLocalModeEvent);
-  }
-  if (typeof window !== 'undefined') {
-    if (window.parent && window.parent !== window) {
-      const request = () => {
-        requestParentAppMode();
-      };
-      if (document && (document.readyState === 'interactive' || document.readyState === 'complete')) {
-        request();
-      } else if (document) {
-        document.addEventListener('DOMContentLoaded', request, {
-          once: true
-        });
-      } else {
-        request();
-      }
-    }
-  }
-  if (globalScope) {
-    globalScope.mathVisuals =
-      globalScope.mathVisuals && typeof globalScope.mathVisuals === 'object' ? globalScope.mathVisuals : {};
-    globalScope.mathVisuals.applyAppMode = applyAppMode;
-    globalScope.mathVisuals.setAppMode = (mode, options) => setAppMode(mode, options);
-    globalScope.mathVisuals.getAppMode = () => currentAppMode;
-    globalScope.mathVisuals.startTaskDescriptionEdit = options => startTaskModeDescriptionEdit(options);
-    globalScope.mathVisuals.stopTaskDescriptionEdit = () => stopTaskModeDescriptionEdit();
-    if (!globalScope.mathVisuals.settings && globalScope.MathVisualsSettings) {
-      globalScope.mathVisuals.settings = globalScope.MathVisualsSettings;
-    }
-    if (taskTextModule) {
-      globalScope.mathVisuals.getTaskText = taskTextModule.getTaskText;
-      globalScope.mathVisuals.setTaskText = taskTextModule.setTaskText;
-    }
+  if (taskCore && typeof taskCore.attachSettings === 'function' && globalScope && globalScope.MathVisualsSettings) {
+    taskCore.attachSettings(globalScope.MathVisualsSettings);
   }
   const STORAGE_GLOBAL_KEY = '__EXAMPLES_STORAGE__';
   function createMemoryStorage(initialData) {
@@ -7087,7 +6772,9 @@ initExamples();
     });
     deleteDismissListenerAttached = true;
   }
-  applyExampleNavigationVisibilityForMode(currentAppMode);
+  if (taskCore && typeof taskCore.applyDefaultUi === 'function') {
+    taskCore.applyDefaultUi(currentAppMode);
+  }
   moveSettingsIntoExampleCard();
   moveDescriptionBelowTabs();
   window.addEventListener('resize', adjustTabsSpacing);
