@@ -679,18 +679,40 @@ const FIGURE_LIBRARY_APP_KEY = 'sortering';
     applyAppModeToTaskControls(event.detail.mode);
   }
 
-  function evaluateDescriptionInputs() {
-    if (!globalObj) return;
-    const mv = globalObj.mathVisuals;
-    if (!mv || typeof mv.evaluateTaskInputs !== 'function') return;
-    try {
-      mv.evaluateTaskInputs();
-    } catch (_) {}
+  const TASK_APP_ID = 'sortering';
+  function getTaskApi() {
+    if (!globalObj) return null;
+    return globalObj.MathVisualsTaskApi || null;
   }
+  function registerTaskAdapter() {
+    const taskApi = getTaskApi();
+    if (!taskApi || typeof taskApi.registerTaskAdapter !== 'function') return;
+    taskApi.registerTaskAdapter(TASK_APP_ID, {
+      collectInputs() {
+        if (typeof taskApi.evaluateDescriptionInputs === 'function') {
+          taskApi.evaluateDescriptionInputs();
+        }
+      },
+      evaluateAnswers() {
+        runTaskCheck();
+        return null;
+      },
+      resetAnswers() {
+        if (typeof taskApi.resetDescriptionInputs === 'function') {
+          taskApi.resetDescriptionInputs();
+        }
+      }
+    });
+  }
+  registerTaskAdapter();
 
   function handleCheckButtonClick() {
-    evaluateDescriptionInputs();
-    runTaskCheck();
+    const taskApi = getTaskApi();
+    if (taskApi && typeof taskApi.evaluateTask === 'function') {
+      taskApi.evaluateTask(TASK_APP_ID);
+    } else {
+      runTaskCheck();
+    }
   }
 
   function runTaskCheck() {

@@ -1564,8 +1564,6 @@ initExamples();
     globalScope.mathVisuals.getAppMode = () => currentAppMode;
     globalScope.mathVisuals.startTaskDescriptionEdit = options => startTaskModeDescriptionEdit(options);
     globalScope.mathVisuals.stopTaskDescriptionEdit = () => stopTaskModeDescriptionEdit();
-    globalScope.mathVisuals.evaluateTaskInputs = () => evaluateTaskInputs();
-    globalScope.mathVisuals.resetTaskInputs = () => resetTaskInputs();
     if (!globalScope.mathVisuals.settings && globalScope.MathVisualsSettings) {
       globalScope.mathVisuals.settings = globalScope.MathVisualsSettings;
     }
@@ -5642,30 +5640,6 @@ initExamples();
           renderLegacy();
         }
       });
-  }
-
-  function evaluateTaskInputs() {
-    const preview = getDescriptionPreviewElement();
-    if (!preview) return null;
-    if (typeof window === 'undefined') return null;
-    const renderer = window.MathVisDescriptionRenderer;
-    if (!renderer || typeof renderer.evaluateInputs !== 'function') return null;
-    try {
-      return renderer.evaluateInputs(preview);
-    } catch (_) {
-      return null;
-    }
-  }
-
-  function resetTaskInputs() {
-    const preview = getDescriptionPreviewElement();
-    if (!preview) return;
-    if (typeof window === 'undefined') return;
-    const renderer = window.MathVisDescriptionRenderer;
-    if (!renderer || typeof renderer.resetInputs !== 'function') return;
-    try {
-      renderer.resetInputs(preview);
-    } catch (_) {}
   }
 
   function updateDescriptionEditVisibilityForMode(mode) {

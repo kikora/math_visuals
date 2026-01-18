@@ -200,14 +200,35 @@ function setupTallinjeApp({ registerCleanup }) {
     applyAppModeToTaskControls(detail.mode);
   }
 
-  function evaluateDescriptionInputs() {
-    if (typeof window === 'undefined') return;
-    const mv = window.mathVisuals;
-    if (!mv || typeof mv.evaluateTaskInputs !== 'function') return;
-    try {
-      mv.evaluateTaskInputs();
-    } catch (_) {}
+  const TASK_APP_ID = 'tallinje';
+
+  function getTaskApi() {
+    if (typeof window === 'undefined') return null;
+    return window.MathVisualsTaskApi || null;
   }
+
+  function registerTaskAdapter() {
+    const taskApi = getTaskApi();
+    if (!taskApi || typeof taskApi.registerTaskAdapter !== 'function') return;
+    taskApi.registerTaskAdapter(TASK_APP_ID, {
+      collectInputs() {
+        if (typeof taskApi.evaluateDescriptionInputs === 'function') {
+          taskApi.evaluateDescriptionInputs();
+        }
+      },
+      evaluateAnswers() {
+        checkDraggablePlacements();
+        return null;
+      },
+      resetAnswers() {
+        if (typeof taskApi.resetDescriptionInputs === 'function') {
+          taskApi.resetDescriptionInputs();
+        }
+      }
+    });
+  }
+
+  registerTaskAdapter();
 
   addManagedEventListener(typeof window !== 'undefined' ? window : null, 'math-visuals:app-mode-changed', handleAppModeChanged);
 
@@ -2623,8 +2644,12 @@ function setupTallinjeApp({ registerCleanup }) {
 
   if (checkButton) {
     const handleCheckClick = () => {
-      evaluateDescriptionInputs();
-      checkDraggablePlacements();
+      const taskApi = getTaskApi();
+      if (taskApi && typeof taskApi.evaluateTask === 'function') {
+        taskApi.evaluateTask(TASK_APP_ID);
+      } else {
+        checkDraggablePlacements();
+      }
     };
     addManagedEventListener(checkButton, 'click', handleCheckClick);
   }

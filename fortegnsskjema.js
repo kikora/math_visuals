@@ -22,17 +22,37 @@
   const domainMaxInput = doc.getElementById('domainMax');
   const decimalPlacesInput = doc.getElementById('decimalPlaces');
   const checkStatus = doc.getElementById('checkStatus');
-    const taskCheckHost = doc ? doc.querySelector('[data-task-check-host]') : null;
-    const taskCheckControls = [btnCheck, checkStatus].filter(Boolean);
-
-    function evaluateDescriptionInputs() {
-      if (typeof window === 'undefined') return;
-      const mv = window.mathVisuals;
-      if (!mv || typeof mv.evaluateTaskInputs !== 'function') return;
-      try {
-        mv.evaluateTaskInputs();
-      } catch (_) {}
-    }
+  const taskCheckHost = doc ? doc.querySelector('[data-task-check-host]') : null;
+  const taskCheckControls = [btnCheck, checkStatus].filter(Boolean);
+  const TASK_APP_ID = 'fortegnsskjema';
+  function getTaskApi() {
+    if (typeof window === 'undefined') return null;
+    return window.MathVisualsTaskApi || null;
+  }
+  function registerTaskAdapter() {
+    const taskApi = getTaskApi();
+    if (!taskApi || typeof taskApi.registerTaskAdapter !== 'function') return;
+    taskApi.registerTaskAdapter(TASK_APP_ID, {
+      collectInputs() {
+        if (typeof taskApi.evaluateDescriptionInputs === 'function') {
+          taskApi.evaluateDescriptionInputs();
+        }
+      },
+      evaluateAnswers() {
+        if (!ensureSolution()) {
+          return null;
+        }
+        runCheck();
+        return null;
+      },
+      resetAnswers() {
+        if (typeof taskApi.resetDescriptionInputs === 'function') {
+          taskApi.resetDescriptionInputs();
+        }
+      }
+    });
+  }
+  registerTaskAdapter();
   const downloadSvgButton = document.getElementById('btnDownloadSvg');
   const downloadPngButton = document.getElementById('btnDownloadPng');
   let altTextManager = null;
@@ -3231,15 +3251,19 @@
     decimalPlacesInput.addEventListener('change', handleDecimalPlacesChange);
     decimalPlacesInput.addEventListener('input', handleDecimalPlacesInput);
   }
-    if (btnCheck) {
-      btnCheck.addEventListener('click', () => {
-        evaluateDescriptionInputs();
-        if (!ensureSolution()) {
-          return;
-        }
-        runCheck();
-      });
-    }
+  if (btnCheck) {
+    btnCheck.addEventListener('click', () => {
+      const taskApi = getTaskApi();
+      if (taskApi && typeof taskApi.evaluateTask === 'function') {
+        taskApi.evaluateTask(TASK_APP_ID);
+        return;
+      }
+      if (!ensureSolution()) {
+        return;
+      }
+      runCheck();
+    });
+  }
   autoSyncInput.addEventListener('change', event => {
     state.autoSync = event.target.checked;
     updateLockStateUi();

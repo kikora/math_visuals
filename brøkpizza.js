@@ -871,14 +871,35 @@ function handleAppModeChanged(event) {
   applyAppModeToTaskControls(detail.mode);
 }
 
-function evaluateDescriptionInputs() {
-  if (typeof window === 'undefined') return;
-  const mv = window.mathVisuals;
-  if (!mv || typeof mv.evaluateTaskInputs !== 'function') return;
-  try {
-    mv.evaluateTaskInputs();
-  } catch (_) {}
+const TASK_APP_ID = 'brøkpizza';
+
+function getTaskApi() {
+  if (typeof window === 'undefined') return null;
+  return window.MathVisualsTaskApi || null;
 }
+
+function registerTaskAdapter() {
+  const taskApi = getTaskApi();
+  if (!taskApi || typeof taskApi.registerTaskAdapter !== 'function') return;
+  taskApi.registerTaskAdapter(TASK_APP_ID, {
+    collectInputs() {
+      if (typeof taskApi.evaluateDescriptionInputs === 'function') {
+        taskApi.evaluateDescriptionInputs();
+      }
+    },
+    evaluateAnswers() {
+      runTaskCheck();
+      return null;
+    },
+    resetAnswers() {
+      if (typeof taskApi.resetDescriptionInputs === 'function') {
+        taskApi.resetDescriptionInputs();
+      }
+    }
+  });
+}
+
+registerTaskAdapter();
 
 function setCheckStatus(type, heading, detailLines) {
   if (!checkStatus) return;
@@ -920,8 +941,12 @@ applyAppModeToTaskControls(initialAppMode);
 
 if (checkButton) {
   checkButton.addEventListener('click', () => {
-    evaluateDescriptionInputs();
-    runTaskCheck();
+    const taskApi = getTaskApi();
+    if (taskApi && typeof taskApi.evaluateTask === 'function') {
+      taskApi.evaluateTask(TASK_APP_ID);
+    } else {
+      runTaskCheck();
+    }
   });
 }
 
