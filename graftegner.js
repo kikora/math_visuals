@@ -413,9 +413,9 @@ function refreshGraftegnerTheme(options = {}) {
   const primary = finalPalette[0];
   const secondary = finalPalette[1] || primary;
 
-  DEFAULT_POINT_COLORS.line = primary;
-  DEFAULT_POINT_COLORS.markerStroke = primary;
-  DEFAULT_POINT_COLORS.markerFill = primary || DEFAULT_POINT_COLORS.fallbackMarkerFill;
+  DEFAULT_POINT_COLORS.line = secondary || primary || DEFAULT_POINT_COLORS.fallbackMarkerStroke;
+  DEFAULT_POINT_COLORS.markerStroke = DEFAULT_POINT_COLORS.line || DEFAULT_POINT_COLORS.fallbackMarkerStroke;
+  DEFAULT_POINT_COLORS.markerFill = DEFAULT_POINT_COLORS.markerStroke || DEFAULT_POINT_COLORS.fallbackMarkerFill;
   DEFAULT_POINT_COLORS.domainMarker = secondary;
 
   const axisColor = DEFAULT_AXIS_COLOR;
@@ -658,8 +658,8 @@ function applyGraftegnerPalette(palette, options = {}) {
   const primary = resolved[0] || DEFAULT_FUNCTION_COLORS.fallback[0];
   const secondary = resolved[1] || resolved[0] || DEFAULT_POINT_COLORS.fallbackDomain;
   const tertiary = resolved[2] || secondary || DEFAULT_POINT_COLORS.fallbackGuide;
-  DEFAULT_POINT_COLORS.line = primary;
-  DEFAULT_POINT_COLORS.markerStroke = primary || DEFAULT_POINT_COLORS.fallbackMarkerStroke;
+  DEFAULT_POINT_COLORS.line = secondary || primary || DEFAULT_POINT_COLORS.fallbackMarkerStroke;
+  DEFAULT_POINT_COLORS.markerStroke = DEFAULT_POINT_COLORS.line || DEFAULT_POINT_COLORS.fallbackMarkerStroke;
   DEFAULT_POINT_COLORS.markerFill = DEFAULT_POINT_COLORS.markerStroke || DEFAULT_POINT_COLORS.fallbackMarkerFill;
   DEFAULT_POINT_COLORS.domainMarker = secondary || DEFAULT_POINT_COLORS.fallbackDomain;
   DEFAULT_POINT_COLORS.guideStroke = tertiary || DEFAULT_POINT_COLORS.fallbackGuide;
@@ -4100,6 +4100,18 @@ function colorFor(i) {
   }
   return palette[index % palette.length];
 }
+function lineColorForCurve(i) {
+  const index = Number.isFinite(i) && i >= 0 ? Math.trunc(i) : 0;
+  ensurePaletteCapacity((index + 1) * 2);
+  const palette = resolveCurvePalette((index + 1) * 2);
+  const pairIndex = index * 2 + 1;
+  const fallback = DEFAULT_FUNCTION_COLORS.fallback.length ? DEFAULT_FUNCTION_COLORS.fallback : GRAFTEGNER_FALLBACK_PALETTE;
+  const lineColor = normalizeColorValue(palette[pairIndex]) || normalizeColorValue(palette[index]);
+  return lineColor
+    || normalizeColorValue(DEFAULT_POINT_COLORS.line)
+    || normalizeColorValue(fallback[pairIndex % fallback.length] || fallback[index % fallback.length])
+    || DEFAULT_POINT_COLORS.fallbackMarkerStroke;
+}
 function updateCurveColorsFromTheme() {
   if (!Array.isArray(appState.graphs) || appState.graphs.length === 0) return;
   const palette = resolveCurvePalette(appState.graphs.length);
@@ -4115,6 +4127,7 @@ function updateCurveColorsFromTheme() {
     }
     const appliedColor = typeof g.color === 'string' && g.color ? g.color : paletteColor;
     if (!appliedColor) return;
+    g.lineColor = lineColorForCurve(idx);
     if (Array.isArray(g.segs)) {
       g.segs.forEach(seg => {
         if (seg && typeof seg.setAttribute === 'function') {
@@ -4123,16 +4136,18 @@ function updateCurveColorsFromTheme() {
       });
     }
     if (Array.isArray(g.gliders) && g.gliders.length) {
+      const appliedLineColor = lineColorForCurve(idx);
       g.gliders.forEach(point => {
         if (point && typeof point.setAttribute === 'function') {
-          point.setAttribute({ strokeColor: appliedColor, fillColor: appliedColor });
+          point.setAttribute({ strokeColor: appliedLineColor, fillColor: appliedLineColor });
         }
       });
     }
     if (Array.isArray(g.guideArrows) && g.guideArrows.length) {
+      const appliedLineColor = lineColorForCurve(idx);
       g.guideArrows.forEach(arrow => {
         if (arrow && typeof arrow.setAttribute === 'function') {
-          arrow.setAttribute({ strokeColor: appliedColor });
+          arrow.setAttribute({ strokeColor: appliedLineColor });
         }
       });
     }
@@ -5379,11 +5394,13 @@ function buildFunctions() {
       }
     }
     const color = manualColor || defaultColor;
+    const lineColor = lineColorForCurve(i);
     const fn = parseFunctionSpec(`${f.name}(x)=${f.rhs}`);
     const labelContent = buildCurveLabelContent(f);
     const g = {
       name: f.name,
       color,
+      lineColor,
       manualColor: !!manualColor,
       domain: f.domain || null,
       label: labelContent && labelContent.text || '',
@@ -5471,8 +5488,8 @@ function buildFunctions() {
         withLabel: true,
         face: 'o',
         size: POINT_MARKER_SIZE,
-        strokeColor: G.color,
-        fillColor: G.color,
+        strokeColor: G.lineColor || lineColorForCurve(0),
+        fillColor: G.lineColor || lineColorForCurve(0),
         showInfobox: false
       });
       gliders.push(P);
@@ -5521,7 +5538,7 @@ function buildFunctions() {
       }
       if (MODE === 'functions' && ADV.points.guideArrows) {
         const arrowX = appState.board.create('arrow', [() => [P.X(), P.Y()], () => [0, P.Y()]], {
-          strokeColor: G.color,
+          strokeColor: G.lineColor || lineColorForCurve(0),
           strokeWidth: 2,
           dash: 2,
           lastArrow: true,
@@ -5531,7 +5548,7 @@ function buildFunctions() {
           highlight: false
         });
         const arrowY = appState.board.create('arrow', [() => [P.X(), P.Y()], () => [P.X(), 0]], {
-          strokeColor: G.color,
+          strokeColor: G.lineColor || lineColorForCurve(0),
           strokeWidth: 2,
           dash: 2,
           lastArrow: true,
@@ -5565,6 +5582,7 @@ function buildPointsLine() {
   };
   const manualLineColor = first && first.colorSource === 'manual' ? normalizeColorValue(first.color) : '';
   const lineColor = manualLineColor || paletteColor;
+  const pointColor = lineColorForCurve(0) || lineColor;
   const lineColorManual = !!manualLineColor;
   const template = interpretLineTemplate(first.rhs);
   const kind = template.kind || 'two';
@@ -5577,8 +5595,8 @@ function buildPointsLine() {
       name: '',
       size: POINT_MARKER_SIZE,
       face: 'o',
-      fillColor: lineColor || DEFAULT_POINT_COLORS.fallbackMarkerFill,
-      strokeColor: lineColor,
+      fillColor: pointColor || DEFAULT_POINT_COLORS.fallbackMarkerFill,
+      strokeColor: pointColor,
       withLabel: true,
       showInfobox: false
     });
@@ -5587,8 +5605,8 @@ function buildPointsLine() {
       name: '',
       size: POINT_MARKER_SIZE,
       face: 'o',
-      fillColor: lineColor || DEFAULT_POINT_COLORS.fallbackMarkerFill,
-      strokeColor: lineColor,
+      fillColor: pointColor || DEFAULT_POINT_COLORS.fallbackMarkerFill,
+      strokeColor: pointColor,
       withLabel: true,
       showInfobox: false
     });
@@ -5606,8 +5624,8 @@ function buildPointsLine() {
       name: '',
       size: POINT_MARKER_SIZE,
       face: 'o',
-      fillColor: lineColor || DEFAULT_POINT_COLORS.fallbackMarkerFill,
-      strokeColor: lineColor,
+      fillColor: pointColor || DEFAULT_POINT_COLORS.fallbackMarkerFill,
+      strokeColor: pointColor,
       withLabel: true,
       showInfobox: false
     });
@@ -5620,8 +5638,8 @@ function buildPointsLine() {
       name: '',
       size: POINT_MARKER_SIZE,
       face: 'o',
-      fillColor: lineColor || DEFAULT_POINT_COLORS.fallbackMarkerFill,
-      strokeColor: lineColor,
+      fillColor: pointColor || DEFAULT_POINT_COLORS.fallbackMarkerFill,
+      strokeColor: pointColor,
       withLabel: true,
       showInfobox: false
     });
