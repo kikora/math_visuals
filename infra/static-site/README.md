@@ -42,6 +42,11 @@ their underlying HTML assets before the request reaches S3. This keeps deep
 links to individual tools working even when the path omits the `.html`
 extension or includes an example slug.
 
+Static assets served from S3 include response headers that force browsers to
+revalidate on each request (`Cache-Control: max-age=0, must-revalidate`). This
+reduces the risk of end users seeing stale HTML/JS after a deployment without
+having to clear their local caches.
+
 ## Parameters
 
 | Name                       | Description |
@@ -107,6 +112,16 @@ Prerequisites:
 
 ```bash
 # From the repository root
+scripts/deploy-static-site.sh
+```
+
+**Dev/staging:** point the deploy script at the non-prod stack name (and shared
+stack if you use a separate one) to apply the same CloudFront response header
+changes in those environments:
+
+```bash
+STACK_NAME=math-visuals-static-site-dev \
+SHARED_STACK_NAME=math-visuals-shared-dev \
 scripts/deploy-static-site.sh
 ```
 
