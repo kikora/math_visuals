@@ -1317,6 +1317,21 @@ function isValidColor(value) {
     const data = svgToString(svgEl);
     const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
     const meta = buildFigurtallExportMeta();
+    const htmlTarget = document.querySelector('.figure') || svgEl;
+    if (helper && typeof helper.exportGraphicWithArchiveWithFallback === 'function') {
+      await helper.exportGraphicWithArchiveWithFallback({
+        svgElement: svgEl,
+        htmlTarget,
+        suggestedName,
+        toolId: 'figurtall',
+        svgString: data,
+        description: meta.description,
+        slug: meta.slug,
+        defaultBaseName: meta.defaultBaseName,
+        summary: meta.summary
+      });
+      return;
+    }
     if (helper && typeof helper.exportSvgWithArchive === 'function') {
       await helper.exportSvgWithArchive(svgEl, suggestedName, 'figurtall', {
         svgString: data,

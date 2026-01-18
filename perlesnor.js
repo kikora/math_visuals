@@ -1148,6 +1148,21 @@ async function downloadSVG(svgEl, filename) {
   if (!data) throw new Error('SVG-data manglet.');
   const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
   const meta = buildPerlesnorExportMeta();
+  const htmlTarget = document.querySelector('.figure') || svgEl;
+  if (helper && typeof helper.exportGraphicWithArchiveWithFallback === 'function') {
+    await helper.exportGraphicWithArchiveWithFallback({
+      svgElement: svgEl,
+      htmlTarget,
+      suggestedName,
+      toolId: 'perlesnor',
+      svgString: data,
+      description: meta.description,
+      slug: meta.slug,
+      defaultBaseName: meta.defaultBaseName,
+      summary: meta.summary
+    });
+    return;
+  }
   if (helper && typeof helper.exportSvgWithArchive === 'function') {
     await helper.exportSvgWithArchive(svgEl, suggestedName, 'perlesnor', {
       svgString: data,

@@ -150,6 +150,20 @@ function isValidColor(value) {
     const data = svgToString(svgEl);
     const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
     const meta = buildBrokfigurerExportMeta();
+    const htmlTarget = document.querySelector('.figure') || svgEl;
+    if (helper && typeof helper.exportGraphicWithArchiveWithFallback === 'function') {
+      return helper.exportGraphicWithArchiveWithFallback({
+        svgElement: svgEl,
+        htmlTarget,
+        suggestedName,
+        toolId: 'brokfigurer',
+        svgString: data,
+        description: meta.description,
+        slug: meta.slug,
+        defaultBaseName: meta.defaultBaseName,
+        summary: meta.summary
+      });
+    }
     if (helper && typeof helper.exportSvgWithArchive === 'function') {
       return helper.exportSvgWithArchive(svgEl, suggestedName, 'brokfigurer', {
         svgString: data,

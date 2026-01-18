@@ -1825,6 +1825,21 @@ function downloadSVG(svgEl, filename = "pizza.svg") {
   const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
   const baseName = filename.replace(/\.svg$/i, '');
   const meta = buildBropizzaExportMeta({ baseName });
+  const htmlTarget = document.querySelector('.figure') || svgEl;
+  if (helper && typeof helper.exportGraphicWithArchiveWithFallback === 'function') {
+    helper.exportGraphicWithArchiveWithFallback({
+      svgElement: clone,
+      htmlTarget,
+      suggestedName: filename,
+      toolId: 'brokpizza',
+      svgString: file,
+      description: meta.description,
+      slug: meta.slug,
+      defaultBaseName: meta.defaultBaseName,
+      summary: meta.summary
+    });
+    return;
+  }
   if (helper && typeof helper.exportSvgWithArchive === 'function') {
     helper.exportSvgWithArchive(clone, filename, 'brokpizza', {
       svgString: file,
@@ -2025,6 +2040,21 @@ function downloadAllPizzasSVG(filename = "broksirkler.svg") {
   if (!data) return;
   const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
   const meta = buildBropizzaExportMeta({ baseName: filename.replace(/\.svg$/i, '') });
+  const htmlTarget = document.querySelector('.figure') || data.svg;
+  if (helper && typeof helper.exportGraphicWithArchiveWithFallback === 'function') {
+    helper.exportGraphicWithArchiveWithFallback({
+      svgElement: data.svg,
+      htmlTarget,
+      suggestedName: filename,
+      toolId: 'brokpizza',
+      svgString: data.xml,
+      description: meta.description,
+      slug: meta.slug,
+      defaultBaseName: meta.defaultBaseName,
+      summary: meta.summary
+    });
+    return;
+  }
   if (helper && typeof helper.exportSvgWithArchive === 'function') {
     helper.exportSvgWithArchive(data.svg, filename, 'brokpizza', {
       svgString: data.xml,
@@ -2191,6 +2221,21 @@ function downloadAllPizzasInteractiveSVG(filename = "broksirkler-interaktiv.svg"
   const file = `<?xml version="1.0" encoding="UTF-8"?>\n` + xml;
   const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
   const meta = buildBropizzaExportMeta({ baseName: filename.replace(/\.svg$/i, '') });
+  const htmlTarget = document.querySelector('.figure') || root;
+  if (helper && typeof helper.exportGraphicWithArchiveWithFallback === 'function') {
+    helper.exportGraphicWithArchiveWithFallback({
+      svgElement: root,
+      htmlTarget,
+      suggestedName: filename,
+      toolId: 'brokpizza',
+      svgString: file,
+      description: meta.description,
+      slug: meta.slug,
+      defaultBaseName: meta.defaultBaseName,
+      summary: { ...meta.summary, interactive: true }
+    });
+    return;
+  }
   if (helper && typeof helper.exportSvgWithArchive === 'function') {
     helper.exportSvgWithArchive(root, filename, 'brokpizza', {
       svgString: file,

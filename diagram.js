@@ -3651,6 +3651,21 @@ async function downloadSVG(svgEl, filename) {
   const data = await svgToString(svgEl);
   const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
   const meta = buildDiagramExportMeta();
+  const htmlTarget = document.querySelector('.figure') || svgEl;
+  if (helper && typeof helper.exportGraphicWithArchiveWithFallback === 'function') {
+    await helper.exportGraphicWithArchiveWithFallback({
+      svgElement: svgEl,
+      htmlTarget,
+      suggestedName,
+      toolId: 'diagram',
+      svgString: data,
+      description: meta.description,
+      slug: meta.slug,
+      defaultBaseName: meta.defaultBaseName,
+      summary: meta.summary
+    });
+    return;
+  }
   if (helper && typeof helper.exportSvgWithArchive === 'function') {
     await helper.exportSvgWithArchive(svgEl, suggestedName, 'diagram', {
       svgString: data,
