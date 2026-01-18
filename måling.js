@@ -221,6 +221,7 @@ const FIGURE_LIBRARY_APP_KEY = 'maling';
   let figurePickerData = null;
   let figurePicker = null;
   let figurePickerRequiresScaleLabel = true;
+  const FIGURE_CATEGORY_EMPTY_LABEL = 'Ingen kategorier tilgjengelig';
 
   function buildFigureLibraryBundle(requireScaleLabel = true) {
     const data = buildFigureData({
@@ -228,9 +229,14 @@ const FIGURE_LIBRARY_APP_KEY = 'maling';
       extractRealWorldSizeFromText,
       requireScaleLabel
     });
+    let pickerCategories = Array.isArray(data.categories) ? data.categories.filter(Boolean) : [];
+    const hasNonCustomCategory = pickerCategories.some(category => category && category.id !== CUSTOM_CATEGORY_ID);
+    if (!hasNonCustomCategory) {
+      pickerCategories = [];
+    }
     const pickerData = {
       ...data,
-      categories: Array.isArray(data.categories) ? data.categories.filter(Boolean) : []
+      categories: pickerCategories
     };
     return { data, pickerData };
   }
@@ -3880,7 +3886,11 @@ const FIGURE_LIBRARY_APP_KEY = 'maling';
         if (appState.syncingInputs) return;
         if (event && event.isTrusted === false) return;
         const categoryId = event.target.value;
-        const { selectedId } = figurePicker.renderCategorySelect(inputs.figureCategory, categoryId);
+        const { selectedId } = figurePicker.renderCategorySelect(
+          inputs.figureCategory,
+          categoryId,
+          { placeholderLabel: FIGURE_CATEGORY_EMPTY_LABEL }
+        );
         if (inputs.figurePreset) {
           const { options } = figurePicker.renderFigureSelect(inputs.figurePreset, selectedId, null, {
             disableWhenEmpty: false
@@ -6614,7 +6624,11 @@ const FIGURE_LIBRARY_APP_KEY = 'maling';
     }
     const preset = resolvePresetFromSettings(settings);
     const desiredCategoryId = preset ? preset.categoryId : CUSTOM_CATEGORY_ID;
-    const { selectedId } = figurePicker.renderCategorySelect(inputs.figureCategory, desiredCategoryId);
+    const { selectedId } = figurePicker.renderCategorySelect(
+      inputs.figureCategory,
+      desiredCategoryId,
+      { placeholderLabel: FIGURE_CATEGORY_EMPTY_LABEL }
+    );
     figurePicker.renderFigureSelect(inputs.figurePreset, selectedId, preset ? preset.id : CUSTOM_FIGURE_ID, {
       disableWhenEmpty: false
     });
