@@ -1421,7 +1421,8 @@ initExamples();
       getExamples,
       getActiveExampleIndex,
       extractDescriptionFromExample,
-      normalizeDescriptionString
+      normalizeDescriptionString,
+      getExampleId: (example, index) => resolveExampleId(example, index)
     });
   }
   function parseInitialAppMode() {
@@ -4530,6 +4531,32 @@ initExamples();
     return '';
   }
 
+  function normalizeExampleId(value) {
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      return trimmed ? trimmed : null;
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return String(Math.trunc(value));
+    }
+    return null;
+  }
+
+  function resolveExampleId(example, index) {
+    if (example && typeof example === 'object') {
+      const candidateKeys = ['exampleId', 'exampleID', 'exampleNumber', 'id'];
+      for (const key of candidateKeys) {
+        if (!Object.prototype.hasOwnProperty.call(example, key)) continue;
+        const normalized = normalizeExampleId(example[key]);
+        if (normalized) return normalized;
+      }
+    }
+    if (Number.isInteger(index)) {
+      return String(index + 1);
+    }
+    return null;
+  }
+
   const MAX_SVG_STORAGE_BYTES = 120000;
   const MAX_THUMBNAIL_STORAGE_BYTES = 24000;
   const MAX_THUMBNAIL_DIMENSION = 256;
@@ -4814,6 +4841,17 @@ initExamples();
     const taskText = getTaskTextModule();
     if (!taskText || typeof taskText.getTaskText !== 'function') return '';
     return taskText.getTaskText();
+  }
+
+  function getDescriptionValueForPersistence() {
+    if (currentAppMode !== 'task') {
+      return getDescriptionValue();
+    }
+    const examples = getExamples();
+    const index = getActiveExampleIndex(examples);
+    if (index == null) return '';
+    const example = examples[index];
+    return extractDescriptionFromExample(example);
   }
 
   function setDescriptionValue(value) {
@@ -6404,7 +6442,7 @@ initExamples();
     return {
       config,
       svg: svgMarkup,
-      description: getDescriptionValue()
+      description: getDescriptionValueForPersistence()
     };
   }
   function notifyParentExampleChange(index) {
@@ -6627,6 +6665,10 @@ initExamples();
       })();
       setDescriptionValue(description != null ? normalizeDescriptionString(description) : '');
       if (currentAppMode === 'task') {
+        const taskText = getTaskTextModule();
+        if (taskText && typeof taskText.applyTaskTextForExample === 'function') {
+          taskText.applyTaskTextForExample(ex, index);
+        }
         ensureTaskModeDescriptionRendered();
       }
       if (typeof loader === 'function') {
@@ -6661,6 +6703,10 @@ initExamples();
         : extractDescriptionFromExample(ex);
     setDescriptionValue(description);
     if (currentAppMode === 'task') {
+      const taskText = getTaskTextModule();
+      if (taskText && typeof taskText.applyTaskTextForExample === 'function') {
+        taskText.applyTaskTextForExample(ex, index);
+      }
       ensureTaskModeDescriptionRendered();
     }
     let applied = false;
@@ -7295,14 +7341,14 @@ initExamples();
       ex = {
         config: fallbackConfig,
         svg: '',
-        description: getDescriptionValue()
+        description: getDescriptionValueForPersistence()
       };
     }
     if (!ex || typeof ex !== 'object') {
       ex = {
         config: {},
         svg: '',
-        description: getDescriptionValue()
+        description: getDescriptionValueForPersistence()
       };
     }
     return ex;
@@ -7446,7 +7492,7 @@ initExamples();
         if (payload && Object.prototype.hasOwnProperty.call(payload, 'description')) {
           legacy.description = typeof payload.description === 'string' ? payload.description : '';
         } else {
-          legacy.description = getDescriptionValue();
+          legacy.description = getDescriptionValueForPersistence();
         }
         return legacy;
       })();
