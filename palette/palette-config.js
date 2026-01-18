@@ -196,16 +196,7 @@ function buildLegacyPaletteConfig() {
         { index: 6, label: 'Vinkel 2', description: 'Vinkelfarge til fargesett 2.' },
         { index: 7, label: 'Fyll 3', description: 'Fyllfarge til fargesett 3.' },
         { index: 8, label: 'Linje 3', description: 'Linjefarge til fargesett 3.' },
-        { index: 9, label: 'Vinkel 3', description: 'Vinkelfarge til fargesett 3.' },
-        { index: 10, label: 'Fyll 4', description: 'Fyllfarge til fargesett 4.' },
-        { index: 11, label: 'Linje 4', description: 'Linjefarge til fargesett 4.' },
-        { index: 12, label: 'Vinkel 4', description: 'Vinkelfarge til fargesett 4.' },
-        { index: 13, label: 'Fyll 5', description: 'Fyllfarge til fargesett 5.' },
-        { index: 14, label: 'Linje 5', description: 'Linjefarge til fargesett 5.' },
-        { index: 15, label: 'Vinkel 5', description: 'Vinkelfarge til fargesett 5.' },
-        { index: 16, label: 'Fyll 6', description: 'Fyllfarge til fargesett 6.' },
-        { index: 17, label: 'Linje 6', description: 'Linjefarge til fargesett 6.' },
-        { index: 18, label: 'Vinkel 6', description: 'Vinkelfarge til fargesett 6.' }
+        { index: 9, label: 'Vinkel 3', description: 'Vinkelfarge til fargesett 3.' }
       ]
     },
     {
