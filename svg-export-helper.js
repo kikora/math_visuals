@@ -6,6 +6,7 @@
   let toastStyleInjected = false;
   let toastContainer = null;
   let archiveEntriesPromise = null;
+  let html2canvasPromise = null;
   const ARCHIVE_ENTRIES_TIMEOUT_MS = 2000;
 
   function ensureToastStyle(doc) {
@@ -129,6 +130,27 @@
       }, timeout);
     }
     return toast;
+  }
+
+  function ensureHtml2Canvas(doc) {
+    if (typeof global.html2canvas === 'function') {
+      return Promise.resolve(global.html2canvas);
+    }
+    if (!doc || !doc.head) {
+      return Promise.resolve(null);
+    }
+    if (html2canvasPromise) {
+      return html2canvasPromise;
+    }
+    html2canvasPromise = new Promise(resolve => {
+      const script = doc.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+      script.async = true;
+      script.onload = () => resolve(typeof global.html2canvas === 'function' ? global.html2canvas : null);
+      script.onerror = () => resolve(null);
+      doc.head.appendChild(script);
+    });
+    return html2canvasPromise;
   }
 
   function sanitizeBaseName(value, fallback = 'export') {
@@ -474,6 +496,30 @@
     }).catch(() => null);
   }
 
+  async function blobToBase64DataUrl(blob) {
+    if (!(blob instanceof Blob)) return null;
+    const readerResult = await Promise.resolve(blobToDataUrl(blob)).catch(() => null);
+    if (typeof readerResult === 'string') {
+      return readerResult;
+    }
+    if (typeof blob.arrayBuffer !== 'function' || typeof global.btoa !== 'function') {
+      return null;
+    }
+    try {
+      const buffer = await blob.arrayBuffer();
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      const chunkSize = 0x8000;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        const chunk = bytes.subarray(i, i + chunkSize);
+        binary += String.fromCharCode(...chunk);
+      }
+      return `data:${blob.type || 'image/png'};base64,${global.btoa(binary)}`;
+    } catch (error) {
+      return null;
+    }
+  }
+
   function triggerDownload(doc, href, filename) {
     if (!href || !doc || !doc.body) return;
     const anchor = doc.createElement('a');
@@ -671,13 +717,13 @@
   }
 
   async function renderSvgToPngWithHtml2Canvas(svgElement, options = {}) {
-    const html2canvas = global.html2canvas;
-    if (typeof html2canvas !== 'function') return null;
     if (!svgElement || typeof svgElement !== 'object') return null;
     const doc = svgElement.ownerDocument || (typeof document !== 'undefined' ? document : null);
     if (!doc || !doc.body) {
       throw new Error('document mangler');
     }
+    const html2canvas = await ensureHtml2Canvas(doc);
+    if (typeof html2canvas !== 'function') return null;
     const host = doc.createElement('div');
     host.style.position = 'fixed';
     host.style.left = '-10000px';
@@ -806,20 +852,30 @@
     let pngData = null;
     let pngUrl = null;
     let pngError = null;
+    let pngResult = null;
     try {
-      let pngResult = await renderSvgToPngWithHtml2Canvas(exportSvg, {
+      pngResult = await renderSvgToPngWithHtml2Canvas(exportSvg, {
         backgroundColor: options.backgroundColor || '#fff',
         bounds: dimensions
       });
-      if (!pngResult) {
-        pngResult = await renderSvgToPng(doc, svgUrl, svgString, dimensions);
-      }
-      pngData = pngResult;
-      if (pngResult && urlApi) {
-        pngUrl = urlApi.createObjectURL(pngResult.blob);
-      }
     } catch (error) {
       pngError = error;
+    }
+    if (!pngResult) {
+      try {
+        pngResult = await renderSvgToPng(doc, svgUrl, svgString, dimensions);
+      } catch (error) {
+        pngError = error;
+      }
+    }
+    if (pngResult) {
+      pngData = pngResult;
+      if (pngData && pngData.blob && !pngData.dataUrl) {
+        pngData.dataUrl = await blobToBase64DataUrl(pngData.blob);
+      }
+      if (urlApi) {
+        pngUrl = urlApi.createObjectURL(pngResult.blob);
+      }
     }
 
     if (svgUrl) {
@@ -849,7 +905,7 @@
     }
 
     if (pngError && !pngData) {
-      const message = pngError && pngError.message ? pngError.message : 'Ukjent feil';
+      const message = pngError && pngError.message ? pngError.message : String(pngError || 'Ukjent feil');
       showToast(`PNG feilet: ${message}.`, 'error');
     }
 
@@ -944,14 +1000,7 @@
     let uploadPromise = null;
     const canUpload = typeof payload.svg === 'string' && payload.svg.trim().length > 0;
     const hasPng = typeof payload.png === 'string' && payload.png.trim().length > 0;
-    if (typeof global.fetch === 'function' && canUpload) {
-      if (!hasPng && typeof global.console !== 'undefined' && typeof global.console.warn === 'function') {
-        global.console.warn('PNG mangler, men SVG blir fortsatt lastet opp til /api/svg.', {
-          tool,
-          slug,
-          baseName
-        });
-      }
+    if (typeof global.fetch === 'function' && canUpload && hasPng) {
       uploadPromise = global.fetch('/api/svg', {
         method: 'POST',
         headers: {
@@ -977,6 +1026,8 @@
           showToast(`Grafikk lastet ned, men arkivopplasting feilet: ${message}.`, 'error');
           throw error;
         });
+    } else if (typeof global.fetch === 'function' && canUpload && !hasPng) {
+      showToast('PNG mangler, så arkivopplasting ble hoppet over.', 'error');
     } else if (typeof global.fetch !== 'function') {
       showToast(`Grafikk lastet ned som ${svgFilename} og ${pngFilename}. (Arkivopplasting ikke tilgjengelig.)`, 'info');
     } else if (!canUpload) {
