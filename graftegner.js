@@ -1396,16 +1396,6 @@ if (STORAGE_STATE_V2) {
   }
 }
 
-if (typeof window !== "undefined") {
-  window.addEventListener("math-visuals:settings-changed", scheduleThemeRefresh);
-  window.addEventListener("math-visuals:profile-change", scheduleThemeRefresh);
-  window.addEventListener("message", (event) => {
-    const data = event && event.data;
-    const type = typeof data === "string" ? data : (data && data.type);
-    if (type === "math-visuals:profile-change") scheduleThemeRefresh();
-  });
-}
-
 if (typeof MutationObserver !== "undefined" && typeof document !== "undefined") {
   const observer = new MutationObserver((mutations) => {
     for (const m of mutations) {
