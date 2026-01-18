@@ -1353,8 +1353,16 @@ window.addEventListener('message', event => {
       canonicalEntryPath = normalizeExamplePath(currentEntry.path);
     }
   }
+  const isSameIframeSource =
+    iframe && iframe.contentWindow && event && event.source === iframe.contentWindow;
+  const isSameEntrySource = (() => {
+    if (!isSameIframeSource || !currentEntry || !normalizedPath) return false;
+    const entryPath = normalizeEntryPath(currentEntry.path || currentEntry.href || '');
+    const entryHref = normalizeEntryPath(currentEntry.href || currentEntry.path || '');
+    return normalizedPath === entryPath || normalizedPath === entryHref;
+  })();
   if (canonicalMessagePath && canonicalEntryPath && canonicalMessagePath !== canonicalEntryPath) {
-    return;
+    if (!isSameEntrySource) return;
   }
   if (
     !canonicalMessagePath &&
@@ -1363,7 +1371,7 @@ window.addEventListener('message', event => {
     typeof currentEntry.path === 'string' &&
     normalizedPath !== currentEntry.path
   ) {
-    return;
+    if (!isSameEntrySource) return;
   }
   const parsedNumber = Number(data.exampleNumber);
   const exampleNumber = Number.isFinite(parsedNumber) && parsedNumber > 0 ? parsedNumber : null;
