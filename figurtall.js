@@ -90,8 +90,13 @@ function isValidColor(value) {
 
 (function () {
   const boxes = [];
+  const appModeModule = typeof window !== 'undefined' ? window.MathVisualsAppMode : null;
+  const normalizeMode =
+    appModeModule && typeof appModeModule.normalizeMode === 'function'
+      ? appModeModule.normalizeMode
+      : value => (typeof value === 'string' && value.trim().toLowerCase() === 'task' ? 'task' : 'default');
   let taskStudentCells = null;
-  let currentAppMode = getInitialAppMode();
+  let currentAppMode = resolveInitialAppMode();
   let altTextManager = null;
   let altTextRefreshTimer = null;
   let lastAltTextSignature = null;
@@ -1009,44 +1014,11 @@ function isValidColor(value) {
     return false;
   }
   function isTaskLikeMode(value) {
-    return normalizeAppMode(value) === 'task';
-  }
-  function normalizeAppMode(value) {
-    if (typeof value !== 'string') return 'default';
-    const normalized = value.trim().toLowerCase();
-    if (
-      [
-        'task',
-        'tasks',
-        'oppgave',
-        'oppgaver',
-        'oppgavemodus',
-        'student',
-        'elev',
-        'preview',
-        'forhandsvisning',
-        'forhåndsvisning',
-        'task-mode',
-        'preview-mode'
-      ].includes(normalized)
-    ) {
-      return 'task';
-    }
-    return 'default';
-  }
-  function syncBodyAppMode(mode) {
-    if (typeof document === 'undefined') return;
-    const body = document.body;
-    if (!body || !body.dataset) return;
-    const normalized = normalizeAppMode(mode);
-    if (body.dataset.appMode !== normalized) {
-      body.dataset.appMode = normalized;
-    }
+    return normalizeMode(value) === 'task';
   }
   function applyAppModeChange(mode) {
-    const normalized = normalizeAppMode(mode);
+    const normalized = normalizeMode(mode);
     const changed = normalized !== currentAppMode;
-    syncBodyAppMode(normalized);
     currentAppMode = normalized;
     if (STATE.lastFigureIsAnswer && currentAppMode === 'task') {
       ensureTaskStudentCells(true);
@@ -1062,18 +1034,17 @@ function isValidColor(value) {
       updateTaskStatus('');
     }
   }
-  function handleAppModeChanged(event) {
-    if (!event || !event.detail || typeof event.detail.mode !== 'string') return;
-    applyAppModeChange(event.detail.mode);
+  function handleAppModeChanged(mode) {
+    applyAppModeChange(mode);
   }
-  function getInitialAppMode() {
+  function resolveInitialAppMode() {
     let resolved = 'default';
     if (typeof window === 'undefined') return resolved;
     const mv = window.mathVisuals;
     if (mv && typeof mv.getAppMode === 'function') {
       try {
         const mode = mv.getAppMode();
-        const normalized = normalizeAppMode(mode);
+        const normalized = normalizeMode(mode);
         if (normalized === 'task') {
           resolved = normalized;
         }
@@ -1081,7 +1052,7 @@ function isValidColor(value) {
     }
     if (resolved === 'default' && typeof document !== 'undefined' && document.body && document.body.dataset) {
       const bodyMode = document.body.dataset.appMode;
-      const normalized = normalizeAppMode(bodyMode);
+      const normalized = normalizeMode(bodyMode);
       if (normalized === 'task') {
         resolved = normalized;
       }
@@ -1090,13 +1061,12 @@ function isValidColor(value) {
       try {
         const params = new URLSearchParams(window.location && window.location.search ? window.location.search : '');
         const fromQuery = params.get('mode');
-        const normalized = normalizeAppMode(fromQuery);
+        const normalized = normalizeMode(fromQuery);
         if (normalized === 'task') {
           resolved = normalized;
         }
       } catch (_) {}
     }
-    syncBodyAppMode(resolved);
     return resolved;
   }
   function applyStateToControls() {
@@ -2332,9 +2302,11 @@ function isValidColor(value) {
       window.addEventListener('math-visuals:project-change', handleProjectProfileChange);
       window.addEventListener('message', handleProjectProfileMessage);
       window.addEventListener('math-visuals:settings-changed', handleThemeSettingsChanged);
-      window.addEventListener('math-visuals:app-mode-changed', handleAppModeChanged);
     }
     syncThemeAndPalette();
   }
   initProjectProfileSync();
+  if (appModeModule && typeof appModeModule.onModeChanged === 'function') {
+    appModeModule.onModeChanged(handleAppModeChanged, { immediate: false });
+  }
 })();
