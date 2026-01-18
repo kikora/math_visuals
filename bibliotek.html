@@ -869,7 +869,7 @@
       flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
-      gap: 16px;
+      gap: 12px;
     }
     .categoryDialog__count {
       margin: 0;
@@ -877,11 +877,32 @@
       color: #1f2937;
     }
     .categoryDialog__actions {
-      display: flex;
+      display: inline-flex;
       flex-wrap: wrap;
       align-items: center;
       justify-content: flex-end;
-      gap: 12px;
+      gap: 6px;
+    }
+    .categoryDialog__actions .categoryDialog__actionButton {
+      border-radius: 999px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      line-height: 1;
+    }
+    .categoryDialog__actions .categoryDialog__actionButton svg {
+      width: 16px;
+      height: 16px;
+      flex: 0 0 auto;
+    }
+    .categoryDialog__actions .categoryDialog__actionButton--icon {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      justify-content: center;
     }
     .categoryDialog__footer {
       border-top: 1px solid rgba(148, 163, 184, 0.35);
@@ -926,7 +947,7 @@
       background: linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(59, 130, 246, 0.24));
       color: #1e3a8a;
       font-weight: 600;
-      padding: 7px 14px;
+      padding: 6px 12px;
       cursor: pointer;
       transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
     }
@@ -947,7 +968,7 @@
       background: linear-gradient(135deg, rgba(248, 113, 113, 0.12), rgba(248, 113, 113, 0.24));
       color: #991b1b;
       font-weight: 600;
-      padding: 7px 14px;
+      padding: 0;
       cursor: pointer;
       transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
     }
@@ -974,7 +995,7 @@
       background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(16, 185, 129, 0.24));
       color: #065f46;
       font-weight: 600;
-      padding: 7px 14px;
+      padding: 0;
       cursor: pointer;
       transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
     }
@@ -1305,27 +1326,47 @@
       </header>
       <div class="categoryDialog__meta">
         <p class="categoryDialog__count" data-category-count></p>
-        <div class="categoryDialog__actions">
+        <div class="categoryDialog__actions" role="toolbar" aria-label="Handlinger for kategori">
           <button
             type="button"
-            class="categoryDialog__delete"
+            class="categoryDialog__delete categoryDialog__actionButton categoryDialog__actionButton--icon"
             data-category-delete
             disabled
+            title="Slett figur(er)"
+            aria-label="Slett figur(er)"
           >
-            Slett figur(er)
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+              <path d="M8 6V4h8v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+              <path d="M6 6l1 14h10l1-14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+              <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            </svg>
+            <span class="visuallyHidden">Slett figur(er)</span>
           </button>
           <button
             type="button"
-            class="categoryDialog__selectAll"
+            class="categoryDialog__selectAll categoryDialog__actionButton categoryDialog__actionButton--icon"
             data-category-select-all
             data-select-label="Velg alle figurer"
             data-clear-label="Fjern alle figurer"
             disabled
+            title="Velg eller fjern alle figurer"
+            aria-labelledby="category-select-all-label"
           >
-            <span data-category-select-all-label>Velg alle figurer</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M4 12l4 4 12-12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <span class="visuallyHidden" id="category-select-all-label" data-category-select-all-label>
+              Velg alle figurer
+            </span>
           </button>
-          <button type="button" class="categoryDialog__upload" data-category-upload>
-            Last opp filer
+          <button type="button" class="categoryDialog__upload categoryDialog__actionButton" data-category-upload>
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M12 16V4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+              <path d="M8 8l4-4 4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M4 20h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            </svg>
+            <span>Last opp filer</span>
           </button>
         </div>
       </div>
