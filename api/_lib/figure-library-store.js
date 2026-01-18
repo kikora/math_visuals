@@ -253,6 +253,12 @@ function ensureFigureEntryShape(slug, payload) {
   } else {
     entry.tags = sanitizeTags(entry.tags);
   }
+  if (!entry.name) {
+    const fallbackName = sanitizeOptionalText(entry.title || entry.slug);
+    if (fallbackName) {
+      entry.name = fallbackName;
+    }
+  }
   applyFigureAssetUrls(entry);
   return entry;
 }

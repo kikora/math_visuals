@@ -313,7 +313,7 @@ function normalizeLibraryFigure(entry, categoryLabels = new Map()) {
   if (!image) {
     return null;
   }
-  const nameCandidates = [entry.title, entry.name, idSource, slug];
+  const nameCandidates = [entry.name, entry.title, idSource, slug];
   let name = '';
   for (const candidate of nameCandidates) {
     if (typeof candidate === 'string' && candidate.trim()) {
@@ -1128,4 +1128,3 @@ export function clearFigureManifestCache(cacheKey) {
     manifestCache.clear();
   }
 }
-

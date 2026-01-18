@@ -311,6 +311,9 @@ function ensureEntryShape(slug, payload, existing) {
   const { dataUrl: pngDataUrl, width: pngWidth, height: pngHeight } = extractPngInfo(payload || {}, existing || {});
   const summary = sanitizeOptionalText(payload.summary);
   const description = sanitizeOptionalText(payload.description);
+  const hasNameField = payload && Object.prototype.hasOwnProperty.call(payload, 'name');
+  const nameValue = hasNameField ? sanitizeOptionalText(payload.name) : undefined;
+  const existingName = existing && typeof existing.name === 'string' ? sanitizeRequiredText(existing.name) : undefined;
 
   const nowIso = new Date().toISOString();
   const storedCreatedAt = existing && typeof existing.createdAt === 'string' ? existing.createdAt : null;
@@ -326,7 +329,7 @@ function ensureEntryShape(slug, payload, existing) {
   const entry = {
     slug,
     baseName,
-    title: sanitizeRequiredText(payload.title || (existing && existing.title)),
+    title: sanitizeRequiredText(payload.title || payload.name || (existing && existing.title)),
     tool: sanitizeRequiredText(payload.tool || (existing && existing.tool)),
     svg: svgMarkup,
     createdAt,
@@ -341,6 +344,19 @@ function ensureEntryShape(slug, payload, existing) {
       svg: svgFile.url
     }
   };
+
+  if (hasNameField) {
+    if (nameValue !== undefined) {
+      entry.name = nameValue;
+    }
+  } else if (existingName !== undefined) {
+    entry.name = existingName;
+  } else {
+    const fallbackName = sanitizeOptionalText(payload.title);
+    if (fallbackName) {
+      entry.name = fallbackName;
+    }
+  }
 
   const hasPngData = typeof pngDataUrl === 'string' && pngDataUrl.trim();
   if (hasPngData) {
@@ -647,8 +663,10 @@ async function updateSvgMetadata(slug, updates) {
   const hasAltTextField = updates && Object.prototype.hasOwnProperty.call(updates, 'altText');
   const hasAltTextSourceField = updates && Object.prototype.hasOwnProperty.call(updates, 'altTextSource');
   const hasTitleField = updates && Object.prototype.hasOwnProperty.call(updates, 'title');
+  const hasNameField = updates && Object.prototype.hasOwnProperty.call(updates, 'name');
   const hasDisplayTitleField = updates && Object.prototype.hasOwnProperty.call(updates, 'displayTitle');
   const hasBaseNameField = updates && Object.prototype.hasOwnProperty.call(updates, 'baseName');
+  let updatedName = false;
 
   let sanitizedAltText;
   if (hasAltTextField) {
@@ -702,6 +720,22 @@ async function updateSvgMetadata(slug, updates) {
     } else if (Object.prototype.hasOwnProperty.call(entry, 'title')) {
       delete entry.title;
     }
+  }
+
+  if (hasNameField) {
+    const sanitizedName = sanitizeOptionalText(updates.name);
+    if (sanitizedName !== undefined) {
+      if (entry.name !== sanitizedName) {
+        changed = true;
+      }
+      entry.name = sanitizedName;
+    } else if (entry.name) {
+      changed = true;
+      delete entry.name;
+    } else if (Object.prototype.hasOwnProperty.call(entry, 'name')) {
+      delete entry.name;
+    }
+    updatedName = true;
   }
 
   if (hasDisplayTitleField) {
@@ -762,7 +796,7 @@ async function updateSvgMetadata(slug, updates) {
     }
   }
 
-  if (hasTitleField || hasDisplayTitleField || hasBaseNameField) {
+  if (!updatedName && (hasTitleField || hasDisplayTitleField || hasBaseNameField)) {
     const nameCandidates = [entry.displayTitle, entry.title, entry.baseName, entry.name, entry.slug];
     const resolvedName = nameCandidates.find(value => typeof value === 'string' && value.trim());
     if (resolvedName) {
