@@ -1037,6 +1037,7 @@ let nkantColorPickerDocBound = false;
 function resolveNkantPalette() {
   const project = getActiveProjectName();
   const paletteApi = getPaletteApi();
+  const settings = getSettingsApi();
   const theme = getThemeApi();
 
   const request = {
@@ -1045,19 +1046,43 @@ function resolveNkantPalette() {
   };
 
   let groupPalette = [];
+  const resolveGroupPalette = resolver => {
+    try {
+      const res = resolver();
+      return res && Array.isArray(res.colors) ? res.colors : (Array.isArray(res) ? res : []);
+    } catch (_) {
+      return [];
+    }
+  };
 
   if (paletteApi && typeof paletteApi.getGroupPalette === 'function') {
-    try {
-      const res = paletteApi.getGroupPalette('nkant', request);
-      groupPalette = res && Array.isArray(res.colors) ? res.colors : (Array.isArray(res) ? res : []);
-    } catch (_) {}
+    groupPalette = resolveGroupPalette(() => paletteApi.getGroupPalette('nkant', request));
+  }
+
+  if ((!groupPalette || !groupPalette.length) && settings && typeof settings.getGroupPalette === 'function') {
+    groupPalette = resolveGroupPalette(() => settings.getGroupPalette('nkant', request));
+    if ((!groupPalette || !groupPalette.length) && settings.getGroupPalette.length >= 3) {
+      groupPalette = resolveGroupPalette(() =>
+        settings.getGroupPalette(
+          'nkant',
+          NKANT_GROUP_PALETTE_SIZE,
+          project ? { project } : undefined
+        )
+      );
+    }
   }
 
   if ((!groupPalette || !groupPalette.length) && theme && typeof theme.getGroupPalette === 'function') {
-    try {
-      const res = theme.getGroupPalette('nkant', request);
-      groupPalette = res && Array.isArray(res.colors) ? res.colors : (Array.isArray(res) ? res : []);
-    } catch (_) {}
+    groupPalette = resolveGroupPalette(() => theme.getGroupPalette('nkant', request));
+    if ((!groupPalette || !groupPalette.length) && theme.getGroupPalette.length >= 3) {
+      groupPalette = resolveGroupPalette(() =>
+        theme.getGroupPalette(
+          'nkant',
+          NKANT_GROUP_PALETTE_SIZE,
+          project ? { project } : undefined
+        )
+      );
+    }
   }
 
   return ensurePalette(groupPalette, NKANT_GROUP_PALETTE_SIZE, NKANT_FALLBACK_PALETTE);
@@ -1172,12 +1197,15 @@ function renderNkantColorPicker(element, palette, getColorSetIndex, onSelect) {
       }
       updateNkantColorPickerSelection(element, colors, nextIndex);
       optionsPanel.hidden = true;
+      activeButton.setAttribute('aria-expanded', 'false');
     });
     optionsPanel.appendChild(btn);
   }
   activeButton.addEventListener('click', event => {
     event.stopPropagation();
-    optionsPanel.hidden = !optionsPanel.hidden;
+    const nextHidden = !optionsPanel.hidden;
+    optionsPanel.hidden = nextHidden;
+    activeButton.setAttribute('aria-expanded', String(!nextHidden));
   });
   if (!nkantColorPickerDocBound) {
     document.addEventListener('click', event => {
@@ -1185,6 +1213,8 @@ function renderNkantColorPicker(element, palette, getColorSetIndex, onSelect) {
         if (!picker.contains(event.target)) {
           const panel = picker.querySelector('.color-options');
           if (panel) panel.hidden = true;
+          const active = picker.querySelector('.color-swatch--active');
+          if (active) active.setAttribute('aria-expanded', 'false');
         }
       });
     });
@@ -6268,7 +6298,14 @@ function applyStateToUI() {
   if (typeof applyFigureSpecsToUI === 'function') {
     applyFigureSpecsToUI();
   }
-  updateNkantColorPickerSelection(nkantPaletteCache);
+  const palette = nkantPaletteCache.length ? nkantPaletteCache : resolveNkantPalette();
+  document.querySelectorAll('[data-nkant-color-picker]').forEach(element => {
+    const figIndex = Number.parseInt(element.dataset.figureIndex, 10);
+    const fig = Number.isFinite(figIndex) ? STATE.figures[figIndex] : null;
+    const index = fig ? getFigureColorSetIndex(fig) : sanitizeColorSetIndex(element.dataset.colorSetIndex || STATE.colorSetIndex);
+    element.dataset.colorSetIndex = String(index);
+    updateNkantColorPickerSelection(element, palette, index);
+  });
   updateLabelEditorUI();
 }
 function applyExamplesConfig() {
