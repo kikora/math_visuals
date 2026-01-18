@@ -559,11 +559,13 @@
 
       <div class="side">
         <div class="card card--examples" id="examplesCard">
-          <div class="example-description">
-            <label for="exampleDescription" style="font-weight:600; margin-bottom:4px;">Oppgavetekst</label>
-            <textarea id="exampleDescription" placeholder="Skriv oppgavetekst her..."></textarea>
-            <div id="checkArea" class="checkbar" data-task-check-host></div>
-          </div>
+          <div
+            data-task-text-description
+            data-task-text-label="Oppgavetekst"
+            data-task-text-label-style="font-weight:600; margin-bottom:4px;"
+            data-task-text-placeholder="Skriv oppgavetekst her..."
+            data-task-text-check-host="check-area"
+          ></div>
           <div class="toolbar">
             <button id="btnUpdateExample" class="btn" type="button">Oppdater</button>
             <button id="btnSaveExample" class="btn" type="button">Lag nytt</button>

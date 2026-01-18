@@ -1325,6 +1325,133 @@
     return state.descriptionInput || null;
   }
 
+  function createTaskPanelElement(options) {
+    const opts = options && typeof options === 'object' ? options : {};
+    const panel = document.createElement('div');
+    panel.id = 'taskPanel';
+    panel.className = 'card task-panel';
+    panel.hidden = true;
+    const title = document.createElement('h3');
+    title.textContent = opts.title || 'Oppgave';
+    panel.appendChild(title);
+    const textarea = document.createElement('textarea');
+    textarea.id = 'taskModeDescription';
+    textarea.className = 'task-text-editable';
+    textarea.placeholder = opts.placeholder || 'Klikk her for å skrive oppgavetekst...';
+    panel.appendChild(textarea);
+    return panel;
+  }
+
+  function createExampleDescriptionElement(options) {
+    const opts = options && typeof options === 'object' ? options : {};
+    const container = document.createElement('div');
+    container.className = 'example-description';
+    if (opts.label) {
+      const label = document.createElement('label');
+      label.setAttribute('for', 'exampleDescription');
+      label.textContent = opts.label;
+      if (opts.labelStyle) {
+        label.style.cssText = opts.labelStyle;
+      }
+      container.appendChild(label);
+    }
+    const textarea = document.createElement('textarea');
+    textarea.id = 'exampleDescription';
+    textarea.placeholder = opts.placeholder || 'Skriv oppgavetekst her';
+    if (opts.ariaLabel) {
+      textarea.setAttribute('aria-label', opts.ariaLabel);
+    } else if (!opts.label) {
+      textarea.setAttribute('aria-label', 'Oppgavetekst (valgfritt)');
+    }
+    container.appendChild(textarea);
+    const checkHostType = opts.checkHostType || 'default';
+    const checkHost = document.createElement('div');
+    if (checkHostType === 'check-area') {
+      checkHost.id = opts.checkHostId || 'checkArea';
+      checkHost.className = opts.checkHostClass || 'checkbar';
+    } else {
+      checkHost.className = opts.checkHostClass || 'task-check-host';
+      checkHost.hidden = opts.checkHostHidden !== false;
+      const button = document.createElement('button');
+      button.id = 'btnCheck';
+      button.className = 'btn btn--task-check';
+      button.type = 'button';
+      button.textContent = opts.checkButtonLabel || 'Sjekk svar';
+      checkHost.appendChild(button);
+      const status = document.createElement('div');
+      status.id = 'taskStatus';
+      status.className = 'status';
+      status.setAttribute('role', 'status');
+      status.setAttribute('aria-live', 'polite');
+      status.hidden = true;
+      checkHost.appendChild(status);
+    }
+    checkHost.dataset.taskCheckHost = 'true';
+    container.appendChild(checkHost);
+    return container;
+  }
+
+  function resolveTaskTextMountRoot(container) {
+    if (!container) return document;
+    if (container.nodeType === 9) return container;
+    if (container.nodeType === 1) return container;
+    return null;
+  }
+
+  function findMountSlot(root, attribute) {
+    if (!root || typeof root.querySelector !== 'function') return null;
+    if (root.nodeType === 1 && root.hasAttribute && root.hasAttribute(attribute)) return root;
+    return root.querySelector(`[${attribute}]`);
+  }
+
+  function getSlotOptions(slot) {
+    if (!slot || !slot.dataset) return {};
+    return {
+      title: slot.dataset.taskTextTitle,
+      placeholder: slot.dataset.taskTextPlaceholder,
+      ariaLabel: slot.dataset.taskTextAriaLabel,
+      label: slot.dataset.taskTextLabel,
+      labelStyle: slot.dataset.taskTextLabelStyle,
+      checkHostType: slot.dataset.taskTextCheckHost,
+      checkHostClass: slot.dataset.taskTextCheckHostClass,
+      checkHostId: slot.dataset.taskTextCheckHostId,
+      checkHostHidden:
+        slot.dataset.taskTextCheckHostHidden === 'false'
+          ? false
+          : slot.dataset.taskTextCheckHostHidden === 'true'
+            ? true
+            : undefined
+    };
+  }
+
+  function mountTaskText(container) {
+    if (typeof document === 'undefined') return null;
+    const root = resolveTaskTextMountRoot(container);
+    if (!root) return null;
+    const result = {};
+    if (!document.getElementById('taskPanel')) {
+      const panelSlot = findMountSlot(root, 'data-task-text-panel');
+      if (panelSlot) {
+        const panel = createTaskPanelElement(getSlotOptions(panelSlot));
+        panelSlot.appendChild(panel);
+        result.taskPanel = panel;
+      }
+    } else {
+      result.taskPanel = document.getElementById('taskPanel');
+    }
+    if (!document.getElementById('exampleDescription')) {
+      const descriptionSlot = findMountSlot(root, 'data-task-text-description');
+      if (descriptionSlot) {
+        const description = createExampleDescriptionElement(getSlotOptions(descriptionSlot));
+        descriptionSlot.appendChild(description);
+        result.description = description;
+      }
+    } else {
+      result.description = document.querySelector('.example-description');
+    }
+    return result;
+  }
+
   function initClickToEditBehavior() {
     if (typeof document === 'undefined') return;
     document.addEventListener('click', event => {
@@ -1521,13 +1648,33 @@
     return { applied: false, reason: 'empty' };
   }
 
+  function setTaskTextMode(mode, options) {
+    const target = typeof mode === 'string' ? mode.toLowerCase() : '';
+    if (target === 'edit') {
+      startTaskModeDescriptionEdit({ focus: false, ...(options || {}) });
+      return;
+    }
+    if (target === 'preview') {
+      setTaskModeDescriptionEditing(false, { force: true });
+      renderDescriptionPreviewFromValue(getTaskText(), { force: true });
+    }
+  }
+
   function initTaskText(options) {
     setConfig(options);
     if (typeof document !== 'undefined') {
       if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initTaskDescriptionSync, { once: true });
-        document.addEventListener('DOMContentLoaded', initClickToEditBehavior, { once: true });
+        document.addEventListener(
+          'DOMContentLoaded',
+          () => {
+            mountTaskText(document);
+            initTaskDescriptionSync();
+            initClickToEditBehavior();
+          },
+          { once: true }
+        );
       } else {
+        mountTaskText(document);
         initTaskDescriptionSync();
         initClickToEditBehavior();
       }
@@ -1538,6 +1685,10 @@
     init: initTaskText,
     getTaskText,
     setTaskText,
+    getText: getTaskText,
+    setText: setTaskText,
+    mount: mountTaskText,
+    setMode: setTaskTextMode,
     getDescriptionInput,
     getDescriptionPreviewElement,
     renderDescriptionPreviewFromValue,
