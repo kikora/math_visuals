@@ -948,15 +948,17 @@
     if (!trimmedValue) {
       clearChildren(preview);
       clearDescriptionPlaceholder(preview);
-      const shouldShowPlaceholder =
+      const isTaskMode =
         typeof document !== 'undefined' &&
         document.body &&
         document.body.dataset &&
         document.body.dataset.appMode === 'task';
-      if (shouldShowPlaceholder) {
-        applyDescriptionPlaceholder(preview, 'Klikk her for å skrive oppgavetekst…');
-        preview.dataset.empty = 'false';
-        return markRendered(true);
+      if (isTaskMode) {
+        preview.dataset.empty = 'true';
+        preview.removeAttribute('hidden');
+        preview.setAttribute('aria-hidden', 'false');
+        updateTaskCheckAvailability(preview);
+        return markRendered(false);
       }
       applyState(false);
       return markRendered(false);
@@ -1925,7 +1927,7 @@
     applyActiveToolPreviewState(normalized);
     if (normalized === 'task') {
       taskTextApi.ensureTaskModeDescriptionRendered();
-      setTaskModeDescriptionEditing(true, { force: true, focus: false });
+      setTaskModeDescriptionEditing(false, { force: true, focus: false });
     } else {
       setTaskModeDescriptionEditing(false, { force: true });
     }

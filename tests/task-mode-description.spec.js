@@ -17,7 +17,7 @@ test.describe('task mode description preview', () => {
 
     await page.evaluate(() => window.mathVisuals.stopTaskDescriptionEdit());
     await expect(preview).toBeVisible();
-    await expect(preview).toContainText('Klikk for å legge til oppgavetekst');
+    await expect(preview).toHaveText('');
 
     await fillTaskDescription(page, 'Vanlig tekst uten formatering');
     await expect(preview).toBeVisible();
@@ -86,14 +86,14 @@ test.describe('task mode description preview', () => {
     await expect(preview.locator('.math-vis-description-math .mfrac')).toHaveCount(1);
   });
 
-  test('allows editing description from task mode placeholder', async ({ page }) => {
+  test('allows editing description from task mode toggle', async ({ page }) => {
     await page.goto('/diagram/index.html?mode=oppgave', { waitUntil: 'load' });
 
     const preview = page.locator('.example-description-preview');
     await expect(preview).toBeVisible();
-    await expect(preview).toContainText('Legg til oppgavetekst');
+    await expect(preview).toHaveText('');
 
-    await preview.click();
+    await page.locator('.example-description-toggle__button[data-mode="edit"]').click();
 
     const input = page.locator('#exampleDescription');
     await expect(input).toBeVisible();
