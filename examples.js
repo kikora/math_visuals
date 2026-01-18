@@ -4461,6 +4461,11 @@ initExamples();
   let currentExampleIndex = null;
   let tabsContainer = null;
   let tabButtons = [];
+  let tabWrappers = [];
+  let activeDeleteTabIndex = null;
+  let deleteRevealTimer = null;
+  let suppressNextTabClick = false;
+  let deleteDismissListenerAttached = false;
   let descriptionInput = null;
   const descriptionInputsWithListeners = new WeakSet();
   const descriptionContainersWithListeners = new WeakSet();
@@ -7214,12 +7219,17 @@ initExamples();
     style.id = 'exampleTabStyles';
     style.textContent = `
 .example-tabs{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;margin-bottom:0;align-items:flex-end;padding-bottom:0;}
+.example-tab-wrapper{position:relative;display:inline-flex;align-items:center;}
 .example-tab{appearance:none;border:1px solid #d1d5db;border-bottom:none;background:#f3f4f6;color:#374151;border-radius:10px 10px 0 0;padding:6px 14px;font-size:14px;line-height:1;cursor:pointer;transition:background-color .2s,border-color .2s,color .2s;box-shadow:0 -1px 0 rgba(15,23,42,.08) inset;margin-bottom:-1px;}
 .example-tab:hover{background:#e5e7eb;}
 .example-tab.is-active{background:#fff;color:#111827;border-color:var(--purple,#5B2AA5);border-bottom:1px solid #fff;box-shadow:0 -2px 0 var(--purple,#5B2AA5) inset;}
 .example-tab:focus-visible{outline:2px solid var(--purple,#5B2AA5);outline-offset:2px;}
 .example-tab.is-new{position:relative;}
 .example-tab.is-new::after{content:'NY';margin-left:8px;font-size:11px;font-weight:700;color:#b91c1c;text-transform:uppercase;letter-spacing:.04em;}
+.example-tab-delete{position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:9999px;border:1px solid #b91c1c;background:#ef4444;color:#fff;font-size:14px;line-height:1;display:none;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 10px rgba(15,23,42,.18);transition:transform .15s ease,background-color .15s ease;border-color .15s ease;}
+.example-tab-delete:hover{background:#dc2626;border-color:#991b1b;transform:scale(1.05);}
+.example-tab-delete:focus-visible{outline:2px solid #b91c1c;outline-offset:2px;}
+.example-tab-wrapper.is-delete-visible .example-tab-delete{display:flex;}
 .example-tabs-empty{font-size:13px;color:#6b7280;padding:12px 0;display:flex;flex-wrap:wrap;align-items:center;gap:10px;}
 .example-tabs-empty__message{flex:0 0 auto;}
 .example-tabs-empty__cta{appearance:none;border:1px solid #d1d5db;background:#fff;color:#374151;border-radius:9999px;padding:6px 16px;font-size:13px;line-height:1;cursor:pointer;transition:background-color .2s,border-color .2s,color .2s,box-shadow .2s;}
@@ -8240,6 +8250,14 @@ initExamples();
   } else {
     document.body.appendChild(tabsContainer);
   }
+  if (!deleteDismissListenerAttached && typeof document !== 'undefined') {
+    document.addEventListener('click', event => {
+      if (!tabsContainer) return;
+      if (event && event.target && tabsContainer.contains(event.target)) return;
+      setActiveDeleteTabIndex(null);
+    });
+    deleteDismissListenerAttached = true;
+  }
   applyExampleNavigationVisibilityForMode(currentAppMode);
   moveSettingsIntoExampleCard();
   moveDescriptionBelowTabs();
@@ -8252,6 +8270,14 @@ initExamples();
     if (updateBtn) updateBtn.disabled = disableAll || totalExamples === 0;
     if (createBtn) createBtn.disabled = disableAll;
   };
+  function setActiveDeleteTabIndex(nextIndex) {
+    activeDeleteTabIndex = Number.isInteger(nextIndex) ? nextIndex : null;
+    if (!Array.isArray(tabWrappers)) return;
+    tabWrappers.forEach((wrapper, idx) => {
+      if (!wrapper) return;
+      wrapper.classList.toggle('is-delete-visible', activeDeleteTabIndex === idx);
+    });
+  }
   function clampExampleIndex(index, length) {
     if (!Number.isInteger(index)) return null;
     if (!Number.isInteger(length) || length <= 0) return null;
@@ -8320,6 +8346,12 @@ initExamples();
     if (tabsContainer) {
       tabsContainer.innerHTML = '';
       tabButtons = [];
+      tabWrappers = [];
+      if (total === 0) {
+        setActiveDeleteTabIndex(null);
+      } else if (activeDeleteTabIndex != null && activeDeleteTabIndex >= total) {
+        setActiveDeleteTabIndex(null);
+      }
       if (total === 0) {
         tabsContainer.setAttribute('role', 'presentation');
         tabsContainer.setAttribute('aria-label', 'Ingen lagrede eksempler');
@@ -8351,6 +8383,9 @@ initExamples();
         tabsContainer.setAttribute('aria-orientation', 'horizontal');
         const numericLabelPattern = /^[0-9]+$/;
         examples.forEach((ex, idx) => {
+          const wrapper = document.createElement('div');
+          wrapper.className = 'example-tab-wrapper';
+          wrapper.dataset.exampleIndex = String(idx);
           const btn = document.createElement('button');
           btn.type = 'button';
           btn.className = 'example-tab';
@@ -8378,6 +8413,11 @@ initExamples();
           }
           btn.setAttribute('aria-label', ariaLabel);
           btn.addEventListener('click', () => {
+            if (suppressNextTabClick) {
+              suppressNextTabClick = false;
+              return;
+            }
+            setActiveDeleteTabIndex(null);
             loadExample(idx);
           });
           btn.addEventListener('keydown', event => {
@@ -8391,12 +8431,51 @@ initExamples();
             do {
               next = (next + dir + totalButtons) % totalButtons;
             } while (next !== idx && !tabButtons[next]);
+            setActiveDeleteTabIndex(null);
             loadExample(next);
             (_tabButtons$next = tabButtons[next]) === null || _tabButtons$next === void 0 || _tabButtons$next.focus();
           });
-          tabsContainer.appendChild(btn);
+          btn.addEventListener('pointerdown', event => {
+            if (event.button != null && event.button !== 0) return;
+            if (deleteRevealTimer) {
+              clearTimeout(deleteRevealTimer);
+            }
+            deleteRevealTimer = setTimeout(() => {
+              deleteRevealTimer = null;
+              suppressNextTabClick = true;
+              setActiveDeleteTabIndex(idx);
+              if (typeof navigator !== 'undefined' && navigator && typeof navigator.vibrate === 'function') {
+                navigator.vibrate(10);
+              }
+            }, 550);
+          });
+          const cancelDeleteReveal = () => {
+            if (!deleteRevealTimer) return;
+            clearTimeout(deleteRevealTimer);
+            deleteRevealTimer = null;
+          };
+          btn.addEventListener('pointerup', cancelDeleteReveal);
+          btn.addEventListener('pointerleave', cancelDeleteReveal);
+          btn.addEventListener('pointercancel', cancelDeleteReveal);
+          const deleteTabButton = document.createElement('button');
+          deleteTabButton.type = 'button';
+          deleteTabButton.className = 'example-tab-delete';
+          deleteTabButton.setAttribute('aria-label', `Slett eksempel ${label}`);
+          deleteTabButton.title = `Slett eksempel ${label}`;
+          deleteTabButton.textContent = '×';
+          deleteTabButton.addEventListener('click', event => {
+            event.preventDefault();
+            event.stopPropagation();
+            setActiveDeleteTabIndex(null);
+            deleteExampleAtIndex(idx);
+          });
+          wrapper.appendChild(btn);
+          wrapper.appendChild(deleteTabButton);
+          tabsContainer.appendChild(wrapper);
           tabButtons.push(btn);
+          tabWrappers.push(wrapper);
         });
+        setActiveDeleteTabIndex(activeDeleteTabIndex);
         updateTabSelection();
       }
     }
@@ -8460,6 +8539,75 @@ initExamples();
     if (!Number.isInteger(index)) return null;
     index = Math.max(0, Math.min(examples.length - 1, index));
     return index;
+  }
+  async function deleteExampleAtIndex(indexOverride) {
+    const examples = getExamples();
+    if (examples.length <= 1) {
+      showMinimumExampleWarning();
+      try {
+        updateActionButtonState(examples.length);
+      } catch (_) {}
+      return;
+    }
+    const activeIndex = getActiveExampleIndex(examples);
+    const resolvedIndex = Number.isInteger(indexOverride) ? indexOverride : activeIndex;
+    const indexToRemove = clampExampleIndex(resolvedIndex, examples.length);
+    if (indexToRemove == null) {
+      return;
+    }
+    const removedExample = examples[indexToRemove];
+    if (removedExample && typeof removedExample === 'object') {
+      markProvidedExampleDeleted(removedExample.__builtinKey);
+    }
+    const nextExamples = Array.isArray(examples)
+      ? examples.map(example => (example && typeof example === 'object' ? { ...example } : example))
+      : [];
+    nextExamples.splice(indexToRemove, 1);
+    nextExamples.forEach((ex, idx) => {
+      if (!ex || typeof ex !== 'object') return;
+      if (idx === 0) {
+        ex.isDefault = true;
+      } else if (Object.prototype.hasOwnProperty.call(ex, 'isDefault')) {
+        delete ex.isDefault;
+      }
+    });
+    try {
+      const result = await store(nextExamples, {
+        reason: 'delete'
+      });
+      if (!result || result.ok !== true) {
+        return;
+      }
+      const useCachedExamples = !!(result && result.offline);
+      const finalExamples = useCachedExamples
+        ? getExamples()
+        : result && Array.isArray(result.examples)
+        ? result.examples
+        : getExamples();
+      if (removedExample && typeof removedExample === 'object' && !removedExample[TEMPORARY_EXAMPLE_FLAG]) {
+        await addExampleToTrash(removedExample, {
+          index: indexToRemove,
+          reason: 'delete',
+          capturePreview: true
+        });
+        showTrashRestoreHelp();
+      }
+      let nextIndex = activeIndex;
+      if (!Array.isArray(finalExamples) || finalExamples.length === 0) {
+        nextIndex = null;
+      } else if (activeIndex == null || activeIndex === indexToRemove) {
+        nextIndex = indexToRemove >= finalExamples.length ? finalExamples.length - 1 : indexToRemove;
+      } else if (activeIndex > indexToRemove) {
+        nextIndex = Math.max(0, activeIndex - 1);
+      }
+      currentExampleIndex = nextIndex;
+      renderOptions();
+      if (nextIndex != null && nextIndex >= 0 && Array.isArray(finalExamples) && finalExamples.length > 0) {
+        loadExample(nextIndex, { skipBindingsIfActive: true });
+      }
+    } catch (error) {
+      console.error('[examples] failed to delete example', error);
+    }
   }
   if (createBtn) {
     createBtn.addEventListener('click', async () => {
@@ -8573,70 +8721,8 @@ initExamples();
   }
   if (deleteBtn) {
     deleteBtn.addEventListener('click', async () => {
-      const examples = getExamples();
-      if (examples.length <= 1) {
-        showMinimumExampleWarning();
-        try {
-          updateActionButtonState(examples.length);
-        } catch (_) {}
-        return;
-      }
-      const indexToUpdate = getActiveExampleIndex(examples);
-      if (indexToUpdate == null) {
-        return;
-      }
-      const indexToRemove = indexToUpdate;
-      const removedExample = examples[indexToRemove];
-      if (removedExample && typeof removedExample === 'object') {
-        markProvidedExampleDeleted(removedExample.__builtinKey);
-      }
-      const nextExamples = Array.isArray(examples)
-        ? examples.map(example => (example && typeof example === 'object' ? { ...example } : example))
-        : [];
-      nextExamples.splice(indexToRemove, 1);
-      nextExamples.forEach((ex, idx) => {
-        if (!ex || typeof ex !== 'object') return;
-        if (idx === 0) {
-          ex.isDefault = true;
-        } else if (Object.prototype.hasOwnProperty.call(ex, 'isDefault')) {
-          delete ex.isDefault;
-        }
-      });
-      try {
-        const result = await store(nextExamples, {
-          reason: 'delete'
-        });
-        if (!result || result.ok !== true) {
-          return;
-        }
-        const useCachedExamples = !!(result && result.offline);
-        const finalExamples = useCachedExamples
-          ? getExamples()
-          : result && Array.isArray(result.examples)
-          ? result.examples
-          : getExamples();
-        if (removedExample && typeof removedExample === 'object' && !removedExample[TEMPORARY_EXAMPLE_FLAG]) {
-          await addExampleToTrash(removedExample, {
-            index: indexToRemove,
-            reason: 'delete',
-            capturePreview: true
-          });
-          showTrashRestoreHelp();
-        }
-        if (!Array.isArray(finalExamples) || finalExamples.length === 0) {
-          currentExampleIndex = null;
-        } else if (indexToRemove >= finalExamples.length) {
-          currentExampleIndex = finalExamples.length - 1;
-        } else {
-          currentExampleIndex = indexToRemove;
-        }
-        renderOptions();
-        if (currentExampleIndex != null && currentExampleIndex >= 0 && finalExamples.length > 0) {
-          loadExample(currentExampleIndex, { skipBindingsIfActive: true });
-        }
-      } catch (error) {
-        console.error('[examples] failed to delete example', error);
-      }
+      setActiveDeleteTabIndex(null);
+      await deleteExampleAtIndex(null);
     });
   }
   const trashMigrationPromise = ensureTrashHistoryMigration();
