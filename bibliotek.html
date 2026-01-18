@@ -711,8 +711,8 @@
     }
     .categoryDialog__layout {
       display: grid;
-      gap: clamp(18px, 3vw, 28px);
-      padding: clamp(20px, 4vw, 36px);
+      gap: clamp(12px, 2.4vw, 20px);
+      padding: clamp(16px, 3vw, 28px);
       background: linear-gradient(135deg, rgba(248, 250, 252, 0.98), rgba(226, 232, 240, 0.9));
       border-radius: 24px;
       box-shadow: 0 32px 64px rgba(15, 23, 42, 0.28);
@@ -726,14 +726,14 @@
     }
     .categoryDialog__header {
       display: grid;
-      gap: clamp(16px, 2.5vw, 24px);
+      gap: clamp(10px, 2vw, 18px);
       grid-template-columns: minmax(0, 1fr) auto;
       align-items: start;
     }
     .categoryDialog__headerContent {
       display: flex;
       flex-wrap: wrap;
-      gap: clamp(14px, 2vw, 20px);
+      gap: clamp(8px, 1.6vw, 14px);
       align-items: flex-start;
     }
     .categoryDialog__intro {
@@ -757,9 +757,43 @@
     .categoryDialog__apps {
       flex: 0 1 320px;
       min-width: min(260px, 100%);
+      display: block;
+    }
+    .categoryDialog__appsDetails {
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.78);
+      padding: 6px 10px;
+    }
+    .categoryDialog__appsDetails[open] {
+      padding-bottom: 10px;
+    }
+    .categoryDialog__appsSummary {
+      cursor: pointer;
+      font-weight: 600;
+      color: #0f172a;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 2px;
+    }
+    .categoryDialog__appsSummary::-webkit-details-marker {
+      display: none;
+    }
+    .categoryDialog__appsSummary::before {
+      content: '▸';
+      font-size: 0.85rem;
+      color: #64748b;
+      transition: transform 0.18s ease;
+    }
+    .categoryDialog__appsDetails[open] .categoryDialog__appsSummary::before {
+      transform: rotate(90deg);
+    }
+    .categoryDialog__appsPanel {
+      margin-top: 8px;
       display: grid;
-      gap: 10px;
-      align-content: start;
+      gap: 8px;
     }
     .categoryDialog__appsActions {
       display: flex;
@@ -773,7 +807,7 @@
       background: rgba(59, 130, 246, 0.16);
       color: #1d4ed8;
       font-weight: 600;
-      padding: 8px 16px;
+      padding: 6px 12px;
       cursor: pointer;
       transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
     }
@@ -799,7 +833,7 @@
       background: rgba(255, 255, 255, 0.95);
       color: #0f172a;
       font-weight: 600;
-      padding: 8px 16px;
+      padding: 6px 12px;
       cursor: pointer;
       transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
     }
@@ -892,7 +926,7 @@
       background: linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(59, 130, 246, 0.24));
       color: #1e3a8a;
       font-weight: 600;
-      padding: 10px 18px;
+      padding: 7px 14px;
       cursor: pointer;
       transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
     }
@@ -913,7 +947,7 @@
       background: linear-gradient(135deg, rgba(248, 113, 113, 0.12), rgba(248, 113, 113, 0.24));
       color: #991b1b;
       font-weight: 600;
-      padding: 10px 18px;
+      padding: 7px 14px;
       cursor: pointer;
       transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
     }
@@ -940,7 +974,7 @@
       background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(16, 185, 129, 0.24));
       color: #065f46;
       font-weight: 600;
-      padding: 10px 18px;
+      padding: 7px 14px;
       cursor: pointer;
       transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
     }
@@ -1248,16 +1282,21 @@
             <p class="categoryDialog__description" data-category-description hidden></p>
           </div>
           <div class="categoryDialog__apps" data-category-apps-section>
-            <fieldset class="categoryAppsField" data-category-apps="category">
-              <legend>Tilgjengelig i apper</legend>
-              <div class="categoryAppsOptions" data-category-apps-options></div>
-            </fieldset>
-            <div class="categoryDialog__appsActions">
-              <button type="button" class="categoryDialog__appsSave" data-category-apps-save>
-                Lagre tilgjengelighet
-              </button>
-              <p class="categoryDialog__appsStatus" data-category-apps-status aria-live="polite" hidden></p>
-            </div>
+            <details class="categoryDialog__appsDetails">
+              <summary class="categoryDialog__appsSummary">Tilgjengelig i apper</summary>
+              <div class="categoryDialog__appsPanel">
+                <fieldset class="categoryAppsField" data-category-apps="category">
+                  <legend class="visuallyHidden">Tilgjengelig i apper</legend>
+                  <div class="categoryAppsOptions" data-category-apps-options></div>
+                </fieldset>
+                <div class="categoryDialog__appsActions">
+                  <button type="button" class="categoryDialog__appsSave" data-category-apps-save>
+                    Lagre tilgjengelighet
+                  </button>
+                  <p class="categoryDialog__appsStatus" data-category-apps-status aria-live="polite" hidden></p>
+                </div>
+              </div>
+            </details>
           </div>
         </div>
         <button type="button" class="categoryDialog__close" data-category-close>
