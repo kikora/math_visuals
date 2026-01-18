@@ -1597,10 +1597,10 @@
   function applyExampleNavigationVisibilityForMode(mode) {
     if (typeof document === 'undefined') return;
     const normalized = normalizeAppMode(mode) || DEFAULT_APP_MODE;
-    const isPreviewMode = normalized === 'preview';
+    const isTaskMode = normalized === 'task';
     const nav = document.getElementById('exampleTabs');
     if (!nav) return;
-    if (isPreviewMode) {
+    if (isTaskMode) {
       nav.setAttribute('hidden', '');
       nav.setAttribute('aria-hidden', 'true');
       nav.style.display = 'none';

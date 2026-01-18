@@ -261,10 +261,7 @@ const MODE_DEFAULT = 'edit';
 const MODE_VALUES = ['edit', 'task'];
 const MODE_ALIASES = {
   edit: 'edit',
-  task: 'task',
-  preview: 'task',
-  forhandsvisning: 'task',
-  forhåndsvisning: 'task'
+  task: 'task'
 };
 const campusProfileVariables = {
   'profile-body-background': '#f5f6ff',
