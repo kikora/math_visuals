@@ -1136,6 +1136,22 @@
             appendSlotToTable(table, createColorSlotElement(fillSlot));
           }
         }
+      } else if (normalizedGroupId === 'nkant') {
+        table.classList.add('color-table--nkant');
+        const buckets = [[], [], []];
+        group.slots.forEach((slot, slotIndex) => {
+          const normalizedIndex = Number.isInteger(slot && slot.groupIndex)
+            ? slot.groupIndex
+            : slotIndex;
+          const bucket = normalizedIndex % 3;
+          if (!buckets[bucket]) buckets[bucket] = [];
+          buckets[bucket].push(slot);
+        });
+        buckets.forEach(bucket => {
+          bucket.forEach(slot => {
+            appendSlotToTable(table, createColorSlotElement(slot));
+          });
+        });
       } else {
         group.slots.forEach(slot => {
           appendSlotToTable(table, createColorSlotElement(slot));
