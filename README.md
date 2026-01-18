@@ -14,6 +14,22 @@ Math Visuals er en samling digitale matematikklaboratorier utviklet for klassero
 
 De fleste ressursene er statiske HTML/JS/CSS-applikasjoner i rotmappen. Felles komponenter ligger i `base.css`, `router.js`, `description-renderer.js` og `vendor/`, slik at hvert verktøy kan rendres både direkte i nettleseren og som innebygde komponenter i læringsplattformer.
 
+### Oppgavemodus (preview-only)
+
+`task-mode.html` er en egen entry som viser oppgavemodus uten editor-UI. Den bruker den eksisterende rutingen i `router.js`, men tvinger modusen til `task` og rendrer kun iframe-innholdet. For å laste en bestemt figur kan du bruke:
+
+* `task-mode.html?entry=graftegner&example=2` (query-parametre)
+* `task-mode.html#graftegner/2` (hash)
+* `task-mode.html?path=/graftegner?example=2` (direkte path-override som `router.js` allerede støtter)
+
+Preview-only krever følgende ressurser:
+
+* `task-mode.html` + `task-mode.js` (inngang og URL-normalisering for oppgavemodus)
+* `router.js` (init og routing til riktig app/eksempel)
+* `base.css` (grunnstil for bakgrunn/iframe)
+* Den valgte appens egne HTML/JS/CSS-filer (f.eks. `graftegner.html` + `graftegner.js`)
+* Delt logikk for oppgavebeskrivelser og preview (inkludert `examples.js`, `description-renderer.js` og nødvendige `vendor/`-biblioteker som appen allerede refererer til)
+
 ### Delte pakker
 
 Mapper under `packages/` inneholder gjenbrukbare moduler som distribueres som både ESM og CommonJS via Rollup. Dokumentasjonen i [`docs/shared-packages.md`](docs/shared-packages.md) beskriver hvordan disse modulene organiseres, og hvordan de er tenkt brukt i og utenfor prosjektet.

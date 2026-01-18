@@ -340,15 +340,44 @@ const initialProfile = updateProfileStyles(storedProfileValue || PROFILE_DEFAULT
 if (storedProfileValue !== initialProfile) {
   safeSetItem(PROFILE_STORAGE_KEY, initialProfile);
 }
-function normalizeMode(value) {
-  if (typeof value !== 'string') return MODE_DEFAULT;
+function normalizeModeCandidate(value) {
+  if (typeof value !== 'string') return null;
   const normalized = value.trim().toLowerCase();
-  return MODE_VALUES.includes(normalized) ? normalized : MODE_DEFAULT;
+  return MODE_VALUES.includes(normalized) ? normalized : null;
 }
+
+function normalizeMode(value) {
+  return normalizeModeCandidate(value) || MODE_DEFAULT;
+}
+
+function resolveForcedMode() {
+  if (typeof window === 'undefined') return null;
+  const candidates = [];
+  candidates.push(window.MATH_VISUALS_FORCE_MODE);
+  const doc = window.document;
+  if (doc) {
+    if (doc.documentElement) {
+      candidates.push(doc.documentElement.getAttribute('data-math-visuals-force-mode'));
+    }
+    if (doc.body) {
+      candidates.push(doc.body.getAttribute('data-math-visuals-force-mode'));
+    }
+    if (doc.currentScript && doc.currentScript.dataset) {
+      candidates.push(doc.currentScript.dataset.mathVisualsForceMode);
+    }
+  }
+  for (const candidate of candidates) {
+    const normalized = normalizeModeCandidate(candidate);
+    if (normalized) return normalized;
+  }
+  return null;
+}
+
 const storedModeValue = safeGetItem(MODE_STORAGE_KEY);
-const initialMode = normalizeMode(storedModeValue || MODE_DEFAULT);
+const forcedMode = resolveForcedMode();
+const initialMode = normalizeMode(forcedMode || storedModeValue || MODE_DEFAULT);
 currentMode = initialMode;
-if (storedModeValue !== initialMode) {
+if (!forcedMode && storedModeValue !== initialMode) {
   safeSetItem(MODE_STORAGE_KEY, initialMode);
 }
 const iframe = document.querySelector('iframe');
