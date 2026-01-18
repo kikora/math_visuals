@@ -670,6 +670,87 @@
     return { dataUrl, blob, width, height };
   }
 
+  async function renderSvgToPngWithHtml2Canvas(svgElement, options = {}) {
+    const html2canvas = global.html2canvas;
+    if (typeof html2canvas !== 'function') return null;
+    if (!svgElement || typeof svgElement !== 'object') return null;
+    const doc = svgElement.ownerDocument || (typeof document !== 'undefined' ? document : null);
+    if (!doc || !doc.body) {
+      throw new Error('document mangler');
+    }
+    const host = doc.createElement('div');
+    host.style.position = 'fixed';
+    host.style.left = '-10000px';
+    host.style.top = '-10000px';
+    host.style.opacity = '0';
+    host.style.pointerEvents = 'none';
+    host.style.zIndex = '-1';
+    const clone = svgElement.cloneNode(true);
+    if (typeof ensureSvgBackground === 'function') {
+      ensureSvgBackground(clone, options.bounds || {});
+    }
+    host.appendChild(clone);
+    doc.body.appendChild(host);
+
+    try {
+      const ratio = typeof global.devicePixelRatio === 'number' && global.devicePixelRatio > 0 ? global.devicePixelRatio : 1;
+      const scale = Math.max(2, ratio);
+      const canvas = await html2canvas(clone, {
+        backgroundColor: options.backgroundColor || '#fff',
+        scale,
+        useCORS: true,
+        logging: false
+      });
+      if (!canvas) {
+        throw new Error('html2canvas returnerte ingen canvas');
+      }
+      let blob = null;
+      if (typeof canvas.convertToBlob === 'function') {
+        try {
+          blob = await canvas.convertToBlob({ type: 'image/png' });
+        } catch (error) {
+          blob = null;
+        }
+      }
+      if (!blob && typeof canvas.toBlob === 'function') {
+        blob = await new Promise(resolve => {
+          try {
+            canvas.toBlob(result => resolve(result || null), 'image/png');
+          } catch (error) {
+            resolve(null);
+          }
+        });
+      }
+      let dataUrl = null;
+      if (blob) {
+        dataUrl = await blobToDataUrl(blob);
+      }
+      if (!dataUrl) {
+        try {
+          dataUrl = canvas.toDataURL('image/png');
+        } catch (error) {
+          throw new Error('Kunne ikke generere PNG-data-URL');
+        }
+        if (!blob) {
+          blob = dataUrlToBlob(dataUrl);
+        }
+      }
+      if (!blob) {
+        throw new Error('Kunne ikke lage PNG-blob');
+      }
+      return {
+        dataUrl,
+        blob,
+        width: canvas.width,
+        height: canvas.height
+      };
+    } finally {
+      if (host && host.parentNode) {
+        host.parentNode.removeChild(host);
+      }
+    }
+  }
+
   async function exportGraphicWithArchive(svgElement, suggestedName, toolId, options = {}) {
     if (!svgElement) throw new Error('svgElement mangler');
     const doc = svgElement.ownerDocument || (typeof document !== 'undefined' ? document : null);
@@ -726,9 +807,15 @@
     let pngUrl = null;
     let pngError = null;
     try {
-      const pngResult = await renderSvgToPng(doc, svgUrl, svgString, dimensions);
+      let pngResult = await renderSvgToPngWithHtml2Canvas(exportSvg, {
+        backgroundColor: options.backgroundColor || '#fff',
+        bounds: dimensions
+      });
+      if (!pngResult) {
+        pngResult = await renderSvgToPng(doc, svgUrl, svgString, dimensions);
+      }
       pngData = pngResult;
-      if (urlApi) {
+      if (pngResult && urlApi) {
         pngUrl = urlApi.createObjectURL(pngResult.blob);
       }
     } catch (error) {
@@ -761,7 +848,7 @@
       }, 1000);
     }
 
-    if (pngError) {
+    if (pngError && !pngData) {
       const message = pngError && pngError.message ? pngError.message : 'Ukjent feil';
       showToast(`PNG feilet: ${message}.`, 'error');
     }
