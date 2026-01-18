@@ -1,7 +1,5 @@
-(function () {
-  const globalScope =
-    typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : null;
-  if (!globalScope) return;
+(function attachMathVisualsAppMode(global) {
+  if (!global) return;
 
   const DEFAULT_APP_MODE = 'default';
   const APP_MODE_ALIASES = {
@@ -35,8 +33,7 @@
   }
 
   function resolveCurrentMode() {
-    if (!globalScope) return DEFAULT_APP_MODE;
-    const mv = globalScope.mathVisuals;
+    const mv = global.mathVisuals;
     if (mv && typeof mv.getAppMode === 'function') {
       try {
         const mode = mv.getAppMode();
@@ -45,14 +42,14 @@
         }
       } catch (_) {}
     }
-    const body = globalScope.document && globalScope.document.body;
+    const body = global.document && global.document.body;
     if (body && body.dataset && typeof body.dataset.appMode === 'string') {
       const normalized = normalizeMode(body.dataset.appMode);
       if (normalized) return normalized;
     }
     try {
-      if (globalScope.location && typeof globalScope.location.search === 'string') {
-        const params = new URLSearchParams(globalScope.location.search);
+      if (global.location && typeof global.location.search === 'string') {
+        const params = new URLSearchParams(global.location.search);
         const fromQuery = params.get('mode');
         if (typeof fromQuery === 'string' && fromQuery.trim()) {
           return normalizeMode(fromQuery);
@@ -64,7 +61,7 @@
 
   function setAppMode(mode, options) {
     const normalized = normalizeMode(mode);
-    const mv = globalScope.mathVisuals;
+    const mv = global.mathVisuals;
     if (mv && typeof mv.setAppMode === 'function') {
       return mv.setAppMode(normalized, options);
     }
@@ -79,14 +76,14 @@
         detail.force = options.force === true;
       }
     }
-    if (typeof globalScope.dispatchEvent === 'function') {
+    if (typeof global.dispatchEvent === 'function') {
       try {
-        globalScope.dispatchEvent(new CustomEvent('math-visuals:set-mode', { detail }));
+        global.dispatchEvent(new CustomEvent('math-visuals:set-mode', { detail }));
       } catch (_) {}
     }
-    if (globalScope.document && typeof globalScope.document.dispatchEvent === 'function') {
+    if (global.document && typeof global.document.dispatchEvent === 'function') {
       try {
-        globalScope.document.dispatchEvent(new CustomEvent('math-visuals:set-mode', { detail }));
+        global.document.dispatchEvent(new CustomEvent('math-visuals:set-mode', { detail }));
       } catch (_) {}
     }
     return normalized;
@@ -102,22 +99,42 @@
       const nextMode = normalizeMode(detail.mode != null ? detail.mode : resolveCurrentMode());
       callback(nextMode, event);
     };
-    if (typeof globalScope.addEventListener === 'function') {
-      globalScope.addEventListener('math-visuals:app-mode-changed', handler);
+    if (typeof global.addEventListener === 'function') {
+      global.addEventListener('math-visuals:app-mode-changed', handler);
     }
     if (opts.immediate !== false) {
       callback(resolveCurrentMode(), null);
     }
     return () => {
-      if (typeof globalScope.removeEventListener === 'function') {
-        globalScope.removeEventListener('math-visuals:app-mode-changed', handler);
+      if (typeof global.removeEventListener === 'function') {
+        global.removeEventListener('math-visuals:app-mode-changed', handler);
       }
     };
   }
 
-  globalScope.MathVisualsAppMode = {
-    normalizeMode,
-    setAppMode,
-    onModeChanged
+  const attachCoreBindings = () => {
+    const core = global.MathVisualsTaskCore;
+    if (!core) return false;
+    if (typeof core.normalizeAppMode !== 'function') return false;
+    global.MathVisualsAppMode = {
+      normalizeMode: core.normalizeAppMode,
+      setAppMode: core.setAppMode,
+      onModeChanged: core.onModeChange
+    };
+    return true;
   };
-})();
+
+  if (!attachCoreBindings()) {
+    global.MathVisualsAppMode = {
+      normalizeMode,
+      setAppMode,
+      onModeChanged
+    };
+  }
+
+  if (typeof global.addEventListener === 'function') {
+    global.addEventListener('math-visuals:task-core-ready', () => {
+      attachCoreBindings();
+    });
+  }
+})(typeof window !== 'undefined' ? window : undefined);
