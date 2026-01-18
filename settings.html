@@ -146,6 +146,11 @@
     .color-table[data-group-id="graftegner"] {
       grid-template-columns: minmax(0, 1fr);
     }
+    .color-table--nkant {
+      grid-template-columns: repeat(3, minmax(220px, 1fr));
+      grid-template-rows: repeat(3, auto);
+      grid-auto-flow: column;
+    }
     .color-pair-row {
       display: grid;
       grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) minmax(240px, 1.2fr);
@@ -289,6 +294,11 @@
       }
       .color-table[data-group-id="graftegner"] {
         grid-template-columns: 1fr;
+      }
+      .color-table--nkant {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto;
+        grid-auto-flow: row;
       }
     }
   </style>
