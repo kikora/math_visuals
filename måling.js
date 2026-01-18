@@ -230,9 +230,7 @@ const FIGURE_LIBRARY_APP_KEY = 'maling';
     });
     const pickerData = {
       ...data,
-      categories: Array.isArray(data.categories)
-        ? data.categories.filter(category => category && category.id !== CUSTOM_CATEGORY_ID)
-        : []
+      categories: Array.isArray(data.categories) ? data.categories.filter(Boolean) : []
     };
     return { data, pickerData };
   }
