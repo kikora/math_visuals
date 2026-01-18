@@ -1566,14 +1566,80 @@ initExamples();
     const { pathname, search, hash } = window.location || {};
     const path = typeof pathname === 'string' ? pathname : '';
     if (!path || path === '/' || /\.html?$/i.test(path)) return;
-    if (stripTrailingExampleSegment(path) === path) return;
+    const basePath = stripTrailingExampleSegment(path);
+    if (basePath === path) return;
+
+    const exampleMatch = path.match(/\/eksempel[-_]?(\d+)\/?$/i);
+    const exampleNumber = exampleMatch && Number.isFinite(Number(exampleMatch[1])) ? Number(exampleMatch[1]) : null;
+
+    const normalizeBasePath = value => {
+      if (typeof value !== 'string') return '';
+      let decoded = value;
+      try {
+        decoded = decodeURI(value);
+      } catch (_) {
+        decoded = value;
+      }
+      return decoded.toLowerCase();
+    };
+
+    const exampleTargets = {
+      '/br%c3%b8kpizza': '/brøkpizza.html',
+      '/br%c3%b8kfigurer': '/brøkfigurer.html',
+      '/br%c3%b8kvegg': '/brøkvegg.html',
+      '/m%c3%a5ling': '/måling.html',
+      '/br%c3%b8kfigurerbeta': '/brøkfigurer.html',
+      '/br%c3%b8kveggbeta': '/brøkvegg.html',
+      '/br%c3%b8kpizzabeta': '/brøkpizza.html',
+      '/m%c3%a5lingbeta': '/måling.html',
+      '/brkpizza': '/brøkpizza.html',
+      '/brkfigurer': '/brøkfigurer.html',
+      '/brkvegg': '/brøkvegg.html',
+      '/malingbeta': '/måling.html',
+      '/graftegner': '/graftegner.html',
+      '/nkant': '/nkant.html',
+      '/diagram': '/diagram/index.html',
+      '/brøkpizza': '/brøkpizza.html',
+      '/brøkfigurer': '/brøkfigurer.html',
+      '/figurtall': '/figurtall.html',
+      '/tenkeblokker': '/tenkeblokker.html',
+      '/arealmodell': '/arealmodell.html',
+      '/tallinje': '/tallinje.html',
+      '/perlesnor': '/perlesnor.html',
+      '/kuler': '/kuler.html',
+      '/kvikkbilder': '/kvikkbilder.html',
+      '/kvikkbilder-monster': '/kvikkbilder-monster.html',
+      '/trefigurer': '/trefigurer.html',
+      '/brøkvegg': '/brøkvegg.html',
+      '/måling': '/måling.html',
+      '/sortering': '/sortering.html',
+      '/prikktilprikk': '/prikktilprikk.html',
+      '/fortegnsskjema': '/fortegnsskjema.html',
+      '/bibliotek': '/bibliotek.html',
+      '/svg-arkiv': '/svg-arkiv.html'
+    };
+    const normalizedBase = normalizeBasePath(basePath);
+    const targetPath = exampleTargets[normalizedBase];
     try {
       const target = new URL(
-        '/index.html',
+        targetPath || '/index.html',
         window.location && window.location.origin ? window.location.origin : undefined
       );
-      const rawPath = `${path}${typeof search === 'string' ? search : ''}`;
-      target.searchParams.set('path', rawPath);
+      if (targetPath) {
+        if (exampleNumber) {
+          target.searchParams.set('example', String(exampleNumber));
+        }
+        if (typeof search === 'string' && search) {
+          const extraParams = new URLSearchParams(search);
+          extraParams.forEach((value, key) => {
+            if (key === 'example' || key === 'eksempel') return;
+            target.searchParams.set(key, value);
+          });
+        }
+      } else {
+        const rawPath = `${path}${typeof search === 'string' ? search : ''}`;
+        target.searchParams.set('path', rawPath);
+      }
       if (typeof hash === 'string' && hash) {
         target.hash = hash;
       }
