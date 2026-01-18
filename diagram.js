@@ -760,6 +760,7 @@ function resolveDiagramPaletteData(options = {}) {
   const emergencyGroupPalette = hasGroupPalette ? [] : buildEmergencyGroupPalette();
   const paletteEntries = ensurePalette(sanitizedGroupPalette, DIAGRAM_GROUP_SLOT_COUNT, emergencyGroupPalette);
   const fillPaletteEntries = getFillPaletteEntries(paletteEntries, emergencyGroupPalette);
+  const linePaletteEntries = getLinePaletteEntries(paletteEntries, emergencyGroupPalette);
   const singleSeriesColor =
     fillPaletteEntries[0] || paletteEntries[0] || emergencyGroupPalette[0] || EMERGENCY_SERIES_COLORS[0];
   const multiSeriesColors = [
@@ -773,7 +774,7 @@ function resolveDiagramPaletteData(options = {}) {
   if (overrides.length) {
     seriesPalette = seriesPalette.map((color, index) => overrides[index] || color);
   }
-  const pieBase = paletteEntries.slice();
+  const pieBase = fillPaletteEntries.concat(linePaletteEntries);
   const pieFallback = hasGroupPalette ? [] : EMERGENCY_PIE_PALETTE;
   const piePalette = ensurePalette(pieBase, PIE_COLOR_CLASS_COUNT, pieFallback);
 
@@ -842,6 +843,12 @@ function getFillPaletteEntries(paletteEntries = [], fallback = []) {
   const sanitized = Array.isArray(paletteEntries) ? paletteEntries.filter(color => !!color) : [];
   const fillEntries = sanitized.filter((_, index) => index % 2 === 0);
   return ensurePalette(fillEntries, DIAGRAM_FILL_COLOR_COUNT, fallback);
+}
+
+function getLinePaletteEntries(paletteEntries = [], fallback = []) {
+  const sanitized = Array.isArray(paletteEntries) ? paletteEntries.filter(color => !!color) : [];
+  const lineEntries = sanitized.filter((_, index) => index % 2 !== 0);
+  return ensurePalette(lineEntries, DIAGRAM_FILL_COLOR_COUNT, fallback);
 }
 
 function setSeriesColorOverride(seriesIndex, color) {
