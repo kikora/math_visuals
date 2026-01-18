@@ -1854,11 +1854,6 @@
     return true;
   }
 
-  function setTaskModeDescriptionEditing(enabled, options) {
-    if (!taskTextApi || typeof taskTextApi.setEditing !== 'function') return;
-    taskTextApi.setEditing(enabled, options);
-  }
-
   function getActiveToolApi() {
     if (!global) return null;
     const mv = global.mathVisuals && typeof global.mathVisuals === 'object' ? global.mathVisuals : null;
