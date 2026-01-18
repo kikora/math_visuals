@@ -3231,7 +3231,7 @@ function normalizeServerEntry(entry) {
   if (!id) {
     return null;
   }
-  const nameCandidates = [entry.title, entry.name, slug, id];
+  const nameCandidates = [entry.name, entry.title, slug, id];
   let name = '';
   for (const candidate of nameCandidates) {
     if (typeof candidate === 'string' && candidate.trim()) {
@@ -3836,6 +3836,7 @@ function buildFigureEntryPayload(entry, options = {}) {
   const toolValue = typeof entry.tool === 'string' && entry.tool.trim() ? entry.tool.trim() : FIGURE_LIBRARY_TOOL;
   const payload = {
     slug,
+    name: entry.name || slug,
     title: entry.name || slug,
     tool: toolValue,
     summary: entry.summary || '',
