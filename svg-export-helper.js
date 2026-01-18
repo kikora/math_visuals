@@ -444,7 +444,224 @@
     ensureSvgNamespaces(clone);
     ensureSvgSizingAttributes(clone, svgElement);
     ensureSvgBackground(clone);
+    applyComputedStylesToClone(svgElement, clone);
+    injectDocumentStylesIntoSvg(svgElement.ownerDocument || (typeof document !== 'undefined' ? document : null), clone);
     return clone;
+  }
+
+  function getComputedStyleText(computedStyle) {
+    if (!computedStyle) return '';
+    let cssText = '';
+    for (let i = 0; i < computedStyle.length; i += 1) {
+      const property = computedStyle[i];
+      const value = computedStyle.getPropertyValue(property);
+      if (value) {
+        cssText += `${property}:${value};`;
+      }
+    }
+    return cssText;
+  }
+
+  function applyComputedStylesToClone(sourceSvg, targetSvg) {
+    if (!sourceSvg || !targetSvg) return;
+    const doc = sourceSvg.ownerDocument || (typeof document !== 'undefined' ? document : null);
+    const view = doc && doc.defaultView ? doc.defaultView : null;
+    if (!view || typeof view.getComputedStyle !== 'function') return;
+
+    const sourceElements = [sourceSvg, ...sourceSvg.querySelectorAll('*')];
+    const targetElements = [targetSvg, ...targetSvg.querySelectorAll('*')];
+    const count = Math.min(sourceElements.length, targetElements.length);
+    for (let i = 0; i < count; i += 1) {
+      const sourceElement = sourceElements[i];
+      const targetElement = targetElements[i];
+      if (!targetElement || typeof targetElement.setAttribute !== 'function') continue;
+      try {
+        const computed = view.getComputedStyle(sourceElement);
+        const cssText = getComputedStyleText(computed);
+        if (cssText) {
+          targetElement.setAttribute('style', cssText);
+        }
+      } catch (error) {
+        // ignore style read errors
+      }
+    }
+  }
+
+  function collectDocumentStyleText(doc) {
+    if (!doc || typeof doc.querySelectorAll !== 'function') return '';
+    const styleNodes = Array.from(doc.querySelectorAll('style'));
+    const chunks = styleNodes
+      .map(node => (node && typeof node.textContent === 'string' ? node.textContent.trim() : ''))
+      .filter(Boolean);
+    return chunks.join('\n');
+  }
+
+  function injectDocumentStylesIntoSvg(doc, svgElement) {
+    if (!svgElement || typeof svgElement.querySelector !== 'function') return;
+    const cssText = collectDocumentStyleText(doc);
+    if (!cssText) return;
+    const existing = svgElement.querySelector('style[data-exported-styles="true"]');
+    if (existing) {
+      existing.textContent = cssText;
+      return;
+    }
+    const ownerDocument = svgElement.ownerDocument || doc;
+    if (!ownerDocument || typeof ownerDocument.createElementNS !== 'function') return;
+    const style = ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'style');
+    style.setAttribute('data-exported-styles', 'true');
+    style.textContent = cssText;
+    const firstChild = svgElement.firstChild;
+    if (firstChild) {
+      svgElement.insertBefore(style, firstChild);
+    } else {
+      svgElement.appendChild(style);
+    }
+  }
+
+  function resolveImageHref(imageElement) {
+    if (!imageElement || typeof imageElement.getAttribute !== 'function') return '';
+    return (
+      imageElement.getAttribute('href') ||
+      imageElement.getAttribute('xlink:href') ||
+      imageElement.getAttributeNS('http://www.w3.org/1999/xlink', 'href') ||
+      imageElement.getAttribute('src') ||
+      ''
+    );
+  }
+
+  async function inlineExternalImages(svgElement, options = {}) {
+    const doc = options.doc || (svgElement ? svgElement.ownerDocument : null) || (typeof document !== 'undefined' ? document : null);
+    const baseUri = (doc && doc.baseURI) || (typeof location !== 'undefined' ? location.href : '');
+    const images = svgElement && typeof svgElement.querySelectorAll === 'function' ? Array.from(svgElement.querySelectorAll('image')) : [];
+    const externalResources = [];
+    const inlinedResources = [];
+    const failedResources = [];
+
+    for (const image of images) {
+      let href = resolveImageHref(image);
+      if (!href) continue;
+      href = href.trim();
+      if (!href || href.startsWith('data:') || href.startsWith('#')) continue;
+      let resolvedUrl = href;
+      try {
+        resolvedUrl = new URL(href, baseUri).toString();
+      } catch (error) {
+        resolvedUrl = href;
+      }
+      externalResources.push(resolvedUrl);
+      if (typeof global.fetch !== 'function') {
+        failedResources.push({ url: resolvedUrl, error: 'fetch er ikke tilgjengelig' });
+        continue;
+      }
+      try {
+        const response = await fetchWithTimeout(resolvedUrl, { mode: 'cors', credentials: 'omit' }, options.timeoutMs || 5000);
+        if (!response || !response.ok) {
+          throw new Error(`status ${response ? response.status : 'ukjent'}`);
+        }
+        const blob = await response.blob();
+        const dataUrl = await blobToBase64DataUrl(blob);
+        if (!dataUrl) {
+          throw new Error('kunne ikke lage data-URL');
+        }
+        image.setAttribute('href', dataUrl);
+        image.setAttributeNS('http://www.w3.org/1999/xlink', 'href', dataUrl);
+        if (image.hasAttribute('xlink:href')) {
+          image.setAttribute('xlink:href', dataUrl);
+        }
+        if (image.hasAttribute('src')) {
+          image.setAttribute('src', dataUrl);
+        }
+        inlinedResources.push(resolvedUrl);
+      } catch (error) {
+        failedResources.push({
+          url: resolvedUrl,
+          error: error && error.message ? error.message : String(error)
+        });
+      }
+    }
+
+    return {
+      externalResources,
+      inlinedResources,
+      failedResources
+    };
+  }
+
+  function parseSvgString(svgString) {
+    if (typeof svgString !== 'string' || !svgString.trim()) return null;
+    if (typeof DOMParser === 'undefined') return null;
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(svgString, 'image/svg+xml');
+      return doc && doc.querySelector ? doc.querySelector('svg') : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  async function preprocessSvgForExport(options = {}) {
+    const doc = options.doc || (typeof document !== 'undefined' ? document : null);
+    let svgElement = options.svgElement || null;
+    let workingSvg = null;
+    if (svgElement) {
+      workingSvg = cloneSvgForExport(svgElement);
+    } else if (typeof options.svgString === 'string') {
+      const parsedSvg = parseSvgString(options.svgString);
+      if (parsedSvg) {
+        workingSvg = parsedSvg;
+        ensureSvgNamespaces(workingSvg);
+        ensureSvgSizingAttributes(workingSvg, workingSvg);
+        ensureSvgBackground(workingSvg, options.bounds || {});
+        injectDocumentStylesIntoSvg(doc, workingSvg);
+      }
+    }
+
+    if (!workingSvg) {
+      return {
+        svgElement: null,
+        svgString: options.svgString || '',
+        externalResources: [],
+        inlinedResources: [],
+        failedResources: []
+      };
+    }
+
+    if (options.backgroundColor) {
+      ensureSvgBackground(workingSvg, { bounds: options.bounds || {}, fill: options.backgroundColor });
+    }
+
+    const resourceStatus = await inlineExternalImages(workingSvg, { doc, timeoutMs: options.timeoutMs });
+    let svgString = options.svgString || '';
+    try {
+      svgString = new XMLSerializer().serializeToString(workingSvg);
+    } catch (error) {
+      // keep previous svgString
+    }
+
+    return {
+      svgElement: workingSvg,
+      svgString,
+      ...resourceStatus
+    };
+  }
+
+  function buildTaintLogMessage(context, info, error) {
+    const failed = info && Array.isArray(info.failedResources) ? info.failedResources : [];
+    const external = info && Array.isArray(info.externalResources) ? info.externalResources : [];
+    const lines = [`${context} (tainted canvas).`];
+    if (failed.length) {
+      lines.push('Feil ved innlasting av ressurser:');
+      failed.forEach(entry => {
+        lines.push(`- ${entry.url}${entry.error ? ` (${entry.error})` : ''}`);
+      });
+    } else if (external.length) {
+      lines.push('Eksterne ressurser funnet:');
+      external.forEach(url => lines.push(`- ${url}`));
+    }
+    if (error && error.message) {
+      lines.push(`Original feil: ${error.message}`);
+    }
+    return lines.join('\n');
   }
 
   function dataUrlToBlob(dataUrl) {
@@ -641,9 +858,17 @@
     await new Promise(resolve => setTimeout(resolve, 50));
   }
 
-  async function renderSvgToPng(doc, svgUrl, svgString, dimensions) {
+  async function renderSvgToPng(doc, svgUrl, svgString, dimensions, options = {}) {
     if (!doc) throw new Error('document mangler');
     await waitForDocumentFonts(doc);
+    const preprocessInfo = await preprocessSvgForExport({
+      doc,
+      svgElement: options.sourceElement || null,
+      svgString,
+      bounds: dimensions,
+      backgroundColor: options.backgroundColor
+    });
+    const exportSvgString = preprocessInfo && preprocessInfo.svgString ? preprocessInfo.svgString : svgString;
     const canvas = doc.createElement('canvas');
     const sizing = ensureMinimumPngDimensions(dimensions);
     const width = sizing.width;
@@ -659,7 +884,7 @@
     if ('crossOrigin' in img) {
       img.crossOrigin = 'anonymous';
     }
-    const svgDataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgString)}`;
+    const svgDataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(exportSvgString)}`;
     const loadSvgImage = src =>
       new Promise((resolve, reject) => {
         img.onload = () => resolve();
@@ -667,12 +892,12 @@
         img.src = src;
       });
     try {
-      await loadSvgImage(svgUrl || svgDataUrl);
+      await loadSvgImage(svgDataUrl);
     } catch (error) {
       if (!svgUrl) {
         throw error;
       }
-      await loadSvgImage(svgDataUrl);
+      await loadSvgImage(svgUrl);
     }
     ctx.clearRect(0, 0, width, height);
     ctx.drawImage(img, 0, 0, width, height);
@@ -704,7 +929,9 @@
       try {
         dataUrl = canvas.toDataURL(mimeType);
       } catch (error) {
-        throw new Error('Kunne ikke generere PNG-data-URL');
+        const logMessage = buildTaintLogMessage('PNG-eksport feilet', preprocessInfo, error);
+        console.error(logMessage);
+        throw new Error(logMessage);
       }
       if (!blob) {
         blob = dataUrlToBlob(dataUrl);
@@ -731,7 +958,13 @@
     host.style.opacity = '0';
     host.style.pointerEvents = 'none';
     host.style.zIndex = '-1';
-    const clone = svgElement.cloneNode(true);
+    const preprocessInfo = await preprocessSvgForExport({
+      doc,
+      svgElement,
+      bounds: options.bounds || {},
+      backgroundColor: options.backgroundColor
+    });
+    const clone = preprocessInfo.svgElement || svgElement.cloneNode(true);
     if (typeof ensureSvgBackground === 'function') {
       ensureSvgBackground(clone, options.bounds || {});
     }
@@ -776,7 +1009,9 @@
         try {
           dataUrl = canvas.toDataURL('image/png');
         } catch (error) {
-          throw new Error('Kunne ikke generere PNG-data-URL');
+          const logMessage = buildTaintLogMessage('html2canvas PNG-eksport feilet', preprocessInfo, error);
+          console.error(logMessage);
+          throw new Error(logMessage);
         }
         if (!blob) {
           blob = dataUrlToBlob(dataUrl);
@@ -864,7 +1099,10 @@
     }
     if (!pngResult) {
       try {
-        pngResult = await renderSvgToPng(doc, svgUrl, svgString, dimensions);
+        pngResult = await renderSvgToPng(doc, svgUrl, svgString, dimensions, {
+          sourceElement: svgElement,
+          backgroundColor: options.backgroundColor || '#fff'
+        });
       } catch (error) {
         pngError = error;
       }
