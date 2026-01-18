@@ -78,6 +78,18 @@
     }
     return DEFAULT_GRAFTEGNER_GROUP_ID;
   })();
+  const DEFAULT_NKANT_GROUP_ID = 'nkant';
+  const NKANT_GROUP_ID = (() => {
+    for (const group of COLOR_SLOT_GROUPS) {
+      if (!group || typeof group.groupId !== 'string') continue;
+      const normalized = group.groupId.trim().toLowerCase();
+      if (normalized === DEFAULT_NKANT_GROUP_ID) {
+        return group.groupId;
+      }
+    }
+    return DEFAULT_NKANT_GROUP_ID;
+  })();
+  const LEGACY_NKANT_SLOT_INDICES = [1, 2, 3, 4, 5, 6, 7, 8, 9];
   const GROUP_IDS = Array.isArray(paletteConfig.COLOR_GROUP_IDS)
     ? paletteConfig.COLOR_GROUP_IDS.slice()
     : COLOR_SLOT_GROUPS.map(group => group.groupId);
@@ -667,9 +679,17 @@
     const sanitized = sanitizeColorList(palette, MAX_COLORS);
     const converted = {};
     COLOR_SLOT_GROUPS.forEach(group => {
+      const isNkant = group.groupId === NKANT_GROUP_ID;
       converted[group.groupId] = group.slots.map(slot => {
         const index = Number.isInteger(slot.index) && slot.index >= 0 ? slot.index : 0;
-        return sanitized[index] || null;
+        let color = sanitized[index] || null;
+        if (!color && isNkant) {
+          const legacyIndex = LEGACY_NKANT_SLOT_INDICES[slot.groupIndex];
+          if (Number.isInteger(legacyIndex) && legacyIndex >= 0) {
+            color = sanitized[legacyIndex] || null;
+          }
+        }
+        return color;
       });
     });
     return converted;
