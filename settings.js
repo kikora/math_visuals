@@ -431,6 +431,7 @@
   }
 
   const CONTRAST_THRESHOLD_NORMAL_TEXT = 4.5;
+  const CONTRAST_THRESHOLD_NON_TEXT = 3.0;
 
   function calculateRelativeLuminance(color) {
     const sanitized = sanitizeColor(color);
@@ -559,7 +560,7 @@
     if (!display) return null;
     return {
       display,
-      passes: ratio >= CONTRAST_THRESHOLD_NORMAL_TEXT
+      passes: ratio >= CONTRAST_THRESHOLD_NON_TEXT
     };
   }
 
