@@ -299,32 +299,40 @@ function getCurrentAppMode() {
   if (typeof document !== 'undefined' && document.body && document.body.dataset && document.body.dataset.appMode) {
     const mode = document.body.dataset.appMode;
     if (typeof mode === 'string' && mode.trim()) {
-      return mode.trim();
+      return normalizeAppMode(mode);
     }
   }
   if (typeof window !== 'undefined' && window.mathVisuals && typeof window.mathVisuals.getAppMode === 'function') {
     try {
       const mode = window.mathVisuals.getAppMode();
-      if (typeof mode === 'string' && mode.trim()) return mode.trim();
+      if (typeof mode === 'string' && mode.trim()) return normalizeAppMode(mode);
     } catch (_) {}
   }
   return 'default';
 }
-function isTaskLikeMode(mode) {
+function normalizeAppMode(mode) {
   const normalized = typeof mode === 'string' ? mode.trim().toLowerCase() : '';
-  return (
+  if (
     normalized === 'task' ||
     normalized === 'preview' ||
     normalized === 'forhandsvisning' ||
-    normalized === 'forhåndsvisning'
-  );
+    normalized === 'forhåndsvisning' ||
+    normalized === 'task-mode' ||
+    normalized === 'preview-mode'
+  ) {
+    return 'task';
+  }
+  return 'default';
+}
+function isTaskLikeMode(mode) {
+  return normalizeAppMode(mode) === 'task';
 }
 
 function syncBodyAppMode(mode) {
   if (typeof document === 'undefined') return;
   const body = document.body;
   if (!body || !body.dataset) return;
-  const normalized = isTaskLikeMode(mode) ? 'task' : typeof mode === 'string' && mode.trim() ? mode.trim() : 'default';
+  const normalized = normalizeAppMode(mode);
   if (body.dataset.appMode !== normalized) {
     body.dataset.appMode = normalized;
   }

@@ -1220,9 +1220,9 @@ initExamples();
     oppgavemodus: 'task',
     student: 'task',
     elev: 'task',
-    preview: 'preview',
-    forhåndsvisning: 'preview',
-    forhandsvisning: 'preview',
+    preview: 'task',
+    forhåndsvisning: 'task',
+    forhandsvisning: 'task',
     default: DEFAULT_APP_MODE,
     standard: DEFAULT_APP_MODE,
     teacher: DEFAULT_APP_MODE,
@@ -1242,7 +1242,7 @@ initExamples();
     const trimmed = value.trim().toLowerCase();
     if (!trimmed) return null;
     if (APP_MODE_ALIASES[trimmed]) return APP_MODE_ALIASES[trimmed];
-    if (trimmed === 'preview-mode') return 'preview';
+    if (trimmed === 'preview-mode') return 'task';
     if (trimmed === 'task-mode') return 'task';
     return null;
   }
