@@ -1057,8 +1057,8 @@
     hexInput.setAttribute('spellcheck', 'false');
     hexInput.setAttribute('autocomplete', 'off');
     hexInput.setAttribute('inputmode', 'text');
-    hexInput.setAttribute('pattern', '#?[0-9a-fA-F]{3,6}');
-    hexInput.maxLength = 7;
+    hexInput.setAttribute('pattern', '#?([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})');
+    hexInput.maxLength = 9;
 
     const colorInput = document.createElement('input');
     colorInput.type = 'color';
