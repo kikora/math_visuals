@@ -304,7 +304,7 @@ export function createFigurePickerHelpers(options = {}) {
     return { selectedValue: selectEl.value, hasMatch };
   }
 
-  function renderCategorySelect(selectEl, selectedId) {
+  function renderCategorySelect(selectEl, selectedId, config = {}) {
     const options = categoryOrder
       .map(categoryId => {
         const entry = categoryEntries.get(categoryId);
@@ -320,8 +320,10 @@ export function createFigurePickerHelpers(options = {}) {
       .filter(option => option);
 
     const resolvedSelection = resolveCategoryId(selectedId);
+    const placeholderLabel = options.length === 0 ? config.placeholderLabel : null;
     const { selectedValue } = applySelectOptions(selectEl, options, resolvedSelection, {
-      disableWhenEmpty: true
+      disableWhenEmpty: true,
+      placeholderLabel
     });
     return { options, selectedId: selectedValue };
   }
