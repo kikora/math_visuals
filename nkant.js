@@ -5099,13 +5099,21 @@ function updateResponsiveFigureSize() {
   if (!root || !figure) return;
   const card = figure.closest(".card");
   const figureRect = figure.getBoundingClientRect();
+  const figureStyles = window.getComputedStyle(figure);
+  const figurePaddingX = (parseFloat(figureStyles.paddingLeft) || 0) + (parseFloat(figureStyles.paddingRight) || 0);
+  const figurePaddingY = (parseFloat(figureStyles.paddingTop) || 0) + (parseFloat(figureStyles.paddingBottom) || 0);
   const bodyStyles = window.getComputedStyle(document.body);
   const bodyPaddingBottom = parseFloat(bodyStyles.paddingBottom) || 0;
   const cardStyles = card ? window.getComputedStyle(card) : null;
   const cardPaddingBottom = cardStyles ? parseFloat(cardStyles.paddingBottom) || 0 : 0;
   const extraSpacing = bodyPaddingBottom + cardPaddingBottom + 16;
-  const available = Math.max(0, window.innerHeight - figureRect.top - extraSpacing);
-  root.style.setProperty("--figure-available-height", `${available}px`);
+  const availableHeight = Math.max(0, window.innerHeight - figureRect.top - extraSpacing - figurePaddingY);
+  const availableWidth = Math.max(
+    0,
+    Math.min(figureRect.width, window.innerWidth - figureRect.left) - figurePaddingX
+  );
+  root.style.setProperty("--figure-available-height", `${availableHeight}px`);
+  root.style.setProperty("--figure-available-width", `${availableWidth}px`);
 }
 function initResponsiveFigureSizing() {
   if (typeof window === "undefined") return;
