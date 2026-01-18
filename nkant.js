@@ -51,11 +51,12 @@ const DEFAULT_GLOBAL_DEFAULTS = {
   sides: "value",
   angles: "custom+mark+value"
 };
-function createDefaultFigureState(index = 0, specText = "", defaults = DEFAULT_GLOBAL_DEFAULTS) {
+function createDefaultFigureState(index = 0, specText = "", defaults = DEFAULT_GLOBAL_DEFAULTS, colorSetIndex = DEFAULT_STATE.colorSetIndex) {
   const defaultSideMode = defaults && defaults.sides ? defaults.sides : DEFAULT_GLOBAL_DEFAULTS.sides;
   const defaultAngleMode = defaults && defaults.angles ? defaults.angles : DEFAULT_GLOBAL_DEFAULTS.angles;
   return {
     specText,
+    colorSetIndex: sanitizeColorSetIndex(colorSetIndex),
     sides: {
       default: defaultSideMode,
       a: "inherit",
@@ -193,12 +194,14 @@ function ensureStateDefaults() {
     const base = createDefaultFigureState(
       idx,
       typeof fig === "string" ? fig : (fig && fig.specText) || baseSpecs[idx] || "",
-      STATE.defaults
+      STATE.defaults,
+      STATE.colorSetIndex
     );
     const target = fig && typeof fig === "object" && !Array.isArray(fig) ? { ...fig } : { specText: typeof fig === "string" ? fig : "" };
     fill(target, base);
     target.sides.default = STATE.defaults.sides;
     target.angles.default = STATE.defaults.angles;
+    target.colorSetIndex = sanitizeColorSetIndex(target.colorSetIndex);
     return target;
   });
   STATE.specsText = STATE.figures.map(fig => fig && typeof fig.specText === "string" ? fig.specText : "").join("\n");
@@ -1029,8 +1032,7 @@ function getThemeColor(token, fallback) {
 }
 
 let nkantPaletteCache = [];
-let nkantColorPickerEl = null;
-let nkantColorPickerBound = false;
+let nkantColorPickerDocBound = false;
 
 function resolveNkantPalette() {
   const project = getActiveProjectName();
@@ -1061,17 +1063,25 @@ function resolveNkantPalette() {
   return ensurePalette(groupPalette, NKANT_GROUP_PALETTE_SIZE, NKANT_FALLBACK_PALETTE);
 }
 
-function applyNkantPaletteSelection(palette, options = {}) {
-  const { render = true } = options;
-  const finalPalette = Array.isArray(palette) ? palette : resolveNkantPalette();
-  nkantPaletteCache = finalPalette.slice();
-  const safeIndex = sanitizeColorSetIndex(STATE.colorSetIndex);
-  STATE.colorSetIndex = safeIndex;
+function getNkantPaletteColors(palette, colorSetIndex) {
+  const colors = Array.isArray(palette) ? palette : resolveNkantPalette();
+  const safeIndex = sanitizeColorSetIndex(colorSetIndex);
   const baseIndex = (safeIndex - 1) * NKANT_COLOR_SET_SIZE;
-  const fillColor = finalPalette[baseIndex] || STYLE_DEFAULTS.faceFill;
-  const lineColor = finalPalette[baseIndex + 1] || STYLE_DEFAULTS.edgeStroke;
-  const angleColor = finalPalette[baseIndex + 2] || STYLE_DEFAULTS.angStroke;
+  return {
+    colors,
+    safeIndex,
+    fillColor: colors[baseIndex] || STYLE_DEFAULTS.faceFill,
+    lineColor: colors[baseIndex + 1] || STYLE_DEFAULTS.edgeStroke,
+    angleColor: colors[baseIndex + 2] || STYLE_DEFAULTS.angStroke
+  };
+}
 
+function applyNkantColorSetToStyle(colorSetIndex, palette) {
+  const {
+    fillColor,
+    lineColor,
+    angleColor
+  } = getNkantPaletteColors(palette, colorSetIndex);
   const textColor = getThemeColor('ui.primary', STYLE_DEFAULTS.textFill);
   const constructionColor = getThemeColor('dots.default', STYLE_DEFAULTS.constructionStroke);
 
@@ -1084,6 +1094,15 @@ function applyNkantPaletteSelection(palette, options = {}) {
     constructionStroke: constructionColor,
     angFill: withAlphaColor(angleColor, 0.25, 'rgba(0,0,0,0.1)')
   });
+}
+
+function applyNkantPaletteSelection(palette, options = {}) {
+  const { render = true, colorSetIndex = STATE.colorSetIndex } = options;
+  const finalPalette = Array.isArray(palette) ? palette : resolveNkantPalette();
+  nkantPaletteCache = finalPalette.slice();
+  const safeIndex = sanitizeColorSetIndex(colorSetIndex);
+  STATE.colorSetIndex = safeIndex;
+  applyNkantColorSetToStyle(safeIndex, finalPalette);
 
   if (render && typeof renderCombined === 'function') {
     if (typeof scheduleRender === 'function') {
@@ -1094,6 +1113,13 @@ function applyNkantPaletteSelection(palette, options = {}) {
   }
 }
 
+function getFigureColorSetIndex(fig) {
+  if (fig && Number.isFinite(fig.colorSetIndex)) {
+    return sanitizeColorSetIndex(fig.colorSetIndex);
+  }
+  return sanitizeColorSetIndex(STATE.colorSetIndex);
+}
+
 function setTripleSwatchStyle(element, fillColor, lineColor, angleColor) {
   if (!element) return;
   element.style.setProperty('--swatch-color-1', fillColor);
@@ -1101,17 +1127,18 @@ function setTripleSwatchStyle(element, fillColor, lineColor, angleColor) {
   element.style.setProperty('--swatch-color-3', angleColor);
 }
 
-function updateNkantColorPickerSelection(palette) {
-  if (!nkantColorPickerEl) return;
-  const activeButton = nkantColorPickerEl.querySelector('.color-swatch--active');
-  const optionsPanel = nkantColorPickerEl.querySelector('.color-options');
+function updateNkantColorPickerSelection(element, palette, colorSetIndex) {
+  if (!element) return;
+  const activeButton = element.querySelector('.color-swatch--active');
+  const optionsPanel = element.querySelector('.color-options');
   if (!activeButton || !optionsPanel) return;
-  const colors = Array.isArray(palette) ? palette : nkantPaletteCache;
-  const safeIndex = sanitizeColorSetIndex(STATE.colorSetIndex);
-  const baseIndex = (safeIndex - 1) * NKANT_COLOR_SET_SIZE;
-  const fillColor = colors[baseIndex] || STYLE_DEFAULTS.faceFill;
-  const lineColor = colors[baseIndex + 1] || STYLE_DEFAULTS.edgeStroke;
-  const angleColor = colors[baseIndex + 2] || STYLE_DEFAULTS.angStroke;
+  const {
+    colors,
+    safeIndex,
+    fillColor,
+    lineColor,
+    angleColor
+  } = getNkantPaletteColors(palette, colorSetIndex);
   setTripleSwatchStyle(activeButton, fillColor, lineColor, angleColor);
   optionsPanel.querySelectorAll('.color-option-btn').forEach(btn => {
     const btnIndex = sanitizeColorSetIndex(btn.dataset.colorIndex);
@@ -1119,10 +1146,10 @@ function updateNkantColorPickerSelection(palette) {
   });
 }
 
-function renderNkantColorPicker(palette) {
-  if (!nkantColorPickerEl) return;
-  const activeButton = nkantColorPickerEl.querySelector('.color-swatch--active');
-  const optionsPanel = nkantColorPickerEl.querySelector('.color-options');
+function renderNkantColorPicker(element, palette, getColorSetIndex, onSelect) {
+  if (!element) return;
+  const activeButton = element.querySelector('.color-swatch--active');
+  const optionsPanel = element.querySelector('.color-options');
   if (!activeButton || !optionsPanel) return;
   const colors = Array.isArray(palette) ? palette : resolveNkantPalette();
   optionsPanel.innerHTML = '';
@@ -1140,28 +1167,31 @@ function renderNkantColorPicker(palette) {
     btn.addEventListener('click', event => {
       event.stopPropagation();
       const nextIndex = sanitizeColorSetIndex(index + 1);
-      updateState(state => {
-        state.colorSetIndex = nextIndex;
-      }, { render: false });
-      applyNkantPaletteSelection(colors, { render: true });
-      updateNkantColorPickerSelection(colors);
+      if (typeof onSelect === 'function') {
+        onSelect(nextIndex);
+      }
+      updateNkantColorPickerSelection(element, colors, nextIndex);
       optionsPanel.hidden = true;
     });
     optionsPanel.appendChild(btn);
   }
-  if (!nkantColorPickerBound) {
-    activeButton.addEventListener('click', event => {
-      event.stopPropagation();
-      optionsPanel.hidden = !optionsPanel.hidden;
-    });
+  activeButton.addEventListener('click', event => {
+    event.stopPropagation();
+    optionsPanel.hidden = !optionsPanel.hidden;
+  });
+  if (!nkantColorPickerDocBound) {
     document.addEventListener('click', event => {
-      if (!nkantColorPickerEl.contains(event.target)) {
-        optionsPanel.hidden = true;
-      }
+      document.querySelectorAll('[data-nkant-color-picker]').forEach(picker => {
+        if (!picker.contains(event.target)) {
+          const panel = picker.querySelector('.color-options');
+          if (panel) panel.hidden = true;
+        }
+      });
     });
-    nkantColorPickerBound = true;
+    nkantColorPickerDocBound = true;
   }
-  updateNkantColorPickerSelection(colors);
+  const currentIndex = typeof getColorSetIndex === 'function' ? getColorSetIndex() : STATE.colorSetIndex;
+  updateNkantColorPickerSelection(element, colors, currentIndex);
 }
 
 // --- PATCH START: Manglende tema-funksjon ---
@@ -1169,7 +1199,13 @@ function renderNkantColorPicker(palette) {
 function refreshNkantTheme(options = {}) {
   const palette = resolveNkantPalette();
   applyNkantPaletteSelection(palette, { render: true });
-  renderNkantColorPicker(palette);
+  document.querySelectorAll('[data-nkant-color-picker]').forEach(element => {
+    const figIndex = Number.parseInt(element.dataset.figureIndex, 10);
+    const fig = Number.isFinite(figIndex) ? STATE.figures[figIndex] : null;
+    const index = fig ? getFigureColorSetIndex(fig) : sanitizeColorSetIndex(element.dataset.colorSetIndex || STATE.colorSetIndex);
+    element.dataset.colorSetIndex = String(index);
+    updateNkantColorPickerSelection(element, palette, index);
+  });
 }
 
 // Hjelpefunksjon for å unngå spamming av refresh
@@ -5266,13 +5302,17 @@ function createCleanNKantSaveState() {
 
   const figureCount = Array.isArray(STATE.figures) ? STATE.figures.length : 0;
   const figures = Array.isArray(STATE.figures) ? STATE.figures.map((fig, idx) => {
-    const baseFig = createDefaultFigureState(idx, '', defaults);
+    const baseFig = createDefaultFigureState(idx, '', defaults, STATE.colorSetIndex);
     const entry = {
       spec: fig && typeof fig.specText === 'string' ? fig.specText : ''
     };
 
     if (fig && typeof fig.color === 'string' && fig.color.trim()) {
       entry.color = fig.color.trim();
+    }
+    const figColorSetIndex = getFigureColorSetIndex(fig);
+    if (figColorSetIndex !== sanitizeColorSetIndex(baseFig.colorSetIndex)) {
+      entry.colorSet = figColorSetIndex;
     }
 
     const labelOverrides = {};
@@ -5406,13 +5446,16 @@ function loadCleanNKantState(rawState) {
     const defaults = getGlobalDefaults();
     const figures = Array.isArray(rawState.figures) ? rawState.figures.slice(0, 4) : [];
     nextState.figures = figures.map((entry, idx) => {
-      const base = createDefaultFigureState(idx, "", defaults);
+      const base = createDefaultFigureState(idx, "", defaults, nextState.colorSetIndex);
       const fig = { ...base };
       const spec = entry && typeof entry.spec === "string" ? entry.spec : "";
       fig.specText = spec;
 
       if (entry && typeof entry.color === "string" && entry.color.trim()) {
         fig.color = entry.color.trim();
+      }
+      if (entry && entry.colorSet != null) {
+        fig.colorSetIndex = sanitizeColorSetIndex(entry.colorSet);
       }
 
       const labels = entry && entry.labels && typeof entry.labels === "object" ? entry.labels : null;
@@ -5606,6 +5649,8 @@ function buildAdvForFig(figState) {
 }
 async function renderCombined() {
   applyTextSizePreference(STATE.textSize);
+  const palette = nkantPaletteCache.length ? nkantPaletteCache : resolveNkantPalette();
+  applyNkantColorSetToStyle(STATE.colorSetIndex, palette);
   const svg = document.getElementById("paper");
   svg.innerHTML = "";
   resetRenderedLabelMap();
@@ -5669,7 +5714,8 @@ async function renderCombined() {
       obj
     } = jobEntries[i].job;
     const figState = STATE.figures[jobEntries[i].figureIndex]
-      || createDefaultFigureState(jobEntries[i].figureIndex, "", STATE.defaults);
+      || createDefaultFigureState(jobEntries[i].figureIndex, "", STATE.defaults, STATE.colorSetIndex);
+    applyNkantColorSetToStyle(getFigureColorSetIndex(figState), palette);
     const adv = buildAdvForFig(figState);
     const labelCtx = { prefix: `fig${i + 1}` };
     let summaryEntry = null;
@@ -5700,6 +5746,7 @@ async function renderCombined() {
     count: n,
     jobs: summaries
   };
+  applyNkantColorSetToStyle(STATE.colorSetIndex, palette);
   syncLabelEditorAfterRender();
   maybeRefreshAltText('config');
   adjustSvgViewBoxToContent(svg);
@@ -5717,7 +5764,6 @@ function bindUI() {
   const btnDraw = $("#btnDraw");
   const addFigureBtn = $("#btnAddFigure");
   const figureListEl = $("#figureList");
-  nkantColorPickerEl = document.querySelector('[data-nkant-color-picker]');
   const globalDefaultSidesWrap = $("#globalDefaultSidesWrap");
   const globalDefaultAnglesWrap = $("#globalDefaultAnglesWrap");
   rotateTextSelect = $("#rotateTextSelect");
@@ -5882,8 +5928,55 @@ function bindUI() {
             syncSpecsTextFromFigures();
           });
         });
-        specRow.appendChild(drawBtn);
-        wrapper.appendChild(specRow);
+      specRow.appendChild(drawBtn);
+      wrapper.appendChild(specRow);
+
+      const colorRow = document.createElement("div");
+      colorRow.className = "figure-config__colors";
+      const colorLabel = document.createElement("label");
+      colorLabel.textContent = "Farger";
+      colorRow.appendChild(colorLabel);
+
+      const colorPicker = document.createElement("div");
+      colorPicker.className = "fill-color-picker";
+      colorPicker.dataset.nkantColorPicker = "figure";
+      colorPicker.dataset.figureIndex = String(idx);
+      const swatchBtn = document.createElement("button");
+      swatchBtn.type = "button";
+      swatchBtn.className = "color-swatch color-swatch--active color-swatch--triple";
+      swatchBtn.setAttribute("aria-label", `Velg fargesett for figur ${idx + 1}`);
+      swatchBtn.setAttribute("aria-haspopup", "true");
+      swatchBtn.setAttribute("aria-expanded", "false");
+      const optionsPanel = document.createElement("div");
+      optionsPanel.className = "color-options";
+      optionsPanel.hidden = true;
+      colorPicker.appendChild(swatchBtn);
+      colorPicker.appendChild(optionsPanel);
+      colorRow.appendChild(colorPicker);
+
+      const colorNote = document.createElement("div");
+      colorNote.className = "small";
+      colorNote.textContent = "Fyll, linje og vinkel.";
+      colorRow.appendChild(colorNote);
+
+      const palette = nkantPaletteCache.length ? nkantPaletteCache : resolveNkantPalette();
+      const colorSetIndex = getFigureColorSetIndex(fig);
+      colorPicker.dataset.colorSetIndex = String(colorSetIndex);
+      renderNkantColorPicker(
+        colorPicker,
+        palette,
+        () => getFigureColorSetIndex(fig),
+        nextIndex => {
+          updateState(state => {
+            if (state.figures[idx]) {
+              state.figures[idx].colorSetIndex = nextIndex;
+            }
+            state.colorSetIndex = nextIndex;
+          });
+          colorPicker.dataset.colorSetIndex = String(nextIndex);
+        }
+      );
+      wrapper.appendChild(colorRow);
 
       const rows = document.createElement("div");
       rows.className = "form-row";
@@ -5965,10 +6058,6 @@ function bindUI() {
   syncGlobalDefaultsToUI = syncGlobalDefaultsUI;
   applyFigureSpecsToUI = renderFigureForms;
     renderFigureForms();
-    if (nkantColorPickerEl) {
-      const palette = nkantPaletteCache.length ? nkantPaletteCache : resolveNkantPalette();
-      renderNkantColorPicker(palette);
-    }
     if (textSizeSelect) {
       const normalized = sanitizeTextSize(STATE.textSize);
       STATE.textSize = normalized;
@@ -5995,7 +6084,7 @@ function bindUI() {
       addFigureBtn.addEventListener("click", () => {
         if (STATE.figures.length >= 4) return;
         updateState(state => {
-          const newFig = createDefaultFigureState(state.figures.length, "", state.defaults);
+          const newFig = createDefaultFigureState(state.figures.length, "", state.defaults, state.colorSetIndex);
           state.figures.push(newFig);
           syncSpecsTextFromFigures();
         }, { onUpdate: renderFigureForms });
