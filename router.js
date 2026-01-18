@@ -259,6 +259,13 @@ const PROFILE_DEFAULT = 'kikora';
 const MODE_STORAGE_KEY = 'mode';
 const MODE_DEFAULT = 'edit';
 const MODE_VALUES = ['edit', 'task'];
+const MODE_ALIASES = {
+  edit: 'edit',
+  task: 'task',
+  preview: 'task',
+  forhandsvisning: 'task',
+  forhåndsvisning: 'task'
+};
 const campusProfileVariables = {
   'profile-body-background': '#f5f6ff',
   'profile-body-color': '#10143c',
@@ -343,7 +350,9 @@ if (storedProfileValue !== initialProfile) {
 function normalizeModeCandidate(value) {
   if (typeof value !== 'string') return null;
   const normalized = value.trim().toLowerCase();
-  return MODE_VALUES.includes(normalized) ? normalized : null;
+  if (!normalized) return null;
+  const alias = MODE_ALIASES[normalized];
+  return alias && MODE_VALUES.includes(alias) ? alias : null;
 }
 
 function normalizeMode(value) {

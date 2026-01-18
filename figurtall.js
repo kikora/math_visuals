@@ -1009,32 +1009,42 @@ function isValidColor(value) {
     return false;
   }
   function isTaskLikeMode(value) {
-    if (typeof value !== 'string') return false;
+    return normalizeAppMode(value) === 'task';
+  }
+  function normalizeAppMode(value) {
+    if (typeof value !== 'string') return 'default';
     const normalized = value.trim().toLowerCase();
-    return [
-      'task',
-      'tasks',
-      'oppgave',
-      'oppgaver',
-      'oppgavemodus',
-      'student',
-      'elev',
-      'preview',
-      'forhandsvisning',
-      'forhåndsvisning'
-    ].includes(normalized);
+    if (
+      [
+        'task',
+        'tasks',
+        'oppgave',
+        'oppgaver',
+        'oppgavemodus',
+        'student',
+        'elev',
+        'preview',
+        'forhandsvisning',
+        'forhåndsvisning',
+        'task-mode',
+        'preview-mode'
+      ].includes(normalized)
+    ) {
+      return 'task';
+    }
+    return 'default';
   }
   function syncBodyAppMode(mode) {
     if (typeof document === 'undefined') return;
     const body = document.body;
     if (!body || !body.dataset) return;
-    const normalized = isTaskLikeMode(mode) ? 'task' : typeof mode === 'string' && mode.trim() ? mode.trim() : 'default';
+    const normalized = normalizeAppMode(mode);
     if (body.dataset.appMode !== normalized) {
       body.dataset.appMode = normalized;
     }
   }
   function applyAppModeChange(mode) {
-    const normalized = isTaskLikeMode(mode) ? 'task' : 'default';
+    const normalized = normalizeAppMode(mode);
     const changed = normalized !== currentAppMode;
     syncBodyAppMode(normalized);
     currentAppMode = normalized;
@@ -1063,23 +1073,26 @@ function isValidColor(value) {
     if (mv && typeof mv.getAppMode === 'function') {
       try {
         const mode = mv.getAppMode();
-        if (isTaskLikeMode(mode)) {
-          resolved = 'task';
+        const normalized = normalizeAppMode(mode);
+        if (normalized === 'task') {
+          resolved = normalized;
         }
       } catch (_) {}
     }
     if (resolved === 'default' && typeof document !== 'undefined' && document.body && document.body.dataset) {
       const bodyMode = document.body.dataset.appMode;
-      if (isTaskLikeMode(bodyMode)) {
-        resolved = 'task';
+      const normalized = normalizeAppMode(bodyMode);
+      if (normalized === 'task') {
+        resolved = normalized;
       }
     }
     if (resolved === 'default') {
       try {
         const params = new URLSearchParams(window.location && window.location.search ? window.location.search : '');
         const fromQuery = params.get('mode');
-        if (isTaskLikeMode(fromQuery)) {
-          resolved = 'task';
+        const normalized = normalizeAppMode(fromQuery);
+        if (normalized === 'task') {
+          resolved = normalized;
         }
       } catch (_) {}
     }

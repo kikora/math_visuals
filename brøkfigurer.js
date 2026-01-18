@@ -549,14 +549,23 @@ function isValidColor(value) {
     });
   }
 
-  function isTaskLikeMode(mode) {
+  function normalizeAppMode(mode) {
     const normalized = typeof mode === 'string' ? mode.trim().toLowerCase() : '';
-    return (
+    if (
       normalized === 'task' ||
       normalized === 'preview' ||
       normalized === 'forhandsvisning' ||
-      normalized === 'forhåndsvisning'
-    );
+      normalized === 'forhåndsvisning' ||
+      normalized === 'task-mode' ||
+      normalized === 'preview-mode'
+    ) {
+      return 'task';
+    }
+    return 'default';
+  }
+
+  function isTaskLikeMode(mode) {
+    return normalizeAppMode(mode) === 'task';
   }
   function setCheckStatus(type, heading, detailLines) {
     if (!checkStatus) return;
@@ -621,7 +630,7 @@ function isValidColor(value) {
     if (typeof document === 'undefined') return;
     const body = document.body;
     if (!body || !body.dataset) return;
-    const normalized = isTaskLikeMode(mode) ? 'task' : typeof mode === 'string' && mode.trim() ? mode.trim() : 'default';
+    const normalized = normalizeAppMode(mode);
     if (body.dataset.appMode !== normalized) {
       body.dataset.appMode = normalized;
     }
@@ -632,7 +641,7 @@ function isValidColor(value) {
       const params = new URLSearchParams(window.location && window.location.search ? window.location.search : '');
       const fromQuery = params.get('mode');
       if (typeof fromQuery === 'string' && fromQuery.trim()) {
-        return fromQuery.trim().toLowerCase();
+        return normalizeAppMode(fromQuery);
       }
     } catch (_) {}
     return null;
@@ -648,7 +657,7 @@ function isValidColor(value) {
       try {
         const mode = mv.getAppMode();
         if (typeof mode === 'string' && mode) {
-          return mode;
+          return normalizeAppMode(mode);
         }
       } catch (_) {}
     }
@@ -695,7 +704,7 @@ function isValidColor(value) {
   applyAppModeToTaskControls(initialAppMode);
   const urlMode = getModeFromUrl();
   const body = typeof document !== 'undefined' ? document.body : null;
-  if (urlMode && isTaskLikeMode(urlMode) && body && body.dataset) {
+  if (urlMode === 'task' && body && body.dataset) {
     if (body.dataset.appMode === 'default') {
       body.dataset.appMode = 'task';
     }
