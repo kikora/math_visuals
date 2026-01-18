@@ -540,20 +540,36 @@
     return sanitizeColor(colors[index]) || getFallbackColorForIndex(project, index);
   }
 
-  function formatContrastValue(ratio) {
-    const formatted = formatContrastRatio(ratio);
-    return formatted || 'ikke tilgjengelig';
+  function evaluateContrastBetweenColors(colorA, colorB) {
+    const ratio = calculateContrastRatioBetweenColors(colorA, colorB);
+    if (ratio === null) return null;
+    const display = formatContrastRatio(ratio);
+    if (!display) return null;
+    return {
+      display,
+      passes: ratio >= CONTRAST_THRESHOLD_NORMAL_TEXT
+    };
+  }
+
+  function formatContrastStatusText(label, evaluation) {
+    if (!evaluation) {
+      return `${label}: ikke tilgjengelig ❌`;
+    }
+    return `${label}: ${evaluation.display} ${evaluation.passes ? '✅' : '❌'}`;
   }
 
   function buildGraftegnerContrastMessage(fillIndex, lineIndex) {
     const fillColor = resolveContrastColor(fillIndex);
     const lineColor = resolveContrastColor(lineIndex);
-    const between = calculateContrastRatioBetweenColors(fillColor, lineColor);
-    const fillOnWhite = calculateContrastRatioBetweenColors(fillColor, '#ffffff');
-    const lineOnWhite = calculateContrastRatioBetweenColors(lineColor, '#ffffff');
-    return `Kontrast fyll/linje: ${formatContrastValue(between)} · Fyll mot hvit: ${formatContrastValue(
-      fillOnWhite
-    )} · Linje mot hvit: ${formatContrastValue(lineOnWhite)}`;
+    const between = evaluateContrastBetweenColors(fillColor, lineColor);
+    const fillOnWhite = evaluateContrastBetweenColors(fillColor, '#ffffff');
+    const lineOnWhite = evaluateContrastBetweenColors(lineColor, '#ffffff');
+    const parts = [
+      formatContrastStatusText('fyll/linje', between),
+      formatContrastStatusText('fyll mot hvit', fillOnWhite),
+      formatContrastStatusText('linje mot hvit', lineOnWhite)
+    ];
+    return `Kontrast ${parts.join(' · ')}`;
   }
 
   function updateGraftegnerContrastRows() {
@@ -1038,14 +1054,22 @@
     return item;
   }
 
-  function createGraftegnerContrastRow(slotIndex, fillIndex, lineIndex) {
+  function createGraftegnerContrastField(fillIndex, lineIndex) {
+    const field = document.createElement('div');
+    field.className = 'color-contrast-field';
+    field.dataset.fillIndex = String(fillIndex);
+    field.dataset.lineIndex = String(lineIndex);
+    field.textContent = buildGraftegnerContrastMessage(fillIndex, lineIndex);
+    graftegnerContrastRows.push(field);
+    return field;
+  }
+
+  function createGraftegnerPairRow(fillSlot, lineSlot) {
     const row = document.createElement('div');
-    row.className = 'color-contrast-row';
-    row.dataset.rowIndex = String(slotIndex);
-    row.dataset.fillIndex = String(fillIndex);
-    row.dataset.lineIndex = String(lineIndex);
-    row.textContent = buildGraftegnerContrastMessage(fillIndex, lineIndex);
-    graftegnerContrastRows.push(row);
+    row.className = 'color-pair-row';
+    row.appendChild(createColorSlotElement(fillSlot));
+    row.appendChild(createColorSlotElement(lineSlot));
+    row.appendChild(createGraftegnerContrastField(fillSlot.index, lineSlot.index));
     return row;
   }
 
@@ -1103,19 +1127,15 @@
       }
       if (normalizedGroupId === 'graftegner') {
         graftegnerContrastRows.length = 0;
-        group.slots.forEach((slot, slotIndex) => {
-          appendSlotToTable(table, createColorSlotElement(slot));
-          if (slotIndex % 2 === 1) {
-            const fillSlot = group.slots[slotIndex - 1];
-            const lineSlot = group.slots[slotIndex];
-            if (fillSlot && lineSlot) {
-              appendSlotToTable(
-                table,
-                createGraftegnerContrastRow(slotIndex, fillSlot.index, lineSlot.index)
-              );
-            }
+        for (let slotIndex = 0; slotIndex < group.slots.length; slotIndex += 2) {
+          const fillSlot = group.slots[slotIndex];
+          const lineSlot = group.slots[slotIndex + 1];
+          if (fillSlot && lineSlot) {
+            appendSlotToTable(table, createGraftegnerPairRow(fillSlot, lineSlot));
+          } else if (fillSlot) {
+            appendSlotToTable(table, createColorSlotElement(fillSlot));
           }
-        });
+        }
       } else {
         group.slots.forEach(slot => {
           appendSlotToTable(table, createColorSlotElement(slot));
