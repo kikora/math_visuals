@@ -891,14 +891,44 @@ function isValidColor(value) {
   const taskCheckHost = typeof document !== 'undefined' ? document.querySelector('[data-task-check-host]') : null;
   const taskCheckControls = [btnCheck, taskStatusEl].filter(Boolean);
 
-  function evaluateDescriptionInputs() {
-    if (typeof window === 'undefined') return;
-    const mv = window.mathVisuals;
-    if (!mv || typeof mv.evaluateTaskInputs !== 'function') return;
-    try {
-      mv.evaluateTaskInputs();
-    } catch (_) {}
+  const TASK_APP_ID = 'figurtall';
+  function getTaskApi() {
+    if (typeof window === 'undefined') return null;
+    return window.MathVisualsTaskApi || null;
   }
+  function runTaskCheck() {
+    if (!STATE.lastFigureIsAnswer) {
+      updateTaskStatus('Ingen fasit tilgjengelig.', 'info');
+      return;
+    }
+    const result = evaluateStudentAnswer();
+    if (result == null) {
+      updateTaskStatus('Ingen fasit tilgjengelig.', 'info');
+      return;
+    }
+    updateTaskStatus(result ? 'Riktig!' : 'Prøv igjen.', result ? 'success' : 'error');
+  }
+  function registerTaskAdapter() {
+    const taskApi = getTaskApi();
+    if (!taskApi || typeof taskApi.registerTaskAdapter !== 'function') return;
+    taskApi.registerTaskAdapter(TASK_APP_ID, {
+      collectInputs() {
+        if (typeof taskApi.evaluateDescriptionInputs === 'function') {
+          taskApi.evaluateDescriptionInputs();
+        }
+      },
+      evaluateAnswers() {
+        runTaskCheck();
+        return null;
+      },
+      resetAnswers() {
+        if (typeof taskApi.resetDescriptionInputs === 'function') {
+          taskApi.resetDescriptionInputs();
+        }
+      }
+    });
+  }
+  registerTaskAdapter();
   function ensureTaskControlsHost() {
     if (!taskCheckHost) return;
     taskCheckControls.forEach(control => {
@@ -1213,19 +1243,14 @@ function isValidColor(value) {
   });
   if (btnCheck) {
     btnCheck.addEventListener('click', () => {
-      evaluateDescriptionInputs();
-      if (!STATE.lastFigureIsAnswer) {
-      updateTaskStatus('Ingen fasit tilgjengelig.', 'info');
-      return;
-    }
-    const result = evaluateStudentAnswer();
-    if (result == null) {
-      updateTaskStatus('Ingen fasit tilgjengelig.', 'info');
-      return;
-    }
-    updateTaskStatus(result ? 'Riktig!' : 'Prøv igjen.', result ? 'success' : 'error');
-  });
-}
+      const taskApi = getTaskApi();
+      if (taskApi && typeof taskApi.evaluateTask === 'function') {
+        taskApi.evaluateTask(TASK_APP_ID);
+      } else {
+        runTaskCheck();
+      }
+    });
+  }
   addBtn === null || addBtn === void 0 || addBtn.addEventListener('click', () => {
     STATE.figures.push(createFigureState(`Figur ${STATE.figures.length + 1}`, rows, cols, []));
     resetTaskStudentCells();

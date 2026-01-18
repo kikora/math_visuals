@@ -1094,17 +1094,45 @@ const altTextStatus = document.getElementById('altTextStatus');
 const regenerateAltTextBtn = document.getElementById('btnRegenerateAltText');
 const checkBtn = document.getElementById('btnCheck');
 const statusEl = document.getElementById('status');
-  const taskCheckHost = typeof document !== 'undefined' ? document.querySelector('[data-task-check-host]') : null;
-  const taskCheckControls = [checkBtn, statusEl].filter(Boolean);
+const taskCheckHost = typeof document !== 'undefined' ? document.querySelector('[data-task-check-host]') : null;
+const taskCheckControls = [checkBtn, statusEl].filter(Boolean);
+const TASK_APP_ID = 'diagram';
 
-  function evaluateDescriptionInputs() {
-    if (typeof window === 'undefined') return;
-    const mv = window.mathVisuals;
-    if (!mv || typeof mv.evaluateTaskInputs !== 'function') return;
-    try {
-      mv.evaluateTaskInputs();
-    } catch (_) {}
-  }
+function getTaskApi() {
+  if (typeof window === 'undefined') return null;
+  return window.MathVisualsTaskApi || null;
+}
+
+function runTaskCheck() {
+  markCorrectness();
+  const ok1 = isCorrect(values, CFG.answer, CFG.tolerance || 0);
+  const ok2 = values2 ? isCorrect(values2, CFG.answer2, CFG.tolerance || 0) : true;
+  const ok = ok1 && ok2;
+  updateStatus(ok ? 'Riktig!' : 'Prøv igjen.', ok ? 'success' : 'error');
+}
+
+function registerTaskAdapter() {
+  const taskApi = getTaskApi();
+  if (!taskApi || typeof taskApi.registerTaskAdapter !== 'function') return;
+  taskApi.registerTaskAdapter(TASK_APP_ID, {
+    collectInputs() {
+      if (typeof taskApi.evaluateDescriptionInputs === 'function') {
+        taskApi.evaluateDescriptionInputs();
+      }
+    },
+    evaluateAnswers() {
+      runTaskCheck();
+      return null;
+    },
+    resetAnswers() {
+      if (typeof taskApi.resetDescriptionInputs === 'function') {
+        taskApi.resetDescriptionInputs();
+      }
+    }
+  });
+}
+
+registerTaskAdapter();
 
 function isTaskLikeMode(mode) {
   const normalized = typeof mode === 'string' ? mode.trim().toLowerCase() : '';
@@ -3219,12 +3247,12 @@ function formatNumberForPrompt(value) {
   });
   if (checkBtn) {
     checkBtn.addEventListener('click', () => {
-      evaluateDescriptionInputs();
-      markCorrectness();
-      const ok1 = isCorrect(values, CFG.answer, CFG.tolerance || 0);
-      const ok2 = values2 ? isCorrect(values2, CFG.answer2, CFG.tolerance || 0) : true;
-      const ok = ok1 && ok2;
-      updateStatus(ok ? 'Riktig!' : 'Prøv igjen.', ok ? 'success' : 'error');
+      const taskApi = getTaskApi();
+      if (taskApi && typeof taskApi.evaluateTask === 'function') {
+        taskApi.evaluateTask(TASK_APP_ID);
+      } else {
+        runTaskCheck();
+      }
     });
   }
 document.querySelector('.settings').addEventListener('input', applyCfg);
