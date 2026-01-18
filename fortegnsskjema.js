@@ -2639,15 +2639,6 @@
     const markerTargets = rowInfos.length ? rowInfos : [{ row: null, rowIndex: 0, y: baseRowY }];
     const rowLabels = [];
     rowInfos.forEach(({ row, rowIndex, y }) => {
-      const baseline = createSvgElement('line', {
-        x1: axisStart,
-        y1: y,
-        x2: axisEnd,
-        y2: y,
-        stroke: chartPalette.grid,
-        'stroke-width': 1
-      });
-      svg.append(baseline);
       let displayLabel;
       if (row.role === 'result') {
         displayLabel = getResultRowDisplayLabel(row);
@@ -2705,7 +2696,7 @@
           y1: y,
           x2: segmentEndX,
           y2: y,
-          stroke: sign > 0 ? chartPalette.positive : chartPalette.negative,
+          stroke: sign > 0 ? '#111827' : '#dc2626',
           'stroke-width': 3,
           'stroke-linecap': 'round',
           'data-row-id': row.id,
