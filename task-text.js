@@ -3,6 +3,8 @@
   if (global.MathVisualsTaskText) return;
 
   const DESCRIPTION_PREVIEW_LABEL_BASE_ID = 'example-description-label';
+  const TASK_TEXT_STORAGE_PREFIX = 'math-visuals:task-text:';
+  const TASK_TEXT_STORAGE_VERSION = 1;
   const DESCRIPTION_MARKERS = [
     { type: 'math', marker: '@math{', open: '{', close: '}' },
     { type: 'task', marker: '@task{', open: '{', close: '}' },
@@ -35,11 +37,133 @@
       getExamples: null,
       getActiveExampleIndex: null,
       extractDescriptionFromExample: null,
-      normalizeDescriptionString: null
+      normalizeDescriptionString: null,
+      getExampleId: null
     }
   };
 
   const descriptionRendererLogPrefix = '[math-vis:description-loader]';
+
+  function normalizeExampleId(value) {
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      return trimmed ? trimmed : null;
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return String(Math.trunc(value));
+    }
+    return null;
+  }
+
+  function resolveExampleIdFromExample(example, index, examples) {
+    if (typeof state.config.getExampleId === 'function') {
+      const resolved = state.config.getExampleId(example, index, examples);
+      const normalized = normalizeExampleId(resolved);
+      if (normalized) return normalized;
+    }
+    if (example && typeof example === 'object') {
+      const candidateKeys = ['exampleId', 'exampleID', 'exampleNumber', 'id'];
+      for (const key of candidateKeys) {
+        if (!Object.prototype.hasOwnProperty.call(example, key)) continue;
+        const normalized = normalizeExampleId(example[key]);
+        if (normalized) return normalized;
+      }
+    }
+    if (Number.isInteger(index)) {
+      return String(index + 1);
+    }
+    return null;
+  }
+
+  function getLocalStorage() {
+    if (typeof window === 'undefined') return null;
+    try {
+      return window.localStorage || null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function buildTaskStorageKey(exampleId) {
+    if (!exampleId) return null;
+    return `${TASK_TEXT_STORAGE_PREFIX}${exampleId}`;
+  }
+
+  function normalizeTaskTextValue(value) {
+    if (typeof value !== 'string') return '';
+    if (typeof state.config.normalizeDescriptionString === 'function') {
+      return state.config.normalizeDescriptionString(value);
+    }
+    return value.replace(/\r\n?/g, '\n').replace(/\u00a0/g, ' ').trim();
+  }
+
+  function readTaskTextFromStorage(exampleId) {
+    const storage = getLocalStorage();
+    const key = buildTaskStorageKey(exampleId);
+    if (!storage || !key) return null;
+    let raw = null;
+    try {
+      raw = storage.getItem(key);
+    } catch (_) {
+      return null;
+    }
+    if (!raw) return null;
+    const trimmed = typeof raw === 'string' ? raw.trim() : '';
+    if (!trimmed) return null;
+    if (trimmed[0] === '{') {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (parsed && typeof parsed === 'object' && typeof parsed.text === 'string') {
+          const normalized = normalizeTaskTextValue(parsed.text);
+          return normalized || null;
+        }
+      } catch (_) {
+        return null;
+      }
+    }
+    return normalizeTaskTextValue(trimmed) || null;
+  }
+
+  function writeTaskTextToStorage(exampleId, value) {
+    const storage = getLocalStorage();
+    const key = buildTaskStorageKey(exampleId);
+    if (!storage || !key) return false;
+    const normalized = normalizeTaskTextValue(value);
+    try {
+      if (!normalized) {
+        storage.removeItem(key);
+        return true;
+      }
+      const payload = {
+        v: TASK_TEXT_STORAGE_VERSION,
+        id: exampleId,
+        text: normalized,
+        updatedAt: new Date().toISOString()
+      };
+      storage.setItem(key, JSON.stringify(payload));
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function resolveActiveExampleContext() {
+    const getExamples = state.config.getExamples;
+    const getActiveExampleIndex = state.config.getActiveExampleIndex;
+    const examples = typeof getExamples === 'function' ? getExamples() : [];
+    const index = typeof getActiveExampleIndex === 'function' ? getActiveExampleIndex(examples) : null;
+    const example = Number.isInteger(index) && Array.isArray(examples) ? examples[index] : null;
+    const exampleId = resolveExampleIdFromExample(example, index, examples);
+    return { examples, index, example, exampleId };
+  }
+
+  function persistTaskText(value, context) {
+    const normalizedMode = normalizeMode(getAppMode());
+    if (normalizedMode !== 'task') return false;
+    const ctx = context || resolveActiveExampleContext();
+    if (!ctx || !ctx.exampleId) return false;
+    return writeTaskTextToStorage(ctx.exampleId, value);
+  }
 
   function setConfig(options) {
     if (!options || typeof options !== 'object') return;
@@ -1068,6 +1192,17 @@
     updateDescriptionEditVisibilityForMode('task');
     let value = typeof input.value === 'string' ? input.value : '';
     let trimmed = value && typeof value.trim === 'function' ? value.trim() : '';
+    const activeContext = resolveActiveExampleContext();
+    if (activeContext.exampleId) {
+      const stored = readTaskTextFromStorage(activeContext.exampleId);
+      if (stored && stored.trim()) {
+        if (stored !== value) {
+          setTaskText(stored);
+          value = stored;
+          trimmed = stored.trim();
+        }
+      }
+    }
     if (!trimmed) {
       try {
         const getExamples = state.config.getExamples;
@@ -1295,19 +1430,33 @@
     if (!ensureTaskPanelUi(taskInput)) return;
 
     const syncFromSidebar = () => {
+      const normalizedMode = normalizeMode(getAppMode());
+      if (normalizedMode === 'task') {
+        const context = resolveActiveExampleContext();
+        const stored = context.exampleId ? readTaskTextFromStorage(context.exampleId) : null;
+        if (stored && stored.trim()) {
+          taskInput.value = stored;
+          sidebarInput.value = stored;
+          applyTaskPreviewValue(stored);
+          return;
+        }
+      }
       taskInput.value = sidebarInput.value;
       applyTaskPreviewValue(taskInput.value);
+      persistTaskText(taskInput.value);
     };
     const syncFromTask = () => {
       sidebarInput.value = taskInput.value;
       sidebarInput.dispatchEvent(new Event('input'));
       applyTaskPreviewValue(taskInput.value);
+      persistTaskText(taskInput.value);
     };
     const syncFromPreview = event => {
       const value = readTaskPreviewValue();
       taskInput.value = value;
       taskInput.dispatchEvent(new Event('input'));
       applyTaskPreviewValue(value, { skipTextUpdate: event && event.type === 'input' });
+      persistTaskText(value);
     };
 
     sidebarInput.addEventListener('input', syncFromSidebar);
@@ -1355,6 +1504,21 @@
     }
     updateDescriptionCollapsedState(input);
     renderDescriptionPreviewFromValue(input.value, { force: true });
+    applyTaskPreviewValue(input.value);
+  }
+
+  function applyTaskTextForExample(example, index, options) {
+    const opts = options && typeof options === 'object' ? options : {};
+    const normalizedMode = normalizeMode(getAppMode());
+    if (normalizedMode !== 'task') return { applied: false, reason: 'mode' };
+    const exampleId = resolveExampleIdFromExample(example, index, opts.examples);
+    if (!exampleId) return { applied: false, reason: 'example-id' };
+    const stored = readTaskTextFromStorage(exampleId);
+    if (stored && stored.trim()) {
+      setTaskText(stored);
+      return { applied: true, source: 'storage', exampleId, text: stored };
+    }
+    return { applied: false, reason: 'empty' };
   }
 
   function init(options) {
@@ -1382,6 +1546,7 @@
     isEditing: () => state.taskModeDescriptionEditing,
     startEditing: startTaskModeDescriptionEdit,
     stopEditing: stopTaskModeDescriptionEdit,
-    ensureTaskModeDescriptionRendered
+    ensureTaskModeDescriptionRendered,
+    applyTaskTextForExample
   };
 })(typeof window !== 'undefined' ? window : undefined);
