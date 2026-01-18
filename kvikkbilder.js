@@ -46,8 +46,8 @@
     right: '#d75ba2',
     top: '#df7cb4'
   };
-  const FILL_COLOR_COUNT = 3;
-  const LEGACY_FILL_PALETTE = ['#B25FE3', '#6C1BA2', '#534477'];
+  const FILL_COLOR_COUNT = 6;
+  const LEGACY_FILL_PALETTE = ['#B25FE3', '#6C1BA2', '#534477', '#873E79', '#E3B660', '#2C395B'];
   const DOT_FALLBACKS = {
     default: '#534477',
     monster: '#534477',
