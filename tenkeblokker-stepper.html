@@ -34,15 +34,10 @@
         </div>
       </div>
       <div class="side">
-        <div id="taskPanel" class="card task-panel" hidden>
-          <h3>Oppgave</h3>
-          <textarea id="taskModeDescription" class="task-text-editable" placeholder="Klikk her for å skrive oppgavetekst..."></textarea>
-        </div>
+                <div data-task-text-panel></div>
 
         <div class="card card--examples">
-          <div class="example-description">
-            <textarea id="exampleDescription" aria-label="Oppgavetekst (valgfritt)" placeholder="Skriv oppgavetekst her"></textarea>
-          </div>
+                    <div data-task-text-description></div>
           <div class="toolbar">
             <button id="btnUpdateExample" class="btn" type="button">Oppdater</button>
             <button id="btnSaveExample" class="btn" type="button">Lag nytt</button>
