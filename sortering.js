@@ -646,7 +646,7 @@ const FIGURE_LIBRARY_APP_KEY = 'sortering';
 
   function syncBodyAppMode(mode) {
     if (!doc || !doc.body || !doc.body.dataset) return;
-    const normalized = isTaskLikeMode(mode) ? 'task' : typeof mode === 'string' && mode.trim() ? mode.trim() : 'default';
+    const normalized = normalizeAppMode(mode);
     if (doc.body.dataset.appMode !== normalized) {
       doc.body.dataset.appMode = normalized;
     }
@@ -667,7 +667,7 @@ const FIGURE_LIBRARY_APP_KEY = 'sortering';
       const params = new URLSearchParams(globalObj.location && globalObj.location.search ? globalObj.location.search : '');
       const fromQuery = params.get('mode');
       if (typeof fromQuery === 'string' && fromQuery.trim()) {
-        return isTaskLikeMode(fromQuery) ? 'task' : 'default';
+        return normalizeAppMode(fromQuery);
       }
     } catch (_) {}
     return 'default';
@@ -2199,21 +2199,22 @@ const FIGURE_LIBRARY_APP_KEY = 'sortering';
     return candidate;
   }
 
-  function isTaskLikeMode(mode) {
+  function normalizeAppMode(mode) {
     const normalized = typeof mode === 'string' ? mode.trim().toLowerCase() : '';
-    return (
+    if (!normalized) return 'default';
+    if (
       normalized === 'task' ||
       normalized === 'preview' ||
       normalized === 'forhandsvisning' ||
       normalized === 'forhåndsvisning'
-    );
+    ) {
+      return 'task';
+    }
+    return 'default';
   }
 
-  function normalizeAppMode(mode) {
-    if (isTaskLikeMode(mode)) return 'task';
-    if (typeof mode !== 'string') return 'default';
-    const normalized = mode.trim().toLowerCase();
-    return normalized || 'default';
+  function isTaskLikeMode(mode) {
+    return normalizeAppMode(mode) === 'task';
   }
 
   function isEditorMode() {

@@ -6925,14 +6925,22 @@ function ensureTaskCheckHostChildren() {
   }
 }
 
-function isTaskLikeMode(mode) {
+function normalizeAppMode(mode) {
   const normalized = typeof mode === 'string' ? mode.trim().toLowerCase() : '';
-  return (
+  if (!normalized) return 'default';
+  if (
     normalized === 'task' ||
     normalized === 'preview' ||
     normalized === 'forhandsvisning' ||
     normalized === 'forhåndsvisning'
-  );
+  ) {
+    return 'task';
+  }
+  return 'default';
+}
+
+function isTaskLikeMode(mode) {
+  return normalizeAppMode(mode) === 'task';
 }
 
 function applyAppModeToTaskCheckHost(mode) {
@@ -6980,7 +6988,7 @@ function getCurrentAppMode() {
     try {
       const mode = mv.getAppMode();
       if (typeof mode === 'string' && mode) {
-        return isTaskLikeMode(mode) ? 'task' : mode;
+        return normalizeAppMode(mode);
       }
     } catch (_) {
       // fall through to query parsing below
@@ -6990,7 +6998,7 @@ function getCurrentAppMode() {
     const params = new URLSearchParams(window.location && window.location.search ? window.location.search : '');
     const fromQuery = params.get('mode');
     if (typeof fromQuery === 'string' && fromQuery.trim()) {
-      return isTaskLikeMode(fromQuery) ? 'task' : 'default';
+      return normalizeAppMode(fromQuery);
     }
   } catch (_) {}
   return 'default';
@@ -7000,7 +7008,7 @@ function syncBodyAppMode(mode) {
   if (typeof document === 'undefined') return;
   const body = document.body;
   if (!body || !body.dataset) return;
-  const normalized = isTaskLikeMode(mode) ? 'task' : typeof mode === 'string' && mode.trim() ? mode.trim() : 'default';
+  const normalized = normalizeAppMode(mode);
   if (body.dataset.appMode !== normalized) {
     body.dataset.appMode = normalized;
   }

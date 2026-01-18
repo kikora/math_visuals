@@ -258,7 +258,15 @@ const PROFILE_STORAGE_KEY = 'profile';
 const PROFILE_DEFAULT = 'kikora';
 const MODE_STORAGE_KEY = 'mode';
 const MODE_DEFAULT = 'edit';
+// "preview"/"forhåndsvisning" is treated as "task" for internal mode handling.
 const MODE_VALUES = ['edit', 'task'];
+const MODE_ALIASES = {
+  edit: 'edit',
+  task: 'task',
+  preview: 'task',
+  forhandsvisning: 'task',
+  forhåndsvisning: 'task'
+};
 const campusProfileVariables = {
   'profile-body-background': '#f5f6ff',
   'profile-body-color': '#10143c',
@@ -343,7 +351,7 @@ if (storedProfileValue !== initialProfile) {
 function normalizeModeCandidate(value) {
   if (typeof value !== 'string') return null;
   const normalized = value.trim().toLowerCase();
-  return MODE_VALUES.includes(normalized) ? normalized : null;
+  return MODE_ALIASES[normalized] || null;
 }
 
 function normalizeMode(value) {

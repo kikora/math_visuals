@@ -1008,33 +1008,42 @@ function isValidColor(value) {
     if (textResult != null) return textResult;
     return false;
   }
-  function isTaskLikeMode(value) {
-    if (typeof value !== 'string') return false;
+  function normalizeAppMode(value) {
+    if (typeof value !== 'string') return 'default';
     const normalized = value.trim().toLowerCase();
-    return [
-      'task',
-      'tasks',
-      'oppgave',
-      'oppgaver',
-      'oppgavemodus',
-      'student',
-      'elev',
-      'preview',
-      'forhandsvisning',
-      'forhåndsvisning'
-    ].includes(normalized);
+    if (!normalized) return 'default';
+    if (
+      [
+        'task',
+        'tasks',
+        'oppgave',
+        'oppgaver',
+        'oppgavemodus',
+        'student',
+        'elev',
+        'preview',
+        'forhandsvisning',
+        'forhåndsvisning'
+      ].includes(normalized)
+    ) {
+      return 'task';
+    }
+    return 'default';
+  }
+  function isTaskLikeMode(value) {
+    return normalizeAppMode(value) === 'task';
   }
   function syncBodyAppMode(mode) {
     if (typeof document === 'undefined') return;
     const body = document.body;
     if (!body || !body.dataset) return;
-    const normalized = isTaskLikeMode(mode) ? 'task' : typeof mode === 'string' && mode.trim() ? mode.trim() : 'default';
+    const normalized = normalizeAppMode(mode);
     if (body.dataset.appMode !== normalized) {
       body.dataset.appMode = normalized;
     }
   }
   function applyAppModeChange(mode) {
-    const normalized = isTaskLikeMode(mode) ? 'task' : 'default';
+    const normalized = normalizeAppMode(mode);
     const changed = normalized !== currentAppMode;
     syncBodyAppMode(normalized);
     currentAppMode = normalized;
@@ -1063,9 +1072,7 @@ function isValidColor(value) {
     if (mv && typeof mv.getAppMode === 'function') {
       try {
         const mode = mv.getAppMode();
-        if (isTaskLikeMode(mode)) {
-          resolved = 'task';
-        }
+        resolved = normalizeAppMode(mode);
       } catch (_) {}
     }
     if (resolved === 'default' && typeof document !== 'undefined' && document.body && document.body.dataset) {
