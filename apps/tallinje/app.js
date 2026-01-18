@@ -90,10 +90,6 @@ function setupTallinjeApp({ registerCleanup }) {
   const exportCard = document.getElementById('exportCard');
   const draggableListContainer = document.getElementById('draggableItems');
   const addDraggableButton = document.getElementById('btnAddDraggable');
-  const checkButton = document.getElementById('btnCheck');
-  const checkStatus = document.getElementById('checkStatus');
-  const taskCheckHost = typeof document !== 'undefined' ? document.querySelector('[data-task-check-host]') : null;
-  const taskCheckControls = [checkButton, checkStatus].filter(Boolean);
 
   function addManagedEventListener(target, type, handler, options) {
     if (!target || typeof target.addEventListener !== 'function' || typeof handler !== 'function') {
@@ -108,142 +104,6 @@ function setupTallinjeApp({ registerCleanup }) {
       });
     }
   }
-
-  function ensureTaskControlsAppended() {
-    if (!taskCheckHost) return;
-    taskCheckControls.forEach(control => {
-      if (control && control.parentElement !== taskCheckHost) {
-        taskCheckHost.appendChild(control);
-      }
-    });
-  }
-
-  function normalizeAppMode(mode) {
-    const normalized = typeof mode === 'string' ? mode.trim().toLowerCase() : '';
-    if (
-      normalized === 'task' ||
-      normalized === 'preview' ||
-      normalized === 'forhandsvisning' ||
-      normalized === 'forhåndsvisning' ||
-      normalized === 'task-mode' ||
-      normalized === 'preview-mode'
-    ) {
-      return 'task';
-    }
-    return 'default';
-  }
-
-  function isTaskLikeMode(mode) {
-    return normalizeAppMode(mode) === 'task';
-  }
-
-  function applyAppModeToTaskControls(mode) {
-    if (!taskCheckHost) return;
-    const isTaskMode = isTaskLikeMode(mode);
-    if (isTaskMode) {
-      ensureTaskControlsAppended();
-      taskCheckHost.hidden = false;
-      taskCheckControls.forEach(control => {
-        if (!control) return;
-        if (control === checkButton) {
-          control.hidden = false;
-          if (control.dataset) delete control.dataset.prevHidden;
-          return;
-        }
-        if (control.dataset && 'prevHidden' in control.dataset) {
-          const wasHidden = control.dataset.prevHidden === '1';
-          delete control.dataset.prevHidden;
-          control.hidden = wasHidden;
-        }
-      });
-    } else {
-      taskCheckHost.hidden = true;
-      taskCheckControls.forEach(control => {
-        if (!control) return;
-        if (control.dataset) {
-          control.dataset.prevHidden = control.hidden ? '1' : '0';
-        }
-        control.hidden = true;
-      });
-    }
-  }
-
-  function syncBodyAppMode(mode) {
-    if (typeof document === 'undefined') return;
-    const body = document.body;
-    if (!body || !body.dataset) return;
-    const normalized = normalizeAppMode(mode);
-    if (body.dataset.appMode !== normalized) {
-      body.dataset.appMode = normalized;
-    }
-  }
-
-  function getCurrentAppMode() {
-    if (typeof window === 'undefined') return 'default';
-    const mv = window.mathVisuals;
-    if (mv && typeof mv.getAppMode === 'function') {
-      try {
-        const mode = mv.getAppMode();
-        if (typeof mode === 'string' && mode) {
-          return normalizeAppMode(mode);
-        }
-      } catch (_) {
-        // fall through to query parsing below
-      }
-    }
-    try {
-      const params = new URLSearchParams(window.location && window.location.search ? window.location.search : '');
-      const fromQuery = params.get('mode');
-      if (typeof fromQuery === 'string' && fromQuery.trim()) {
-        return normalizeAppMode(fromQuery);
-      }
-    } catch (_) {}
-    return 'default';
-  }
-
-  function handleAppModeChanged(event) {
-    if (!event) return;
-    const detail = event.detail;
-    if (!detail || typeof detail.mode !== 'string') return;
-    syncBodyAppMode(detail.mode);
-    applyAppModeToTaskControls(detail.mode);
-  }
-
-  const TASK_APP_ID = 'tallinje';
-
-  function getTaskApi() {
-    if (typeof window === 'undefined') return null;
-    return window.MathVisualsTaskApi || null;
-  }
-
-  function registerTaskAdapter() {
-    const taskApi = getTaskApi();
-    if (!taskApi || typeof taskApi.registerTaskAdapter !== 'function') return;
-    taskApi.registerTaskAdapter(TASK_APP_ID, {
-      collectInputs() {
-        if (typeof taskApi.evaluateDescriptionInputs === 'function') {
-          taskApi.evaluateDescriptionInputs();
-        }
-      },
-      evaluateAnswers() {
-        checkDraggablePlacements();
-        return null;
-      },
-      resetAnswers() {
-        if (typeof taskApi.resetDescriptionInputs === 'function') {
-          taskApi.resetDescriptionInputs();
-        }
-      }
-    });
-  }
-
-  registerTaskAdapter();
-
-  addManagedEventListener(typeof window !== 'undefined' ? window : null, 'math-visuals:app-mode-changed', handleAppModeChanged);
-
-  const initialAppMode = getCurrentAppMode() || 'task';
-  syncBodyAppMode(initialAppMode);
-  applyAppModeToTaskControls(initialAppMode);
 
   const STATE = window.STATE && typeof window.STATE === 'object' ? window.STATE : {};
   window.STATE = STATE;
@@ -1337,101 +1197,6 @@ function setupTallinjeApp({ registerCleanup }) {
       return formatValueForStatus(value);
     }
     return `Markør ${index + 1}`;
-  }
-
-  function setCheckStatus(type, heading, detailLines) {
-    if (!checkStatus) return;
-    if (!type) {
-      checkStatus.hidden = true;
-      checkStatus.className = 'status';
-      checkStatus.textContent = '';
-      return;
-    }
-    checkStatus.hidden = false;
-    checkStatus.className = `status status--${type}`;
-    checkStatus.textContent = '';
-    if (heading) {
-      const strong = document.createElement('strong');
-      strong.textContent = heading;
-      checkStatus.appendChild(strong);
-    }
-    if (Array.isArray(detailLines)) {
-      detailLines.forEach(line => {
-        if (!line) return;
-        const div = document.createElement('div');
-        div.textContent = line;
-        checkStatus.appendChild(div);
-      });
-    }
-  }
-
-  function getCheckTolerance() {
-    const spacing = getSnapSpacing();
-    if (!Number.isFinite(spacing) || spacing <= 0) {
-      return 1e-6;
-    }
-    return Math.max(spacing * 0.01, 1e-6);
-  }
-
-  function checkDraggablePlacements() {
-    ensureStateDefaults();
-    const items = Array.isArray(STATE.draggableItems) ? STATE.draggableItems : [];
-    if (!items.length) {
-      setCheckStatus('info', 'Ingen fasit er definert ennå.');
-      return;
-    }
-
-    const tolerance = getCheckTolerance();
-    const missing = [];
-    const incorrect = [];
-    let placedCorrectly = 0;
-
-    items.forEach((item, index) => {
-      const expected = Number(item && item.value);
-      if (!Number.isFinite(expected)) {
-        missing.push({ item, index });
-        return;
-      }
-      const isPlaced = Boolean(item && item.isPlaced);
-      const current = Number(item && item.currentValue);
-      if (!isPlaced || !Number.isFinite(current)) {
-        missing.push({ item, index });
-        return;
-      }
-      const diff = Math.abs(current - expected);
-      if (diff <= tolerance) {
-        placedCorrectly += 1;
-      } else {
-        incorrect.push({ item, index, expected, current });
-      }
-    });
-
-    if (!missing.length && !incorrect.length) {
-      const heading = placedCorrectly === 1
-        ? 'Markøren er riktig plassert!'
-        : 'Alle markørene er riktig plassert!';
-      setCheckStatus('success', heading);
-      return;
-    }
-
-    const details = [];
-    if (missing.length) {
-      const names = missing.map(entry => describeDraggableItem(entry.item, entry.index));
-      if (missing.length === 1) {
-        details.push(`${names[0]} er ikke plassert ennå.`);
-      } else {
-        details.push(`${missing.length} markører er ikke plassert: ${names.join(', ')}.`);
-      }
-    }
-    if (incorrect.length) {
-      incorrect.forEach(entry => {
-        const name = describeDraggableItem(entry.item, entry.index);
-        const expectedText = formatValueForStatus(entry.expected);
-        const currentText = formatValueForStatus(entry.current);
-        details.push(`${name} skal være ved ${expectedText}, men står ved ${currentText}.`);
-      });
-    }
-    setCheckStatus('error', 'Ikke helt riktig ennå.', details);
   }
 
   function updateControlsFromState() {
@@ -2664,18 +2429,6 @@ function setupTallinjeApp({ registerCleanup }) {
       }
     };
     addManagedEventListener(addDraggableButton, 'click', handleAddDraggableClick);
-  }
-
-  if (checkButton) {
-    const handleCheckClick = () => {
-      const taskApi = getTaskApi();
-      if (taskApi && typeof taskApi.evaluateTask === 'function') {
-        taskApi.evaluateTask(TASK_APP_ID);
-      } else {
-        checkDraggablePlacements();
-      }
-    };
-    addManagedEventListener(checkButton, 'click', handleCheckClick);
   }
 
   if (svg) {
