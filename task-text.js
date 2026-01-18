@@ -1434,7 +1434,10 @@
       if (normalizedMode === 'task') {
         const context = resolveActiveExampleContext();
         const stored = context.exampleId ? readTaskTextFromStorage(context.exampleId) : null;
-        if (stored && stored.trim()) {
+        const hasStored = stored && stored.trim();
+        const taskEmpty = !taskInput.value || !taskInput.value.trim();
+        const sidebarEmpty = !sidebarInput.value || !sidebarInput.value.trim();
+        if (hasStored && taskEmpty && sidebarEmpty) {
           taskInput.value = stored;
           sidebarInput.value = stored;
           applyTaskPreviewValue(stored);
