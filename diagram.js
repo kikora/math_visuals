@@ -1093,10 +1093,10 @@ btnSvg === null || btnSvg === void 0 || btnSvg.addEventListener('click', () => {
   const filename = `${getSuggestedFilename()}.svg`;
   downloadSVG(svg, filename);
 });
-btnPng === null || btnPng === void 0 || btnPng.addEventListener('click', () => {
+btnPng === null || btnPng === void 0 || btnPng.addEventListener('click', async () => {
   applyCfg();
   const filename = `${getSuggestedFilename()}.png`;
-  downloadPNG(svg, filename, 2);
+  await downloadPNG(svg, filename, 2);
 });
 const altTextField = document.getElementById('altText');
 const altTextStatus = document.getElementById('altTextStatus');
@@ -3706,6 +3706,41 @@ async function downloadSVG(svgEl, filename) {
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+async function waitForDocumentFonts(doc) {
+  if (!doc) return;
+  const fontSet = doc.fonts;
+  if (fontSet) {
+    if (fontSet.ready && typeof fontSet.ready.then === 'function') {
+      try {
+        await fontSet.ready;
+        return;
+      } catch (error) {}
+    }
+    if (typeof fontSet.load === 'function') {
+      const fontFamilies = ['Inter', 'Segoe UI', 'system-ui', 'sans-serif'];
+      const fontSpecs = [];
+      fontFamilies.forEach(family => {
+        const quoted = family.includes(' ') ? `"${family}"` : family;
+        fontSpecs.push(`16px ${quoted}`);
+        fontSpecs.push(`600 28px ${quoted}`);
+        fontSpecs.push(`700 34px ${quoted}`);
+      });
+      const requests = fontSpecs.map(spec => {
+        try {
+          return fontSet.load(spec);
+        } catch (error) {
+          return Promise.resolve();
+        }
+      });
+      try {
+        await Promise.all(requests.map(promise => Promise.resolve(promise).catch(() => null)));
+        return;
+      } catch (error) {}
+    }
+  }
+  await new Promise(resolve => setTimeout(resolve, 50));
+}
+
 async function downloadPNG(svgEl, filename, scale = 2, bg = '#fff') {
   const exportDims = getNormalizedExportDimensions(svgEl);
   const w = exportDims.width;
@@ -3716,48 +3751,62 @@ async function downloadPNG(svgEl, filename, scale = 2, bg = '#fff') {
   });
   const url = URL.createObjectURL(blob);
   const img = new Image();
-  img.onload = () => {
-    const canvas = document.createElement('canvas');
-    const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
-    const sizing = helper && typeof helper.ensureMinimumPngDimensions === 'function'
-      ? helper.ensureMinimumPngDimensions({ width: w, height: h }, { scale })
-      : (() => {
-          const minDimension = 100;
-          const baseScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
-          const safeWidth = Number.isFinite(w) && w > 0 ? w : minDimension;
-          const safeHeight = Number.isFinite(h) && h > 0 ? h : minDimension;
-          const scaledWidth = safeWidth * baseScale;
-          const scaledHeight = safeHeight * baseScale;
-          const scaleMultiplier = Math.max(
-            1,
-            scaledWidth > 0 ? minDimension / scaledWidth : 1,
-            scaledHeight > 0 ? minDimension / scaledHeight : 1
-          );
-          const finalScale = baseScale * scaleMultiplier;
-          return {
-            width: Math.max(minDimension, Math.round(safeWidth * finalScale)),
-            height: Math.max(minDimension, Math.round(safeHeight * finalScale))
-          };
-        })();
-    canvas.width = sizing.width;
-    canvas.height = sizing.height;
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  img.decoding = 'async';
+  if ('crossOrigin' in img) {
+    img.crossOrigin = 'anonymous';
+  }
+  const doc = svgEl && svgEl.ownerDocument ? svgEl.ownerDocument : typeof document !== 'undefined' ? document : null;
+  await waitForDocumentFonts(doc);
+  try {
+    await new Promise((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('Kunne ikke laste SVG for PNG-eksport'));
+      img.src = url;
+    });
+  } catch (error) {
     URL.revokeObjectURL(url);
-    canvas.toBlob(blob => {
-      const urlPng = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = urlPng;
-      a.download = filename.endsWith('.png') ? filename : filename + '.png';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(urlPng), 1000);
-    }, 'image/png');
-  };
-  img.src = url;
+    throw error;
+  }
+  const canvas = document.createElement('canvas');
+  const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
+  const sizing = helper && typeof helper.ensureMinimumPngDimensions === 'function'
+    ? helper.ensureMinimumPngDimensions({ width: w, height: h }, { scale })
+    : (() => {
+        const minDimension = 100;
+        const baseScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
+        const safeWidth = Number.isFinite(w) && w > 0 ? w : minDimension;
+        const safeHeight = Number.isFinite(h) && h > 0 ? h : minDimension;
+        const scaledWidth = safeWidth * baseScale;
+        const scaledHeight = safeHeight * baseScale;
+        const scaleMultiplier = Math.max(
+          1,
+          scaledWidth > 0 ? minDimension / scaledWidth : 1,
+          scaledHeight > 0 ? minDimension / scaledHeight : 1
+        );
+        const finalScale = baseScale * scaleMultiplier;
+        return {
+          width: Math.max(minDimension, Math.round(safeWidth * finalScale)),
+          height: Math.max(minDimension, Math.round(safeHeight * finalScale))
+        };
+      })();
+  canvas.width = sizing.width;
+  canvas.height = sizing.height;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  URL.revokeObjectURL(url);
+  canvas.toBlob(blob => {
+    if (!blob) return;
+    const urlPng = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = urlPng;
+    a.download = filename.endsWith('.png') ? filename : filename + '.png';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(urlPng), 1000);
+  }, 'image/png');
 }
 
 if (typeof window !== 'undefined') {
