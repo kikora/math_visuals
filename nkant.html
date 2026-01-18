@@ -16,6 +16,7 @@
     :root {
       --sidebar-width: 480px;
       --figure-available-height: calc(100vh - 200px);
+      --figure-available-width: calc(100vw - 200px);
     }
     .card--figure {
       padding: 14px;
@@ -27,7 +28,7 @@
     .card--figure .figure {
       border-radius: 12px;
       background: #fff;
-      overflow: auto;
+      overflow: hidden;
       border: 1px solid #e5e7eb;
       resize: both;
       min-width: 240px;
@@ -40,9 +41,10 @@
       max-width: 100%;
     }
     .figure svg {
-      width: auto;
-      max-width: 100%;
+      width: min(100%, var(--figure-available-width, 100%));
       height: min(100%, var(--figure-available-height, calc(100vh - 200px)));
+      max-width: 100%;
+      max-height: var(--figure-available-height, calc(100vh - 200px));
       display: block;
     }
     .wrap {
