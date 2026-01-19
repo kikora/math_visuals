@@ -1,4 +1,4 @@
-import { createAppHost } from '@math-visuals/core';
+import { createAppHost } from './packages/core/dist/index.js';
 import tallinjeApp from './apps/tallinje/app.js';
 
 const globalScope = typeof window !== 'undefined' ? window : undefined;
