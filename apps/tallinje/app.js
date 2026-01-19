@@ -1,4 +1,4 @@
-import { defineMathVisualApp } from '@math-visuals/core';
+import { defineMathVisualApp } from '../../packages/core/dist/index.js';
 
 export const tallinjeApp = defineMathVisualApp({
   id: 'tallinje',

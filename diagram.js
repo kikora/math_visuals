@@ -862,7 +862,7 @@ function setSeriesColorOverride(seriesIndex, color) {
     CFG.colors.series = overrides;
   }
   applyDiagramTheme({ paletteSize: getEffectivePaletteSize(), seriesCount: getEffectiveSeriesCount() });
-  draw();
+  drawDiagram();
 }
 
 function updateSeriesColorPickers() {
