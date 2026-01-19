@@ -95,7 +95,8 @@
       border:1px solid #e5e7eb;
       border-radius:99px;
       padding:8px;
-      display:flex;
+      display:grid;
+      grid-template-columns: repeat(var(--color-options-columns, 3), 1fr);
       gap:8px;
       box-shadow:0 4px 15px rgba(0,0,0,0.15);
       z-index:100;
@@ -320,6 +321,7 @@
   <script src="/alt-text-ui.js"></script>
   <script src="/svg-export-helper.js"></script>
   <script src="/colorpicker-helper.js"></script>
+  <script src="/ui/colorpicker/index.js"></script>
   <script src="/kvikkbilder.js"></script>
   <script src="/split.js"></script>
   <script src="/task-core.js"></script>
