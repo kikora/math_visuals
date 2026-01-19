@@ -49,9 +49,6 @@ const GROUP_SLOT_COUNTS = COLOR_GROUP_IDS.reduce((acc, groupId) => {
   return acc;
 }, {});
 const PROJECT_FALLBACKS = paletteConfig.PROJECT_FALLBACKS;
-const DEFAULT_PROJECT_ORDER = Array.isArray(paletteConfig.DEFAULT_PROJECT_ORDER)
-  ? paletteConfig.DEFAULT_PROJECT_ORDER.slice()
-  : ['campus', 'kikora', 'annet'];
 const PROJECT_FALLBACK_CACHE = new Map();
 const PROJECT_FALLBACK_GROUP_CACHE = new Map();
 
@@ -428,77 +425,36 @@ function resolveProjectName(name, projects) {
   return DEFAULT_PROJECT;
 }
 
-function buildDefaultProjects() {
-  const projects = {};
-  Object.keys(PROJECT_FALLBACKS).forEach(name => {
-    if (name === 'default') return;
-    const groupPalettes = getFallbackGroupPalettes(name);
-    projects[name] = {
-      groupPalettes,
-      defaultColors: expandPalette(name, { groupPalettes })
-    };
-  });
-  return projects;
-}
-
 function normalizeSettings(value) {
   const input = value && typeof value === 'object' ? value : {};
-  const inputProjects = input.projects && typeof input.projects === 'object' ? input.projects : null;
-  const projects = buildDefaultProjects();
-  const order = DEFAULT_PROJECT_ORDER.slice();
+  let groupPalettes = null;
 
-  if (inputProjects) {
-    Object.keys(inputProjects).forEach(name => {
-      const normalized = typeof name === 'string' ? name.trim().toLowerCase() : '';
-      if (!normalized) return;
-      const source = inputProjects[name];
-      const normalizedGroupPalettes = normalizeProjectGroupPalettes(normalized, source);
-      const baseTarget = projects[normalized] ? projects[normalized] : {};
-      const groupPalettes = cloneGroupPalettes(normalizedGroupPalettes);
-      const defaultColors = expandPalette(normalized, { groupPalettes });
-      const updated = {
-        ...baseTarget,
-        groupPalettes,
-        defaultColors
-      };
-      projects[normalized] = updated;
-      if (!order.includes(normalized)) {
-        order.push(normalized);
-      }
-    });
+  if (input.projects && typeof input.projects === 'object') {
+    const projectName = resolveProjectName(
+      input.activeProject || input.project || input.defaultProject,
+      input.projects
+    );
+    const source = input.projects[projectName];
+    groupPalettes = normalizeProjectGroupPalettes(projectName, source);
   }
 
-  if (input.defaultColors != null) {
-    const projectName = resolveProjectName(input.activeProject || input.project || input.defaultProject, projects);
-    const normalizedGroupPalettes = normalizeProjectGroupPalettes(projectName, input.defaultColors);
-    const groupPalettes = cloneGroupPalettes(normalizedGroupPalettes);
-    const defaultColors = expandPalette(projectName, { groupPalettes });
-    projects[projectName] = {
-      ...projects[projectName],
-      groupPalettes,
-      defaultColors
-    };
-    if (!order.includes(projectName)) {
-      order.push(projectName);
-    }
+  if (!groupPalettes && (input.groupPalettes != null || input.defaultColors != null)) {
+    const source = input.groupPalettes ? { groupPalettes: input.groupPalettes } : input.defaultColors;
+    groupPalettes = normalizeProjectGroupPalettes(DEFAULT_PROJECT, source);
   }
 
-  const activeProject = resolveProjectName(input.activeProject || input.project || input.defaultProject, projects);
-  const normalized = {
+  if (!groupPalettes) {
+    groupPalettes = normalizeProjectGroupPalettes(DEFAULT_PROJECT, null);
+  }
+
+  const clonedGroupPalettes = cloneGroupPalettes(groupPalettes);
+  const defaultColors = expandPalette(DEFAULT_PROJECT, { groupPalettes: clonedGroupPalettes });
+  return {
     version: 1,
-    projects,
-    activeProject,
-    projectOrder: order,
+    groupPalettes: clonedGroupPalettes,
+    defaultColors,
     updatedAt: new Date().toISOString()
   };
-
-  const active = projects[activeProject];
-  const palette = expandPalette(
-    activeProject,
-    active && active.groupPalettes ? { groupPalettes: active.groupPalettes } : PROJECT_FALLBACKS.default
-  );
-  normalized.defaultColors = palette;
-  return normalized;
 }
 
 const DEFAULT_SETTINGS = normalizeSettings({});

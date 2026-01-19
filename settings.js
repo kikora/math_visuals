@@ -5,8 +5,6 @@
 
   const colorGroupsContainer = form.querySelector('[data-color-groups]');
   const statusElement = form.querySelector('[data-status]');
-  const projectHeadingElement = document.querySelector('[data-project-heading]');
-  const projectLegendElement = form.querySelector('[data-project-legend]');
 
   function resolvePaletteConfig() {
     const scopes = [
@@ -43,16 +41,6 @@
   }
 
   const MAX_COLORS = paletteConfig.MAX_COLORS;
-  const PROJECT_LABELS = {
-    kikora: 'Under utvikling',
-    campus: 'Produksjon',
-    annet: 'Annet'
-  };
-  const PROJECT_HEADINGS = {
-    kikora: 'Under utvikling',
-    campus: 'Produksjon',
-    annet: 'Annet'
-  };
   const PROJECT_FALLBACKS = paletteConfig.PROJECT_FALLBACKS;
   const COLOR_SLOT_GROUPS = paletteConfig.COLOR_SLOT_GROUPS.map(group => ({
     groupId: group.groupId,
@@ -108,21 +96,15 @@
   const MIN_COLOR_SLOTS = Number.isInteger(paletteConfig.MIN_COLOR_SLOTS)
     ? paletteConfig.MIN_COLOR_SLOTS
     : COLOR_SLOT_GROUPS.reduce((total, group) => total + group.slots.length, 0);
-  const PROJECT_FALLBACK_CACHE = new Map();
-  const PROJECT_FALLBACK_GROUP_CACHE = new Map();
-
-  function normalizeProjectName(name) {
-    if (typeof name !== 'string') return '';
-    return name.trim().toLowerCase();
-  }
+  const FALLBACK_CACHE = {
+    base: null,
+    groups: null
+  };
 
   const settingsApi = resolveSettingsApi();
   const state = {
-    projectOrder: [],
-    colorsByProject: new Map(),
-    persistedColorsByProject: new Map(),
-    activeProject: null,
-    preferredProject: null
+    palette: null,
+    persistedPalette: null
   };
   let colors = [];
   const slotBindings = new Map();
@@ -137,21 +119,6 @@
     return legacy && typeof legacy === 'object' ? legacy : null;
   }
 
-  function clonePersistedColorMap() {
-    const map = new Map();
-    if (state.persistedColorsByProject && typeof state.persistedColorsByProject.forEach === 'function') {
-      state.persistedColorsByProject.forEach((palette, name) => {
-        map.set(name, cloneProjectPalette(palette));
-      });
-    }
-    state.colorsByProject.forEach((palette, name) => {
-      if (!map.has(name)) {
-        map.set(name, cloneProjectPalette(palette));
-      }
-    });
-    return map;
-  }
-
   function collectGroupIndices(groupId) {
     const groups = new Set();
     const normalizedGroup = typeof groupId === 'string' ? groupId.trim().toLowerCase() : '';
@@ -162,17 +129,11 @@
     return groups;
   }
 
-  function buildProjectColorsForSave(projectName, indices) {
-    const map = clonePersistedColorMap();
-    const normalizedProject = normalizeProjectName(projectName);
-    if (!normalizedProject) return map;
+  function buildPaletteForSave(indices) {
     const targetGroups = indices instanceof Set ? indices : new Set(indices || []);
-    if (!targetGroups.size) return map;
-    const editingPalette = normalizeProjectPalette(
-      normalizedProject,
-      state.colorsByProject.get(normalizedProject) || getProjectFallbackPalette(normalizedProject)
-    );
-    const base = map.get(normalizedProject) || getProjectFallbackPalette(normalizedProject);
+    const base = normalizePalette(state.persistedPalette || getFallbackPalette());
+    if (!targetGroups.size) return cloneProjectPalette(base);
+    const editingPalette = normalizePalette(state.palette || getFallbackPalette());
     const next = cloneProjectPalette(base);
     targetGroups.forEach(groupId => {
       const group = COLOR_SLOT_GROUPS.find(entry => entry.groupId === groupId);
@@ -180,48 +141,35 @@
       const source = Array.isArray(editingPalette[group.groupId]) ? editingPalette[group.groupId] : [];
       next[group.groupId] = group.slots.map((slot, slotIndex) => {
         const color = source[slotIndex];
-        const fallback = getFallbackColorForIndex(normalizedProject, slot.index);
+        const fallback = getFallbackColorForIndex(slot.index);
         return sanitizeColor(color) || fallback;
       });
     });
-    map.set(normalizedProject, next);
-    return map;
+    return next;
   }
 
-  function captureUnsavedChanges(excludedProject, excludedGroups) {
-    const excludedName = normalizeProjectName(excludedProject);
+  function captureUnsavedChanges(excludedGroups) {
     const excludedSet = excludedGroups instanceof Set ? excludedGroups : new Set();
     const changes = new Map();
-    state.colorsByProject.forEach((palette, project) => {
-      const normalizedProject = normalizeProjectName(project);
-      if (!normalizedProject) return;
-      const currentPalette = normalizeProjectPalette(normalizedProject, palette);
-      const persistedPalette = normalizeProjectPalette(
-        normalizedProject,
-        state.persistedColorsByProject.get(normalizedProject) || getProjectFallbackPalette(normalizedProject)
-      );
-      const entries = new Map();
-      GROUP_IDS.forEach(groupId => {
-        if (normalizedProject === excludedName && excludedSet.has(groupId)) return;
-        const currentGroup = Array.isArray(currentPalette[groupId]) ? currentPalette[groupId] : [];
-        const baselineGroup = Array.isArray(persistedPalette[groupId]) ? persistedPalette[groupId] : [];
-        const diff = [];
-        let hasDiff = false;
-        const limit = Math.max(currentGroup.length, baselineGroup.length);
-        for (let index = 0; index < limit; index += 1) {
-          const currentColor = currentGroup[index];
-          const baselineColor = baselineGroup[index];
-          if (typeof currentColor === 'string' && currentColor && currentColor !== baselineColor) {
-            diff[index] = currentColor;
-            hasDiff = true;
-          }
+    const currentPalette = normalizePalette(state.palette || getFallbackPalette());
+    const persistedPalette = normalizePalette(state.persistedPalette || getFallbackPalette());
+    GROUP_IDS.forEach(groupId => {
+      if (excludedSet.has(groupId)) return;
+      const currentGroup = Array.isArray(currentPalette[groupId]) ? currentPalette[groupId] : [];
+      const baselineGroup = Array.isArray(persistedPalette[groupId]) ? persistedPalette[groupId] : [];
+      const diff = [];
+      let hasDiff = false;
+      const limit = Math.max(currentGroup.length, baselineGroup.length);
+      for (let index = 0; index < limit; index += 1) {
+        const currentColor = currentGroup[index];
+        const baselineColor = baselineGroup[index];
+        if (typeof currentColor === 'string' && currentColor && currentColor !== baselineColor) {
+          diff[index] = currentColor;
+          hasDiff = true;
         }
-        if (hasDiff) {
-          entries.set(groupId, diff);
-        }
-      });
-      if (entries.size) {
-        changes.set(normalizedProject, entries);
+      }
+      if (hasDiff) {
+        changes.set(groupId, diff);
       }
     });
     return changes;
@@ -229,52 +177,26 @@
 
   function restoreUnsavedChanges(changes) {
     if (!changes || typeof changes.forEach !== 'function') return;
-    let shouldSyncActive = false;
-    changes.forEach((groups, project) => {
-      const normalizedProject = normalizeProjectName(project);
-      if (!normalizedProject || !groups || typeof groups.forEach !== 'function') return;
-      const currentPalette = normalizeProjectPalette(
-        normalizedProject,
-        state.colorsByProject.get(normalizedProject) || getProjectFallbackPalette(normalizedProject)
-      );
-      groups.forEach((values, groupId) => {
-        const group = COLOR_SLOT_GROUPS.find(entry => entry.groupId === groupId);
-        if (!group) return;
-        const incoming = Array.isArray(values) ? values : [];
-        const target = Array.isArray(currentPalette[groupId]) ? currentPalette[groupId].slice() : [];
-        group.slots.forEach((slot, slotIndex) => {
-          const nextColor = incoming[slotIndex];
-          if (typeof nextColor === 'string' && nextColor) {
-            target[slotIndex] = sanitizeColor(nextColor) || target[slotIndex] || getFallbackColorForIndex(normalizedProject, slot.index);
-          }
-        });
-        currentPalette[groupId] = target;
+    const currentPalette = normalizePalette(state.palette || getFallbackPalette());
+    changes.forEach((values, groupId) => {
+      const group = COLOR_SLOT_GROUPS.find(entry => entry.groupId === groupId);
+      if (!group) return;
+      const incoming = Array.isArray(values) ? values : [];
+      const target = Array.isArray(currentPalette[groupId]) ? currentPalette[groupId].slice() : [];
+      group.slots.forEach((slot, slotIndex) => {
+        const nextColor = incoming[slotIndex];
+        if (typeof nextColor === 'string' && nextColor) {
+          target[slotIndex] = sanitizeColor(nextColor) || target[slotIndex] || getFallbackColorForIndex(slot.index);
+        }
       });
-      state.colorsByProject.set(normalizedProject, cloneProjectPalette(currentPalette));
-      if (normalizedProject === state.activeProject) {
-        commitActiveColors(currentPalette, normalizedProject);
-        shouldSyncActive = true;
-      }
+      currentPalette[groupId] = target;
     });
-    if (shouldSyncActive) {
-      syncBindings();
-    }
+    commitColors(currentPalette);
+    syncBindings();
   }
 
   function normalizeGroupId(value) {
     return typeof value === 'string' ? value.trim().toLowerCase() : '';
-  }
-
-  function formatProjectGroupLabel(projectName, groupTitle) {
-    const projectLabel = formatProjectLabel(projectName) || 'prosjektet';
-    const trimmedGroup = typeof groupTitle === 'string' ? groupTitle.trim() : '';
-    if (projectLabel && trimmedGroup) {
-      return `${projectLabel} – ${trimmedGroup}`;
-    }
-    if (trimmedGroup) {
-      return trimmedGroup;
-    }
-    return projectLabel;
   }
 
   function setGroupStatusMessage(groupId, message, tone) {
@@ -307,22 +229,14 @@
   async function saveColorGroup(groupId, groupTitle) {
     const normalizedId = normalizeGroupId(groupId);
     if (!normalizedId) return;
-    const activeProject = ensureActiveProject();
     const label = groupTitle && groupTitle.trim() ? groupTitle.trim() : 'gruppen';
-    const combinedLabel = formatProjectGroupLabel(activeProject, label);
     const groups = collectGroupIndices(normalizedId);
     if (!groups.size) {
       setStatus(`Ingen endringer å lagre for ${label}.`, 'info');
       return;
     }
-    const editingPalette = normalizeProjectPalette(
-      activeProject,
-      state.colorsByProject.get(activeProject) || getProjectFallbackPalette(activeProject)
-    );
-    const persistedPalette = normalizeProjectPalette(
-      activeProject,
-      state.persistedColorsByProject.get(activeProject) || getProjectFallbackPalette(activeProject)
-    );
+    const editingPalette = normalizePalette(state.palette || getFallbackPalette());
+    const persistedPalette = normalizePalette(state.persistedPalette || getFallbackPalette());
     let hasChanges = false;
     groups.forEach(groupKey => {
       if (hasChanges) return;
@@ -342,36 +256,32 @@
       setStatus(`Ingen endringer å lagre for ${label}.`, 'info');
       return;
     }
-    const unsavedChanges = captureUnsavedChanges(activeProject, groups);
-    const colorsForSave = buildProjectColorsForSave(activeProject, groups);
-    setStatus(`Lagrer fargene for ${combinedLabel}...`, 'info');
+    const unsavedChanges = captureUnsavedChanges(groups);
+    const colorsForSave = buildPaletteForSave(groups);
+    setStatus(`Lagrer fargene for ${label}...`, 'info');
     setFormDisabled(true);
     try {
-      const payload = buildPayload({
-        projectColors: colorsForSave,
-        activeProject
-      });
+      const payload = buildPayload(colorsForSave);
       const snapshot = await persistSettings('PUT', payload);
-      applySettings(snapshot || {}, { forceActiveProject: activeProject });
+      applySettings(snapshot || {});
       restoreUnsavedChanges(unsavedChanges);
       if (settingsApi && typeof settingsApi.refresh === 'function') {
         try {
           settingsApi.refresh({ force: true, notify: true });
         } catch (_) {}
       }
-      const savedPalette = colorsForSave.get(activeProject);
-      const contrastStatus = buildContrastStatus(normalizedId, savedPalette);
-      const successMessage = `Fargene for ${combinedLabel} er lagret.`;
+      const contrastStatus = buildContrastStatus(normalizedId, colorsForSave);
+      const successMessage = `Fargene for ${label} er lagret.`;
       const contrastMessage = contrastStatus && contrastStatus.message ? ` ${contrastStatus.message}` : '';
       const tone = contrastStatus ? (contrastStatus.passes ? 'success' : 'warning') : 'success';
       setStatus(`${successMessage}${contrastMessage}`, tone);
-      const groupMessage = `${combinedLabel} er lagret.${contrastMessage}`;
+      const groupMessage = `${label} er lagret.${contrastMessage}`;
       setGroupStatusMessage(normalizedId, groupMessage, tone);
     } catch (error) {
       console.error(error);
-      const errorMessage = `Kunne ikke lagre fargene for ${combinedLabel}.`;
+      const errorMessage = `Kunne ikke lagre fargene for ${label}.`;
       setStatus(errorMessage, 'error');
-      setGroupStatusMessage(normalizedId, `Kunne ikke lagre ${combinedLabel}.`, 'error');
+      setGroupStatusMessage(normalizedId, `Kunne ikke lagre ${label}.`, 'error');
     } finally {
       setFormDisabled(false);
     }
@@ -549,8 +459,7 @@
 
   function resolveContrastColor(index) {
     if (!Number.isInteger(index) || index < 0) return null;
-    const project = ensureActiveProject();
-    return sanitizeColor(colors[index]) || getFallbackColorForIndex(project, index);
+    return sanitizeColor(colors[index]) || getFallbackColorForIndex(index);
   }
 
   function evaluateContrastBetweenColors(colorA, colorB) {
@@ -595,37 +504,30 @@
     });
   }
 
-  function getSanitizedFallbackBase(project) {
-    const key = normalizeProjectName(project) || 'default';
-    const base = PROJECT_FALLBACKS[key] || PROJECT_FALLBACKS.default || [];
+  function getSanitizedFallbackBase() {
+    const base = PROJECT_FALLBACKS.default || [];
     const sanitized = sanitizeColorList(base, MAX_COLORS);
     if (!sanitized.length) {
-      const fallbackDefault = sanitizeColor(
-        (PROJECT_FALLBACKS.default && PROJECT_FALLBACKS.default[0]) || '#1F4DE2'
-      );
+      const fallbackDefault = sanitizeColor((PROJECT_FALLBACKS.default && PROJECT_FALLBACKS.default[0]) || '#1F4DE2');
       sanitized.push(fallbackDefault || '#1F4DE2');
     }
-    const cached = PROJECT_FALLBACK_CACHE.get(key);
+    const cached = FALLBACK_CACHE.base;
     const hasChanged =
       !cached ||
       cached.length !== sanitized.length ||
       cached.some((value, index) => value !== sanitized[index]);
     if (hasChanged) {
-      PROJECT_FALLBACK_CACHE.set(key, sanitized.slice());
-      if (key === 'default') {
-        PROJECT_FALLBACK_GROUP_CACHE.clear();
-      } else {
-        PROJECT_FALLBACK_GROUP_CACHE.delete(key);
-      }
+      FALLBACK_CACHE.base = sanitized.slice();
+      FALLBACK_CACHE.groups = null;
     }
     return sanitized.slice();
   }
 
-  function buildFallbackGroupsFromBase(baseColors, project) {
+  function buildFallbackGroupsFromBase(baseColors) {
     const sanitizedBase = Array.isArray(baseColors)
       ? sanitizeColorList(baseColors, MAX_COLORS)
       : [];
-    const fallbackColors = sanitizedBase.length ? sanitizedBase : getSanitizedFallbackBase('default');
+    const fallbackColors = sanitizedBase.length ? sanitizedBase : getSanitizedFallbackBase();
     const groups = {};
     let cursor = 0;
     COLOR_SLOT_GROUPS.forEach(group => {
@@ -656,7 +558,7 @@
     return groups;
   }
 
-  function ensureProjectPaletteShape(palette) {
+  function ensurePaletteShape(palette) {
     const shaped = {};
     const source = palette && typeof palette === 'object' ? palette : {};
     GROUP_IDS.forEach(groupId => {
@@ -666,7 +568,7 @@
   }
 
   function cloneProjectPalette(palette) {
-    const shaped = ensureProjectPaletteShape(palette);
+    const shaped = ensurePaletteShape(palette);
     const copy = {};
     GROUP_IDS.forEach(groupId => {
       const source = Array.isArray(shaped[groupId]) ? shaped[groupId] : [];
@@ -675,7 +577,7 @@
     return copy;
   }
 
-  function convertLegacyPalette(project, palette) {
+  function convertLegacyPalette(palette) {
     if (!Array.isArray(palette) || !palette.length) return {};
     const sanitized = sanitizeColorList(palette, MAX_COLORS);
     const converted = {};
@@ -696,10 +598,18 @@
     return converted;
   }
 
-  function sanitizeProjectPalette(project, palette) {
-    const fallback = getProjectFallbackPalette(project);
-    const fallbackBase = getSanitizedFallbackBase(project);
-    const shaped = ensureProjectPaletteShape(palette);
+  function getFallbackPalette() {
+    if (!FALLBACK_CACHE.groups) {
+      const base = getSanitizedFallbackBase();
+      FALLBACK_CACHE.groups = buildFallbackGroupsFromBase(base);
+    }
+    return cloneProjectPalette(FALLBACK_CACHE.groups);
+  }
+
+  function sanitizePalette(palette) {
+    const fallback = getFallbackPalette();
+    const fallbackBase = getSanitizedFallbackBase();
+    const shaped = ensurePaletteShape(palette);
     const sanitized = {};
     COLOR_SLOT_GROUPS.forEach(group => {
       const fallbackColors = Array.isArray(fallback[group.groupId]) ? fallback[group.groupId] : [];
@@ -719,18 +629,18 @@
     return sanitized;
   }
 
-  function normalizeProjectPalette(project, palette) {
+  function normalizePalette(palette) {
     if (Array.isArray(palette)) {
-      return sanitizeProjectPalette(project, convertLegacyPalette(project, palette));
+      return sanitizePalette(convertLegacyPalette(palette));
     }
     if (palette && typeof palette === 'object') {
-      return sanitizeProjectPalette(project, palette);
+      return sanitizePalette(palette);
     }
-    return getProjectFallbackPalette(project);
+    return getFallbackPalette();
   }
 
-  function flattenProjectPalette(project, palette, minimumLength = MIN_COLOR_SLOTS) {
-    const normalized = normalizeProjectPalette(project, palette);
+  function flattenPalette(palette, minimumLength = MIN_COLOR_SLOTS) {
+    const normalized = normalizePalette(palette);
     const flattened = [];
     let highestSlotIndex = -1;
     COLOR_SLOT_GROUPS.forEach(group => {
@@ -742,7 +652,7 @@
           highestSlotIndex = targetIndex;
         }
         const color = sanitizeColor(groupColors[slotIndex]);
-        const fallback = getFallbackColorForIndex(project, targetIndex);
+        const fallback = getFallbackColorForIndex(targetIndex);
         flattened[targetIndex] = color || fallback;
       });
     });
@@ -750,7 +660,7 @@
     const targetLength = Math.min(MAX_COLORS, Math.max(min, highestSlotIndex + 1));
     for (let index = 0; index < targetLength; index += 1) {
       if (!sanitizeColor(flattened[index])) {
-        flattened[index] = getFallbackColorForIndex(project, index);
+        flattened[index] = getFallbackColorForIndex(index);
       }
     }
     return flattened.slice(0, targetLength);
@@ -766,29 +676,19 @@
     }
   }
 
-  function getProjectFallbackPalette(project) {
-    const key = normalizeProjectName(project) || 'default';
-    if (!PROJECT_FALLBACK_GROUP_CACHE.has(key)) {
-      const base = getSanitizedFallbackBase(key);
-      PROJECT_FALLBACK_GROUP_CACHE.set(key, buildFallbackGroupsFromBase(base, key));
-    }
-    return cloneProjectPalette(PROJECT_FALLBACK_GROUP_CACHE.get(key));
-  }
-
-  function getFallbackColorForIndex(project, index) {
-    const key = normalizeProjectName(project) || 'default';
-    const baseColors = getSanitizedFallbackBase(key);
+  function getFallbackColorForIndex(index) {
+    const baseColors = getSanitizedFallbackBase();
     if (!baseColors.length) {
       return (PROJECT_FALLBACKS.default && PROJECT_FALLBACKS.default[0]) || '#1F4DE2';
     }
     const normalizedIndex = Number.isInteger(index) && index >= 0 ? index : 0;
     const meta = SLOT_META_BY_INDEX.get(normalizedIndex);
     if (meta) {
-      if (!PROJECT_FALLBACK_GROUP_CACHE.has(key)) {
-        const base = getSanitizedFallbackBase(key);
-        PROJECT_FALLBACK_GROUP_CACHE.set(key, buildFallbackGroupsFromBase(base, key));
+      if (!FALLBACK_CACHE.groups) {
+        const base = getSanitizedFallbackBase();
+        FALLBACK_CACHE.groups = buildFallbackGroupsFromBase(base);
       }
-      const groups = PROJECT_FALLBACK_GROUP_CACHE.get(key) || {};
+      const groups = FALLBACK_CACHE.groups || {};
       const groupColors = groups[meta.groupId] || [];
       const candidate = groupColors[meta.groupIndex];
       if (candidate) {
@@ -796,34 +696,6 @@
       }
     }
     return baseColors[normalizedIndex % baseColors.length] || baseColors[0];
-  }
-
-  function formatProjectLabel(name) {
-    if (!name) return '';
-    const key = normalizeProjectName(name);
-    if (PROJECT_LABELS[key]) return PROJECT_LABELS[key];
-    return key.charAt(0).toUpperCase() + key.slice(1);
-  }
-
-  function resolveProjectHeading(name) {
-    const normalized = normalizeProjectName(name);
-    if (PROJECT_HEADINGS[normalized]) {
-      return PROJECT_HEADINGS[normalized];
-    }
-    const label = formatProjectLabel(name);
-    return label || 'Farger';
-  }
-
-  function updateProjectHeading(project) {
-    const active = project ? normalizeProjectName(project) : ensureActiveProject();
-    const headingText = resolveProjectHeading(active);
-    if (projectHeadingElement) {
-      const fullHeading = headingText || 'Fargeinnstillinger';
-      projectHeadingElement.textContent = fullHeading;
-    }
-    if (projectLegendElement) {
-      projectLegendElement.textContent = headingText || 'Fargeinnstillinger';
-    }
   }
 
   function setStatus(message, tone) {
@@ -858,87 +730,15 @@
     });
   }
 
-  function getApiActiveProject() {
-    if (!settingsApi || typeof settingsApi.getActiveProject !== 'function') return null;
-    try {
-      const value = normalizeProjectName(settingsApi.getActiveProject());
-      return value || null;
-    } catch (_) {
-      return null;
-    }
+  function commitColors(next) {
+    const normalizedPalette = normalizePalette(next);
+    state.palette = cloneProjectPalette(normalizedPalette);
+    colors = flattenPalette(normalizedPalette, MIN_COLOR_SLOTS);
   }
 
-  function ensureProjectColors(name) {
-    const normalized = normalizeProjectName(name);
-    if (!normalized) return;
-    if (!state.colorsByProject.has(normalized)) {
-      const palette = normalizeProjectPalette(normalized, getProjectFallbackPalette(normalized));
-      state.colorsByProject.set(normalized, cloneProjectPalette(palette));
-    }
-    if (!state.persistedColorsByProject.has(normalized)) {
-      const palette = state.colorsByProject.get(normalized);
-      state.persistedColorsByProject.set(normalized, cloneProjectPalette(palette));
-    }
-  }
-
-  function ensureActiveProject() {
-    const seen = new Set();
-    const candidates = [];
-    const addCandidate = value => {
-      const normalized = normalizeProjectName(value);
-      if (!normalized || seen.has(normalized)) return;
-      seen.add(normalized);
-      candidates.push(normalized);
-    };
-    addCandidate(state.preferredProject);
-    addCandidate(state.activeProject);
-    addCandidate(getApiActiveProject());
-    state.projectOrder.forEach(addCandidate);
-    addCandidate('campus');
-    addCandidate('kikora');
-    addCandidate('annet');
-
-    for (const candidate of candidates) {
-      ensureProjectColors(candidate);
-      state.activeProject = candidate;
-      return candidate;
-    }
-
-    const fallback = 'campus';
-    ensureProjectColors(fallback);
-    state.activeProject = fallback;
-    return fallback;
-  }
-
-  function getActiveColors(projectName) {
-    const project = projectName ? normalizeProjectName(projectName) : ensureActiveProject();
-    const palette = state.colorsByProject.get(project);
-    if (palette) {
-      return cloneProjectPalette(palette);
-    }
-    return getProjectFallbackPalette(project);
-  }
-
-  function expandPalette(projectName, basePalette, minimumLength = 0) {
-    const project = projectName ? normalizeProjectName(projectName) : ensureActiveProject();
-    const normalizedPalette = normalizeProjectPalette(project, basePalette);
-    return flattenProjectPalette(project, normalizedPalette, minimumLength);
-  }
-
-  function commitActiveColors(next, projectName) {
-    const project = projectName ? normalizeProjectName(projectName) : ensureActiveProject();
-    const normalizedPalette = normalizeProjectPalette(project, next);
-    state.colorsByProject.set(project, cloneProjectPalette(normalizedPalette));
-    colors = flattenProjectPalette(project, normalizedPalette, MIN_COLOR_SLOTS);
-  }
-
-  function ensureColorCapacity(index, projectName) {
-    const project = projectName ? normalizeProjectName(projectName) : ensureActiveProject();
+  function ensureColorCapacity(index) {
     if (!Number.isInteger(index) || index < 0) return;
-    const palette = normalizeProjectPalette(
-      project,
-      state.colorsByProject.get(project) || getProjectFallbackPalette(project)
-    );
+    const palette = normalizePalette(state.palette || getFallbackPalette());
     const requiredLength = Math.min(
       MAX_COLORS,
       Math.max(MIN_COLOR_SLOTS, index + 1)
@@ -954,14 +754,14 @@
         assignColorToPalette(palette, slotIndex, existing);
         continue;
       }
-      const fallback = getFallbackColorForIndex(project, slotIndex);
+      const fallback = getFallbackColorForIndex(slotIndex);
       if (colors[slotIndex] !== fallback) {
         colors[slotIndex] = fallback;
         updated = true;
       }
       assignColorToPalette(palette, slotIndex, fallback);
     }
-    state.colorsByProject.set(project, cloneProjectPalette(palette));
+    state.palette = cloneProjectPalette(palette);
     if (updated) {
       syncBindings();
     }
@@ -980,41 +780,35 @@
     });
   }
 
-  function setColorValue(index, value, projectName) {
-    const project = projectName ? normalizeProjectName(projectName) : ensureActiveProject();
-    ensureColorCapacity(index, project);
-    const fallback = getFallbackColorForIndex(project, index);
+  function setColorValue(index, value) {
+    ensureColorCapacity(index);
+    const fallback = getFallbackColorForIndex(index);
     const clean = sanitizeColor(value) || fallback;
     colors[index] = clean;
-    const palette = normalizeProjectPalette(
-      project,
-      state.colorsByProject.get(project) || getProjectFallbackPalette(project)
-    );
+    const palette = normalizePalette(state.palette || getFallbackPalette());
     assignColorToPalette(palette, index, clean);
-    state.colorsByProject.set(project, cloneProjectPalette(palette));
+    state.palette = cloneProjectPalette(palette);
     updateBindingsForIndex(index, clean);
     updateGraftegnerContrastRows();
   }
 
   function handleColorInput(index, event) {
     if (!event || !event.target) return;
-    const project = ensureActiveProject();
-    ensureColorCapacity(index, project);
-    const current = sanitizeColor(colors[index]) || getFallbackColorForIndex(project, index);
+    ensureColorCapacity(index);
+    const current = sanitizeColor(colors[index]) || getFallbackColorForIndex(index);
     const next = sanitizeColor(event.target.value) || current;
-    setColorValue(index, next, project);
+    setColorValue(index, next);
     clearStatus();
   }
 
   function handleHexBlur(index, event) {
     if (!event || !event.target) return;
-    const project = ensureActiveProject();
-    ensureColorCapacity(index, project);
+    ensureColorCapacity(index);
     const next = sanitizeColor(event.target.value);
     if (next) {
-      setColorValue(index, next, project);
+      setColorValue(index, next);
     } else {
-      const fallback = sanitizeColor(colors[index]) || getFallbackColorForIndex(project, index);
+      const fallback = sanitizeColor(colors[index]) || getFallbackColorForIndex(index);
       updateBindingsForIndex(index, fallback);
     }
     clearStatus();
@@ -1190,111 +984,22 @@
     updateGraftegnerContrastRows();
   }
 
-  function renderColors(projectName) {
+  function renderColors() {
     if (!colorGroupsContainer) return;
     buildColorLayout();
-    let project = typeof projectName === 'string' ? normalizeProjectName(projectName) : '';
-    if (project) {
-      ensureProjectColors(project);
-      state.activeProject = project;
-    } else {
-      project = ensureActiveProject();
-    }
-    updateProjectHeading(project);
-    const palette = getActiveColors(project);
-    commitActiveColors(palette, project);
+    const palette = state.palette || getFallbackPalette();
+    commitColors(palette);
     syncBindings();
   }
 
-  function requestActiveProfileFromParent() {
-    if (typeof window === 'undefined') return;
-    const parentWindow = window.parent && window.parent !== window ? window.parent : null;
-    if (!parentWindow) return;
-    try {
-      parentWindow.postMessage({ type: 'math-visuals:request-profile' }, '*');
-    } catch (_) {}
-  }
-
-  function handleProfileMessage(event) {
-    const data = event && event.data;
-    let type;
-    let profileName;
-    if (typeof data === 'string') {
-      type = data;
-    } else if (data && typeof data === 'object') {
-      type = data.type;
-      profileName = data.profile || data.name || data.value;
-    }
-    if (type !== 'math-visuals:profile-change') return;
-    const normalized = normalizeProjectName(profileName);
-    if (normalized) {
-      state.preferredProject = normalized;
-      let current = null;
-      if (settingsApi && typeof settingsApi.getActiveProject === 'function') {
-        try {
-          current = normalizeProjectName(settingsApi.getActiveProject());
-        } catch (_) {}
-      }
-      if (
-        settingsApi &&
-        typeof settingsApi.setActiveProject === 'function' &&
-        current !== normalized
-      ) {
-        try {
-          settingsApi.setActiveProject(normalized, { notify: true });
-        } catch (_) {}
-      }
-      renderColors(normalized);
-    } else {
-      state.preferredProject = null;
-      renderColors();
-    }
-    clearStatus();
-  }
-
-  function applySettings(snapshot, options = {}) {
+  function applySettings(snapshot) {
     const data = snapshot && typeof snapshot === 'object' ? snapshot : {};
-    state.projectOrder = Array.isArray(data.projectOrder)
-      ? Array.from(new Set(data.projectOrder.map(normalizeProjectName))).filter(Boolean)
-      : [];
-    state.colorsByProject = new Map();
-    state.persistedColorsByProject = new Map();
-    const projects = data.projects && typeof data.projects === 'object' ? data.projects : {};
-    Object.keys(projects).forEach(name => {
-      const normalized = normalizeProjectName(name);
-      if (!normalized) return;
-      const entry = projects[name];
-      const paletteData =
-        entry && (entry.groupPalettes || entry.defaultColors)
-          ? entry.groupPalettes || entry.defaultColors
-          : getProjectFallbackPalette(normalized);
-      const normalizedPalette = normalizeProjectPalette(normalized, paletteData);
-      const cloned = cloneProjectPalette(normalizedPalette);
-      state.colorsByProject.set(normalized, cloned);
-      state.persistedColorsByProject.set(normalized, cloneProjectPalette(cloned));
-      if (!state.projectOrder.includes(normalized)) {
-        state.projectOrder.push(normalized);
-      }
-    });
-    ['campus', 'kikora', 'annet'].forEach(name => {
-      if (!state.projectOrder.includes(name)) {
-        state.projectOrder.push(name);
-      }
-      if (!state.colorsByProject.has(name)) {
-        const palette = getProjectFallbackPalette(name);
-        state.colorsByProject.set(name, cloneProjectPalette(palette));
-        state.persistedColorsByProject.set(name, cloneProjectPalette(palette));
-      } else if (!state.persistedColorsByProject.has(name)) {
-        const palette = state.colorsByProject.get(name);
-        state.persistedColorsByProject.set(name, cloneProjectPalette(palette));
-      }
-    });
-    const incomingActiveProject = normalizeProjectName(data.activeProject);
-    const forcedActive = options.forceActiveProject ? normalizeProjectName(options.forceActiveProject) : '';
-    state.activeProject = forcedActive || incomingActiveProject;
-    const active = ensureActiveProject();
-    state.activeProject = active;
-    renderColors(state.activeProject);
+    const paletteData = data.groupPalettes || data.defaultColors || data;
+    const normalizedPalette = normalizePalette(paletteData);
+    const cloned = cloneProjectPalette(normalizedPalette);
+    state.palette = cloneProjectPalette(cloned);
+    state.persistedPalette = cloneProjectPalette(cloned);
+    renderColors();
   }
 
   async function loadSettings() {
@@ -1313,7 +1018,7 @@
       }
       const payload = await response.json().catch(() => ({}));
       const snapshot = payload && typeof payload === 'object' && payload.settings ? payload.settings : payload;
-      applySettings(snapshot || {}, { forceActiveProject: state.activeProject });
+      applySettings(snapshot || {});
       setStatus('Innstillingene er lastet.', 'info');
       if (settingsApi && typeof settingsApi.refresh === 'function') {
         try {
@@ -1327,44 +1032,13 @@
     setFormDisabled(false);
   }
 
-  function buildPayload(options = {}) {
-    const colorsByProject =
-      options.projectColors instanceof Map ? options.projectColors : state.colorsByProject;
-    const activeProject = options.activeProject
-      ? normalizeProjectName(options.activeProject)
-      : ensureActiveProject();
-    const payload = {
-      activeProject,
-      projectOrder: [],
-      projects: {}
+  function buildPayload(palette) {
+    const normalizedPalette = normalizePalette(palette || state.palette || getFallbackPalette());
+    const groupPalettes = cloneProjectPalette(normalizedPalette);
+    return {
+      groupPalettes,
+      defaultColors: flattenPalette(groupPalettes, MIN_COLOR_SLOTS)
     };
-
-    const seenProjects = new Set();
-    const registerProject = projectName => {
-      const normalized = normalizeProjectName(projectName);
-      if (!normalized || seenProjects.has(normalized)) return;
-      const storedPalette = colorsByProject.get(normalized);
-      const normalizedPalette = normalizeProjectPalette(
-        normalized,
-        storedPalette || getProjectFallbackPalette(normalized)
-      );
-      const groupPalettes = cloneProjectPalette(normalizedPalette);
-      payload.projects[normalized] = {
-        groupPalettes,
-        defaultColors: expandPalette(normalized, groupPalettes)
-      };
-      payload.projectOrder.push(normalized);
-      seenProjects.add(normalized);
-    };
-
-    state.projectOrder.forEach(registerProject);
-    if (colorsByProject && typeof colorsByProject.forEach === 'function') {
-      colorsByProject.forEach((_, name) => registerProject(name));
-    }
-    state.colorsByProject.forEach((_, name) => registerProject(name));
-    ['campus', 'kikora', 'annet'].forEach(registerProject);
-
-    return payload;
   }
 
   async function persistSettings(method, body) {
@@ -1406,7 +1080,7 @@
     try {
       settingsApi.subscribe(snapshot => {
         if (!snapshot || typeof snapshot !== 'object') return;
-        applySettings(snapshot, { forceActiveProject: state.activeProject });
+        applySettings(snapshot);
         notifySettingsUpdated();
       });
     } catch (_) {}
@@ -1414,19 +1088,12 @@
     window.addEventListener('math-visuals:settings-changed', event => {
       const detail = event && event.detail && event.detail.settings;
       if (detail && typeof detail === 'object') {
-        applySettings(detail, { forceActiveProject: state.activeProject });
+        applySettings(detail);
         notifySettingsUpdated();
       }
     });
   }
 
-  if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
-    window.addEventListener('message', handleProfileMessage);
-  }
-
   applySettings({});
-  if (typeof window !== 'undefined') {
-    setTimeout(requestActiveProfileFromParent, 0);
-  }
   loadSettings();
 })();
