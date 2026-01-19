@@ -2088,8 +2088,20 @@ function parseSimple(txt) {
     }
     const cm = L.match(/^coords\s*=\s*(.+)$/i);
     if (cm) {
+      let coordsLine = cm[1].trim();
+      let coordsColor = '';
+      let coordsColorSource = 'auto';
+      const colorMatch = /,\s*color\s*=\s*([^,]+)$/i.exec(coordsLine);
+      if (colorMatch) {
+        const normalizedColor = normalizeColorValue(colorMatch[1]);
+        if (normalizedColor) {
+          coordsColor = normalizedColor;
+          coordsColorSource = 'manual';
+        }
+        coordsLine = coordsLine.slice(0, colorMatch.index).trim();
+      }
       const startIndex = out.extraPoints.length;
-      const pts = cm[1].split(';')
+      const pts = coordsLine.split(';')
         .map(s => s.trim())
         .filter(Boolean)
         .map(entry => {
@@ -2112,7 +2124,9 @@ function parseSimple(txt) {
         out.rows.push({
           type: 'coords',
           pointStart: startIndex,
-          pointCount: count
+          pointCount: count,
+          color: coordsColor,
+          colorSource: coordsColorSource
         });
       }
       continue;
@@ -6439,6 +6453,19 @@ function addFixedPoints() {
   const coordRows = Array.isArray(appState.simple.parsed.rows)
     ? appState.simple.parsed.rows.filter(row => row && row.type === 'coords')
     : [];
+  const getCoordsRowColorForIndex = idx => {
+    if (!Number.isInteger(idx) || idx < 0) return '';
+    for (const row of coordRows) {
+      const start = Number.isFinite(row.pointStart) ? row.pointStart : 0;
+      const count = Number.isFinite(row.pointCount) ? row.pointCount : 0;
+      if (count <= 0) continue;
+      const end = start + count;
+      if (idx >= start && idx < end) {
+        return normalizeColorValue(row.color) || '';
+      }
+    }
+    return '';
+  };
   const polylinePointIndexes = new Set();
   coordRows.forEach(row => {
     const start = Number.isFinite(row.pointStart) ? row.pointStart : 0;
@@ -6451,6 +6478,13 @@ function addFixedPoints() {
   });
   const hidePolylineMarkers = !!appState.simple.parsed.markerExplicitEmpty && polylinePointIndexes.size > 0;
   appState.simple.parsed.extraPoints.forEach((pt, idx) => {
+    const rowColor = getCoordsRowColorForIndex(idx);
+    const pointColor = rowColor
+      || DEFAULT_POINT_COLORS.line
+      || DEFAULT_POINT_COLORS.fallbackMarkerFill;
+    const pointStroke = rowColor
+      || DEFAULT_POINT_COLORS.line
+      || DEFAULT_POINT_COLORS.fallbackMarkerStroke;
     const customPointName = Array.isArray(appState.simple.parsed.pointNames)
       ? appState.simple.parsed.pointNames[idx]
       : null;
@@ -6460,8 +6494,8 @@ function addFixedPoints() {
       name: pointLabel,
       size: POINT_MARKER_SIZE,
       face: 'o',
-      fillColor: DEFAULT_POINT_COLORS.line || DEFAULT_POINT_COLORS.fallbackMarkerFill,
-      strokeColor: DEFAULT_POINT_COLORS.line || DEFAULT_POINT_COLORS.fallbackMarkerStroke,
+      fillColor: pointColor,
+      strokeColor: pointStroke,
       withLabel: true,
       fixed: pointLocked,
       showInfobox: false,
@@ -6499,7 +6533,7 @@ function addFixedPoints() {
         anchorX: 'middle',
         anchorY: 'middle',
         fontSize: 24,
-        strokeColor: DEFAULT_POINT_COLORS.line || DEFAULT_POINT_COLORS.fallbackMarkerStroke,
+        strokeColor: pointStroke,
         fixed: true,
         layer: 9
       });
@@ -6575,13 +6609,15 @@ function addFixedPoints() {
     }
   });
   if (pointObjects.length >= 2 && coordRows.length) {
-    const segmentColor = DEFAULT_POINT_COLORS.line
-      || DEFAULT_POINT_COLORS.markerStroke
-      || DEFAULT_POINT_COLORS.fallbackMarkerStroke;
     coordRows.forEach(row => {
       const start = Number.isFinite(row.pointStart) ? row.pointStart : 0;
       const count = Number.isFinite(row.pointCount) ? row.pointCount : 0;
       if (count < 2) return;
+      const rowColor = normalizeColorValue(row.color);
+      const segmentColor = rowColor
+        || DEFAULT_POINT_COLORS.line
+        || DEFAULT_POINT_COLORS.markerStroke
+        || DEFAULT_POINT_COLORS.fallbackMarkerStroke;
       const slice = pointObjects.slice(start, start + count).filter(Boolean);
       for (let i = 1; i < slice.length; i += 1) {
         appState.board.create('segment', [slice[i - 1], slice[i]], {
@@ -9495,7 +9531,12 @@ function setupSettingsForm() {
             .map(pt => `(${formatNumber(pt[0], stepX())}, ${formatNumber(pt[1], stepY())})`)
             .filter(Boolean);
           if (coords.length) {
-            lines.push(`coords=${coords.join('; ')}`);
+            const colorInfo = getFunctionColorInfoForRow(row);
+            const manualColor = colorInfo.manual && colorInfo.value ? normalizeColorValue(colorInfo.value) : '';
+            const coordsLine = manualColor
+              ? `coords=${coords.join('; ')}, color=${manualColor}`
+              : `coords=${coords.join('; ')}`;
+            lines.push(coordsLine);
           }
           const storedMarkerValue = getPointMarkerValueForRow(row);
           const markerInputEmpty = storedMarkerValue === '';
@@ -10387,6 +10428,7 @@ function setupSettingsForm() {
       }
       let colorVal = '';
       let colorManualFlag = false;
+      const rowSpec = parsedRows[idx] || null;
       const isFunctionLine = !coordsMatch && /=/.test(line);
       if (isFunctionLine && Array.isArray(appState.simple.parsed.funcs)) {
         const parsedFunc = appState.simple.parsed.funcs[funcIndex] || null;
@@ -10409,9 +10451,21 @@ function setupSettingsForm() {
           }
         }
         funcIndex++;
+      } else if (rowSpec && rowSpec.type === 'coords') {
+        colorVal = typeof rowSpec.color === 'string' ? rowSpec.color : '';
+        colorManualFlag = rowSpec.colorSource === 'manual' && !!colorVal;
+        if (colorVal) {
+          const normalizedManual = normalizeColorValue(colorVal);
+          const defaultColorForRow = normalizeColorValue(computeDefaultColorForIndex(idx + 1));
+          if (normalizedManual && defaultColorForRow && normalizedManual === defaultColorForRow) {
+            colorManualFlag = false;
+            colorVal = '';
+            rowSpec.colorSource = 'auto';
+            rowSpec.color = '';
+          }
+        }
       }
       const answerVal = Array.isArray(appState.simple.parsed.answers) ? appState.simple.parsed.answers[idx] || '' : '';
-      const rowSpec = parsedRows[idx] || null;
       const pointStart = rowSpec && Number.isFinite(rowSpec.pointStart) ? rowSpec.pointStart : 0;
       const inferredCount = parsePointListString(funVal)
         .filter(pt => Array.isArray(pt) && pt.length === 2 && pt.every(Number.isFinite)).length;
@@ -10828,7 +10882,8 @@ function setupSettingsForm() {
       const colorInfo = getFunctionColorInfoForRow(row);
       const manualColor = colorInfo.manual && colorInfo.value ? normalizeColorValue(colorInfo.value) : '';
       if (rowIdx === 0 && isCoords(fun)) {
-        p.set('coords', fun);
+        const coordsValue = manualColor ? `${fun}, color=${manualColor}` : fun;
+        p.set('coords', coordsValue);
         const markerForParams = pointMarkerControls.length
           ? getPointMarkerValueForExport(row)
           : (parsedMarkerNormalized && !isDefaultPointMarker(parsedMarkerNormalized) ? parsedMarkerNormalized : '');
