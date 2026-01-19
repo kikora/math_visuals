@@ -138,6 +138,14 @@ summary {
     var(--swatch-elevation, none);
 }
 
+.color-option-btn.color-swatch--pair {
+  background: var(--swatch-fill);
+  box-shadow:
+    inset 0 0 0 1.5px var(--swatch-line),
+    var(--swatch-outer-ring, 0 0 0 0 transparent),
+    var(--swatch-elevation, none);
+}
+
 html,
 body {
   height: 100%;
