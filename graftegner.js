@@ -328,6 +328,9 @@ function getThemeApi() {
 function getPaletteApi() {
   return (typeof window !== 'undefined' && window.MathVisualsPalette) || null;
 }
+function getPaletteConfig() {
+  return (typeof window !== 'undefined' && window.MathVisualsPaletteConfig) || null;
+}
 
 function getThemeColor(token, fallback) {
   const theme = getThemeApi();
@@ -488,6 +491,53 @@ function sanitizePaletteList(values) {
     }
   });
   return sanitized;
+}
+
+let graftegnerFillSlotPositions = null;
+function resolveGraftegnerFillSlotPositions() {
+  if (Array.isArray(graftegnerFillSlotPositions)) {
+    return graftegnerFillSlotPositions.slice();
+  }
+  const config = getPaletteConfig();
+  if (config && Array.isArray(config.COLOR_SLOT_GROUPS)) {
+    const group = config.COLOR_SLOT_GROUPS.find(entry => {
+      const id = entry && typeof entry.groupId === 'string' ? entry.groupId.trim().toLowerCase() : '';
+      return id === GRAFTEGNER_GROUP_ID;
+    });
+    if (group && Array.isArray(group.slots)) {
+      const positions = group.slots
+        .map((slot, index) => {
+          const label = slot && typeof slot.label === 'string' ? slot.label.trim().toLowerCase() : '';
+          return label.includes('fyll') ? index : null;
+        })
+        .filter(value => Number.isFinite(value));
+      if (positions.length) {
+        graftegnerFillSlotPositions = positions;
+        return positions.slice();
+      }
+    }
+  }
+  graftegnerFillSlotPositions = [];
+  return [];
+}
+
+function selectGraftegnerFillColors(palette) {
+  const sanitized = sanitizePaletteList(palette);
+  if (!sanitized.length) return [];
+  const positions = resolveGraftegnerFillSlotPositions();
+  let fillColors = [];
+  if (positions.length) {
+    positions.forEach(position => {
+      const color = sanitized[position];
+      if (color) {
+        fillColors.push(color);
+      }
+    });
+  }
+  if (!fillColors.length) {
+    fillColors = sanitized.filter((_, index) => index % 2 === 0);
+  }
+  return fillColors;
 }
 
 function tryResolveGroupPalette(resolver) {
@@ -7908,12 +7958,19 @@ function setupSettingsForm() {
     const parsed = Number.parseInt(row.dataset.index, 10);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
   };
-  const computeDefaultColorForIndex = index => normalizeColorValue(colorFor(index - 1)) || DEFAULT_COLOR_FALLBACK;
+  const computeDefaultColorForIndex = index => {
+    const options = getFunctionColorOptions();
+    if (!options.length) {
+      return normalizeColorValue(colorFor(index - 1)) || DEFAULT_COLOR_FALLBACK;
+    }
+    const offset = Number.isFinite(index) && index > 0 ? Math.trunc(index - 1) : 0;
+    return normalizeColorValue(options[offset % options.length]) || DEFAULT_COLOR_FALLBACK;
+  };
   let functionColorOptions = [];
   const resolveFunctionColorOptions = () => {
-    const palette = resolveCurvePalette(FUNCTION_COLOR_OPTION_COUNT);
-    const sanitized = sanitizePaletteList(palette);
-    const filled = ensureColorCount(sanitized, DEFAULT_FUNCTION_COLORS.fallback, FUNCTION_COLOR_OPTION_COUNT);
+    const palette = resolveCurvePalette(FUNCTION_COLOR_OPTION_COUNT * 2);
+    const fillPalette = selectGraftegnerFillColors(palette);
+    const filled = ensureColorCount(fillPalette, DEFAULT_FUNCTION_COLORS.fallback, FUNCTION_COLOR_OPTION_COUNT);
     return filled.slice(0, FUNCTION_COLOR_OPTION_COUNT);
   };
   const getFunctionColorOptions = () => {
@@ -9689,9 +9746,9 @@ function setupSettingsForm() {
     const defaultColor = computeDefaultColorForIndex(index);
     const manualColor = normalizeFunctionColorChoice(colorVal);
     const isManualColor = !!colorManual && !!manualColor;
-    const palette = resolveCurvePalette(6);
+    const palette = getFunctionColorOptions();
     const activeColor = normalizeColorValue(colorVal)
-      || normalizeColorValue(palette[(index - 1) % 6])
+      || normalizeColorValue(palette[(index - 1) % palette.length])
       || DEFAULT_COLOR_FALLBACK;
     let colorControlMarkup = `
     <div class="func-color-compact" data-color-picker>
@@ -9704,7 +9761,7 @@ function setupSettingsForm() {
       <div class="color-options" hidden>
   `;
 
-    palette.slice(0, 6).forEach((color, idx) => {
+    palette.slice(0, FUNCTION_COLOR_OPTION_COUNT).forEach((color, idx) => {
       const isSelected = normalizeColorValue(color) === activeColor;
       colorControlMarkup += `
       <button type="button" class="color-option-btn ${isSelected ? 'is-selected' : ''}" 
