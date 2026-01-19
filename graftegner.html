@@ -282,7 +282,8 @@
       border:1px solid #e5e7eb;
       border-radius:99px;
       padding:8px;
-      display:flex;
+      display:grid;
+      grid-template-columns: repeat(var(--color-options-columns, 3), 1fr);
       gap:8px;
       box-shadow:0 4px 15px rgba(0,0,0,0.15);
       z-index:100;
@@ -690,6 +691,7 @@
   <script defer src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script defer src="/task-api.js"></script>
   <script defer src="/colorpicker-helper.js"></script>
+  <script defer src="/ui/colorpicker/index.js"></script>
   <script defer src="/graftegner.js"></script>
   <script src="/task-core.js"></script>
   <script defer src="/examples.js"></script>

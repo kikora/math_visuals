@@ -344,6 +344,19 @@ function getColorPickerHelper() {
   return null;
 }
 
+function getColorPickerModule() {
+  const scope = typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : null;
+  if (scope && scope.MathVisualsColorPicker) {
+    return scope.MathVisualsColorPicker;
+  }
+  if (typeof require === 'function') {
+    try {
+      return require('./ui/colorpicker/index.js');
+    } catch (_) {}
+  }
+  return null;
+}
+
 const DEFAULT_GRAFTEGNER_COLOR_ROLES = [
   { fillIndex: 5, lineIndex: 4 },
   { fillIndex: 7, lineIndex: 6 },
@@ -353,6 +366,8 @@ const DEFAULT_GRAFTEGNER_COLOR_ROLES = [
   { fillIndex: 14, lineIndex: 15 }
 ];
 const colorPickerHelper = getColorPickerHelper();
+const colorPickerModule = getColorPickerModule();
+const functionColorPickerInstances = new WeakMap();
 
 function getThemeColor(token, fallback) {
   const theme = getThemeApi();
@@ -4203,21 +4218,11 @@ function updateCurveColorsFromTheme() {
       if (row) {
         const picker = row.querySelector('[data-color-picker]');
         if (picker) {
-          const activeBtn = picker.querySelector('.color-swatch--active');
-          if (activeBtn && appliedColor) {
-            if (activeBtn.classList) {
-              activeBtn.classList.add('color-swatch--pair');
-            }
-            activeBtn.style.setProperty('--swatch-fill', appliedColor);
-            activeBtn.style.setProperty('--swatch-line', appliedColor);
+          const hiddenInput = picker.querySelector('input[data-color]');
+          if (hiddenInput && appliedColor) {
+            hiddenInput.value = normalizeFunctionColorChoice(appliedColor) || appliedColor;
+            updateFunctionColorPicker(picker, hiddenInput, appliedColor, getFunctionColorOptions());
           }
-
-          const options = picker.querySelectorAll('.color-option-btn');
-          const graphColor = normalizeColorValue(appliedColor);
-          options.forEach(btn => {
-            const optColor = normalizeColorValue(btn.dataset.colorValue);
-            btn.classList.toggle('is-selected', optColor === graphColor);
-          });
         }
       }
     }
@@ -8069,6 +8074,65 @@ function setupSettingsForm() {
     }
     return [inputs].filter(Boolean);
   };
+  const buildFunctionColorSlots = palette =>
+    palette.slice(0, FUNCTION_COLOR_OPTION_COUNT).map((color, index) => ({
+      value: index + 1,
+      label: `Velg farge ${index + 1}`,
+      color
+    }));
+  const applyFunctionSwatch = (element, color) => {
+    if (!element) return;
+    if (colorPickerHelper && typeof colorPickerHelper.applyColorPairSwatch === 'function') {
+      colorPickerHelper.applyColorPairSwatch(element, color, color);
+      return;
+    }
+    if (element.classList) {
+      element.classList.add('color-swatch--pair');
+    }
+    if (typeof color === 'string' && color) {
+      element.style.setProperty('--swatch-fill', color);
+      element.style.setProperty('--swatch-line', color);
+    }
+  };
+  const updateFunctionColorPicker = (picker, hiddenInput, activeColor, palette) => {
+    if (!picker || !hiddenInput || !colorPickerModule || typeof colorPickerModule.createColorPicker !== 'function') {
+      return;
+    }
+    const normalizedActive = normalizeFunctionColorChoice(activeColor) || normalizeFunctionColorChoice(palette[0]) || DEFAULT_COLOR_FALLBACK;
+    const slots = buildFunctionColorSlots(palette);
+    const renderStyle = ({ element, slot, isActive }) => {
+      const color = isActive ? normalizedActive : slot.color;
+      applyFunctionSwatch(element, color);
+    };
+    const onSelect = value => {
+      const slot = slots.find(entry => entry.value === value);
+      if (!slot) return;
+      const nextColor = normalizeFunctionColorChoice(slot.color) || slot.color;
+      hiddenInput.value = nextColor;
+      hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
+      hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+    const getActiveValue = () => {
+      const normalized = normalizeFunctionColorChoice(normalizedActive);
+      const index = palette.findIndex(color => normalizeFunctionColorChoice(color) === normalized);
+      return index >= 0 ? index + 1 : null;
+    };
+    const existing = functionColorPickerInstances.get(picker);
+    if (existing) {
+      existing.update({ slots, renderStyle, onSelect, getActiveValue });
+    } else {
+      const instance = colorPickerModule.createColorPicker({
+        element: picker,
+        slots,
+        renderStyle,
+        onSelect,
+        getActiveValue
+      });
+      if (instance) {
+        functionColorPickerInstances.set(picker, instance);
+      }
+    }
+  };
   const syncFunctionColorSwatches = (inputs, preferred) => {
     const swatches = toColorInputArray(inputs);
     if (!swatches.length) return;
@@ -8083,27 +8147,8 @@ function setupSettingsForm() {
       input.dataset.colorIndex = String(index);
       if (compactPicker && input.closest) {
         const picker = input.closest('[data-color-picker]');
-        const activeSwatch = picker ? picker.querySelector('.color-swatch--active') : null;
-        if (activeSwatch) {
-          if (activeSwatch.classList) {
-            activeSwatch.classList.add('color-swatch--pair');
-          }
-          activeSwatch.style.setProperty('--swatch-fill', nextColor);
-          activeSwatch.style.setProperty('--swatch-line', nextColor);
-        }
-        const optionButtons = picker ? picker.querySelectorAll('.color-option-btn') : null;
-        if (optionButtons) {
-          optionButtons.forEach(btn => {
-            const optionColor = normalizeColorValue(btn.dataset.colorValue);
-            if (optionColor) {
-              btn.style.setProperty('--swatch-fill', optionColor);
-              btn.style.setProperty('--swatch-line', optionColor);
-              if (btn.classList) {
-                btn.classList.add('color-swatch--pair');
-              }
-            }
-            btn.classList.toggle('is-selected', optionColor === nextColor);
-          });
+        if (picker) {
+          updateFunctionColorPicker(picker, input, nextColor, options);
         }
       }
       const swatch = input.closest('.color-option') ? input.closest('.color-option').querySelector('.color-swatch') : null;
@@ -9843,21 +9888,7 @@ function setupSettingsForm() {
               aria-label="Endre farge"
               aria-haspopup="true"
               aria-expanded="false"></button>
-      <div class="color-options" hidden>
-  `;
-
-    palette.slice(0, FUNCTION_COLOR_OPTION_COUNT).forEach((color, idx) => {
-      const isSelected = normalizeColorValue(color) === activeColor;
-      colorControlMarkup += `
-      <button type="button" class="color-option-btn color-swatch--pair ${isSelected ? 'is-selected' : ''}" 
-              style="--swatch-fill: ${color}; --swatch-line: ${color};" 
-              data-color-value="${color}" 
-              aria-label="Velg farge ${idx + 1}"></button>
-    `;
-    });
-
-    colorControlMarkup += `
-      </div>
+      <div class="color-options" hidden></div>
       <input type="hidden" data-color value="${activeColor}">
     </div>
   `;
@@ -10211,63 +10242,9 @@ function setupSettingsForm() {
     }
     const picker = row.querySelector('[data-color-picker]');
     if (picker) {
-      const activeBtn = picker.querySelector('.color-swatch--active');
-      const optionsPanel = picker.querySelector('.color-options');
       const hiddenInput = picker.querySelector('input[data-color]');
-
-      if (activeBtn && optionsPanel && hiddenInput) {
-        const closeAllPickers = () => {
-          document.querySelectorAll('[data-color-picker]').forEach(otherPicker => {
-            const otherPanel = otherPicker.querySelector('.color-options');
-            const otherButton = otherPicker.querySelector('.color-swatch--active');
-            if (otherPanel) otherPanel.hidden = true;
-            if (otherButton) otherButton.setAttribute('aria-expanded', 'false');
-          });
-        };
-
-        activeBtn.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-
-          const wasHidden = optionsPanel.hidden;
-          closeAllPickers();
-          optionsPanel.hidden = !wasHidden;
-          activeBtn.setAttribute('aria-expanded', String(!wasHidden));
-        });
-
-        picker.querySelectorAll('.color-option-btn').forEach(btn => {
-          btn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-
-            const newColor = btn.dataset.colorValue;
-
-            if (activeBtn.classList) {
-              activeBtn.classList.add('color-swatch--pair');
-            }
-            activeBtn.style.setProperty('--swatch-fill', newColor);
-            activeBtn.style.setProperty('--swatch-line', newColor);
-            hiddenInput.value = newColor;
-            optionsPanel.hidden = true;
-            activeBtn.setAttribute('aria-expanded', 'false');
-
-            picker.querySelectorAll('.color-option-btn').forEach(opt => {
-              opt.classList.toggle('is-selected', opt === btn);
-            });
-
-            hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
-            hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
-          });
-        });
-
-        const closeIfOutside = (e) => {
-          if (!optionsPanel.hidden && !picker.contains(e.target)) {
-            optionsPanel.hidden = true;
-            activeBtn.setAttribute('aria-expanded', 'false');
-          }
-        };
-
-        document.addEventListener('click', closeIfOutside);
+      if (hiddenInput) {
+        updateFunctionColorPicker(picker, hiddenInput, hiddenInput.value, getFunctionColorOptions());
       }
     }
     if (index === 1) {

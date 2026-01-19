@@ -1252,6 +1252,18 @@
     }
     return null;
   }
+  function getColorPickerModule() {
+    const scope = typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : null;
+    if (scope && scope.MathVisualsColorPicker) {
+      return scope.MathVisualsColorPicker;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./ui/colorpicker/index.js');
+      } catch (_) {}
+    }
+    return null;
+  }
   const FALLBACK_COLOR_OPTIONS = ['#3b82f6', '#f97316', '#10b981', '#ef4444', '#6366f1', '#0ea5e9'];
   const DEFAULT_GRAFTEGNER_COLOR_ROLES = [
     { fillIndex: 5, lineIndex: 4 },
@@ -1262,6 +1274,8 @@
     { fillIndex: 14, lineIndex: 15 }
   ];
   const colorPickerHelper = getColorPickerHelper();
+  const colorPickerModule = getColorPickerModule();
+  const fillColorPickerInstances = new WeakMap();
   function getPaletteApi() {
     if (typeof window === 'undefined') return null;
     const api = window.MathVisualsPalette;
@@ -1378,27 +1392,36 @@
   function getLinePalette() {
     return getLineFillPalettes().lineColors;
   }
-  function applyPairSwatch(element, fillColors, lineColors, index) {
+  function applyPairSwatch(element, fillColor, lineColor) {
     if (!element) return;
-    const fillColor = fillColors[index - 1] || fillColors[0] || '#fff';
-    const lineColor = lineColors[index - 1] || lineColors[0] || '#000';
-    if (colorPickerHelper && typeof colorPickerHelper.renderColorPairSwatch === 'function') {
-      colorPickerHelper.renderColorPairSwatch({
-        element,
-        fillIndex: index,
-        lineIndex: index,
-        fillColors,
-        lineColors,
-        fallbackFill: '#fff',
-        fallbackLine: '#000'
-      });
+    if (colorPickerHelper && typeof colorPickerHelper.applyColorPairSwatch === 'function') {
+      colorPickerHelper.applyColorPairSwatch(element, fillColor, lineColor);
       return;
     }
     if (element.classList) {
       element.classList.add('color-swatch--pair');
     }
-    element.style.setProperty('--swatch-fill', fillColor);
-    element.style.setProperty('--swatch-line', lineColor);
+    if (typeof fillColor === 'string' && fillColor) {
+      element.style.setProperty('--swatch-fill', fillColor);
+    }
+    if (typeof lineColor === 'string' && lineColor) {
+      element.style.setProperty('--swatch-line', lineColor);
+    }
+  }
+
+  function buildFillColorSlots(fillColors, lineColors) {
+    const slots = [];
+    const fallbackLine = lineColors[0] || '#000';
+    fillColors.forEach((color, index) => {
+      const lineColor = lineColors[index] || fallbackLine;
+      slots.push({
+        value: index + 1,
+        label: `Velg farge ${index + 1}`,
+        fillColor: color,
+        lineColor
+      });
+    });
+    return slots;
   }
   function updateFillColorPickerActive() {
     if (!fillColorPicker) return;
@@ -1413,49 +1436,62 @@
     }
   }
   function renderFillColorPicker() {
-    if (!fillColorPicker) return;
-    const activeButton = fillColorPicker.querySelector('.color-swatch--active');
-    const optionsPanel = fillColorPicker.querySelector('.color-options');
-    if (!activeButton || !optionsPanel) return;
+    if (!fillColorPicker || !colorPickerModule || typeof colorPickerModule.createColorPicker !== 'function') {
+      return;
+    }
     const paletteData = getLineFillPalettes();
     const palette = paletteData.fillColors;
     const linePalette = paletteData.lineColors;
-    optionsPanel.innerHTML = '';
-    palette.forEach((color, index) => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'color-option-btn color-swatch--pair';
-      applyPairSwatch(btn, palette, linePalette, index + 1);
-      btn.dataset.color = color;
-      btn.setAttribute('aria-label', `Velg farge ${index + 1}`);
-      optionsPanel.appendChild(btn);
+    const slots = buildFillColorSlots(palette, linePalette);
+    const renderStyle = ({ element, slot, isActive }) => {
+      if (isActive) {
+        const current = colorInput && colorInput.value ? colorInput.value : slot.fillColor;
+        applyPairSwatch(element, current, current);
+        return;
+      }
+      applyPairSwatch(element, slot.fillColor, slot.lineColor);
+    };
+    const onSelect = value => {
+      const slot = slots.find(entry => entry.value === value);
+      const selected = slot ? slot.fillColor : null;
+      if (selected) {
+        if (colorInput) {
+          colorInput.value = selected;
+        }
+        window.STATE.customColor = selected;
+        window.STATE.useCustomColor = true;
+        applyColor(true, selected);
+      }
+      updateFillColorPickerActive();
+    };
+    const getActiveValue = () => {
+      const current = colorInput && colorInput.value ? colorInput.value : '';
+      if (!current) return null;
+      const normalized = normalizeHexColor(current) || current;
+      const index = palette.findIndex(color => (normalizeHexColor(color) || color) === normalized);
+      return index >= 0 ? index + 1 : null;
+    };
+    const instance = fillColorPickerInstances.get(fillColorPicker);
+    if (instance) {
+      instance.update({
+        slots,
+        renderStyle,
+        onSelect,
+        getActiveValue
+      });
+      updateFillColorPickerActive();
+      return;
+    }
+    const pickerInstance = colorPickerModule.createColorPicker({
+      element: fillColorPicker,
+      slots,
+      renderStyle,
+      onSelect,
+      getActiveValue
     });
-    updateFillColorPickerActive();
-    if (!fillColorPicker.dataset.bound) {
-      fillColorPicker.dataset.bound = 'true';
-      activeButton.addEventListener('click', () => {
-        optionsPanel.hidden = !optionsPanel.hidden;
-      });
-      optionsPanel.addEventListener('click', evt => {
-        const target = evt.target.closest('.color-option-btn');
-        if (!target) return;
-        const selected = target.dataset.color;
-        if (selected) {
-          if (colorInput) {
-            colorInput.value = selected;
-          }
-          window.STATE.customColor = selected;
-          window.STATE.useCustomColor = true;
-          applyColor(true, selected);
-          updateFillColorPickerActive();
-        }
-        optionsPanel.hidden = true;
-      });
-      document.addEventListener('click', event => {
-        if (!fillColorPicker.contains(event.target)) {
-          optionsPanel.hidden = true;
-        }
-      });
+    if (pickerInstance) {
+      fillColorPickerInstances.set(fillColorPicker, pickerInstance);
+      updateFillColorPickerActive();
     }
   }
   function updateTransparencyLabel(value) {

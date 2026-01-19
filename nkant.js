@@ -941,6 +941,19 @@ function getSettingsApi() {
   return (typeof window !== "undefined" && window.MathVisualsSettings) || null;
 }
 
+function getColorPickerModule() {
+  const scope = typeof window !== "undefined" ? window : typeof globalThis !== "undefined" ? globalThis : null;
+  if (scope && scope.MathVisualsColorPicker) {
+    return scope.MathVisualsColorPicker;
+  }
+  if (typeof require === "function") {
+    try {
+      return require("./ui/colorpicker/index.js");
+    } catch (_) {}
+  }
+  return null;
+}
+
 function getThemeColor(token, fallback) {
   const theme = getThemeApi();
   if (theme && typeof theme.getColor === 'function') {
@@ -951,8 +964,9 @@ function getThemeColor(token, fallback) {
   return fallback;
 }
 
+const colorPickerModule = getColorPickerModule();
+const nkantColorPickerInstances = new WeakMap();
 let nkantPaletteCache = [];
-let nkantColorPickerDocBound = false;
 
 function resolveNkantPalette() {
   const paletteApi = getPaletteApi();
@@ -1059,76 +1073,58 @@ function setTripleSwatchStyle(element, fillColor, lineColor, angleColor) {
   element.style.setProperty('--swatch-color-3', angleColor);
 }
 
-function updateNkantColorPickerSelection(element, palette, colorSetIndex) {
-  if (!element) return;
-  const activeButton = element.querySelector('.color-swatch--active');
-  const optionsPanel = element.querySelector('.color-options');
-  if (!activeButton || !optionsPanel) return;
-  const {
-    colors,
-    safeIndex,
-    fillColor,
-    lineColor,
-    angleColor
-  } = getNkantPaletteColors(palette, colorSetIndex);
-  setTripleSwatchStyle(activeButton, fillColor, lineColor, angleColor);
-  optionsPanel.querySelectorAll('.color-option-btn').forEach(btn => {
-    const btnIndex = sanitizeColorSetIndex(btn.dataset.colorIndex);
-    btn.classList.toggle('is-selected', btnIndex === safeIndex);
-  });
+function buildNkantColorSlots(colors) {
+  const slots = [];
+  for (let index = 0; index < NKANT_COLOR_SET_COUNT; index += 1) {
+    const baseIndex = index * NKANT_COLOR_SET_SIZE;
+    slots.push({
+      value: index + 1,
+      label: `Velg fargesett ${index + 1}`,
+      fillColor: colors[baseIndex] || STYLE_DEFAULTS.faceFill,
+      lineColor: colors[baseIndex + 1] || STYLE_DEFAULTS.edgeStroke,
+      angleColor: colors[baseIndex + 2] || STYLE_DEFAULTS.angStroke
+    });
+  }
+  return slots;
 }
 
 function renderNkantColorPicker(element, palette, getColorSetIndex, onSelect) {
-  if (!element) return;
-  const activeButton = element.querySelector('.color-swatch--active');
-  const optionsPanel = element.querySelector('.color-options');
-  if (!activeButton || !optionsPanel) return;
+  if (!element || !colorPickerModule || typeof colorPickerModule.createColorPicker !== 'function') return;
   const colors = Array.isArray(palette) ? palette : resolveNkantPalette();
-  optionsPanel.innerHTML = '';
-  for (let index = 0; index < NKANT_COLOR_SET_COUNT; index += 1) {
-    const baseIndex = index * NKANT_COLOR_SET_SIZE;
-    const fillColor = colors[baseIndex] || STYLE_DEFAULTS.faceFill;
-    const lineColor = colors[baseIndex + 1] || STYLE_DEFAULTS.edgeStroke;
-    const angleColor = colors[baseIndex + 2] || STYLE_DEFAULTS.angStroke;
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'color-option-btn color-option-btn--triple';
-    btn.dataset.colorIndex = String(index + 1);
-    setTripleSwatchStyle(btn, fillColor, lineColor, angleColor);
-    btn.setAttribute('aria-label', `Velg fargesett ${index + 1}`);
-    btn.addEventListener('click', event => {
-      event.stopPropagation();
-      const nextIndex = sanitizeColorSetIndex(index + 1);
-      if (typeof onSelect === 'function') {
-        onSelect(nextIndex);
-      }
-      updateNkantColorPickerSelection(element, colors, nextIndex);
-      optionsPanel.hidden = true;
-      activeButton.setAttribute('aria-expanded', 'false');
-    });
-    optionsPanel.appendChild(btn);
+  const slots = buildNkantColorSlots(colors);
+  const renderStyle = ({ element: target, slot, isActive }) => {
+    if (target.classList) {
+      target.classList.add(isActive ? 'color-swatch--triple' : 'color-option-btn--triple');
+    }
+    setTripleSwatchStyle(target, slot.fillColor, slot.lineColor, slot.angleColor);
+  };
+  const onSelectValue = value => {
+    const nextIndex = sanitizeColorSetIndex(value);
+    if (typeof onSelect === 'function') {
+      onSelect(nextIndex);
+    }
+  };
+  const getActiveValue = () => {
+    const currentIndex = typeof getColorSetIndex === 'function' ? getColorSetIndex() : STATE.colorSetIndex;
+    return sanitizeColorSetIndex(currentIndex);
+  };
+  const existing = nkantColorPickerInstances.get(element);
+  const layout = { columns: NKANT_COLOR_SET_COUNT, maxOptions: NKANT_COLOR_SET_COUNT };
+  if (existing) {
+    existing.update({ slots, renderStyle, onSelect: onSelectValue, getActiveValue, layout });
+    return;
   }
-  activeButton.addEventListener('click', event => {
-    event.stopPropagation();
-    const nextHidden = !optionsPanel.hidden;
-    optionsPanel.hidden = nextHidden;
-    activeButton.setAttribute('aria-expanded', String(!nextHidden));
+  const instance = colorPickerModule.createColorPicker({
+    element,
+    slots,
+    renderStyle,
+    onSelect: onSelectValue,
+    getActiveValue,
+    layout
   });
-  if (!nkantColorPickerDocBound) {
-    document.addEventListener('click', event => {
-      document.querySelectorAll('[data-nkant-color-picker]').forEach(picker => {
-        if (!picker.contains(event.target)) {
-          const panel = picker.querySelector('.color-options');
-          if (panel) panel.hidden = true;
-          const active = picker.querySelector('.color-swatch--active');
-          if (active) active.setAttribute('aria-expanded', 'false');
-        }
-      });
-    });
-    nkantColorPickerDocBound = true;
+  if (instance) {
+    nkantColorPickerInstances.set(element, instance);
   }
-  const currentIndex = typeof getColorSetIndex === 'function' ? getColorSetIndex() : STATE.colorSetIndex;
-  updateNkantColorPickerSelection(element, colors, currentIndex);
 }
 
 // --- PATCH START: Manglende tema-funksjon ---
@@ -1141,7 +1137,23 @@ function refreshNkantTheme(options = {}) {
     const fig = Number.isFinite(figIndex) ? STATE.figures[figIndex] : null;
     const index = fig ? getFigureColorSetIndex(fig) : sanitizeColorSetIndex(element.dataset.colorSetIndex || STATE.colorSetIndex);
     element.dataset.colorSetIndex = String(index);
-    updateNkantColorPickerSelection(element, palette, index);
+    const getColorSetIndex = () => (fig ? getFigureColorSetIndex(fig) : sanitizeColorSetIndex(STATE.colorSetIndex));
+    const onSelect = nextIndex => {
+      if (fig) {
+        updateState(state => {
+          if (state.figures[figIndex]) {
+            state.figures[figIndex].colorSetIndex = nextIndex;
+          }
+          state.colorSetIndex = nextIndex;
+        });
+      } else {
+        updateState(state => {
+          state.colorSetIndex = nextIndex;
+        });
+      }
+      element.dataset.colorSetIndex = String(nextIndex);
+    };
+    renderNkantColorPicker(element, palette, getColorSetIndex, onSelect);
   });
 }
 

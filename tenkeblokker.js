@@ -99,6 +99,19 @@ function getColorPickerHelper() {
   return null;
 }
 
+function getColorPickerModule() {
+  const scope = typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : null;
+  if (scope && scope.MathVisualsColorPicker) {
+    return scope.MathVisualsColorPicker;
+  }
+  if (typeof require === 'function') {
+    try {
+      return require('./ui/colorpicker/index.js');
+    } catch (_) {}
+  }
+  return null;
+}
+
 function isValidColor(value) {
   return typeof value === 'string' && value.trim().length > 0;
 }
@@ -179,6 +192,8 @@ const DEFAULT_GRAFTEGNER_COLOR_ROLES = [
   { fillIndex: 14, lineIndex: 15 }
 ];
 const colorPickerHelper = getColorPickerHelper();
+const colorPickerModule = getColorPickerModule();
+const fillColorPickerInstances = new WeakMap();
 const FRACTION_FALLBACK_COLORS = Object.freeze([
   '#dbe7ff',
   '#c7d2fe',
@@ -260,27 +275,36 @@ function getGraftegnerRoleSlotPairs() {
   return pairs;
 }
 
-function applyPairSwatch(element, fillColors, lineColors, index) {
+function applyPairSwatch(element, fillColor, lineColor) {
   if (!element) return;
-  const fillColor = fillColors[index - 1] || fillColors[0] || '#fff';
-  const lineColor = lineColors[index - 1] || lineColors[0] || '#000';
-  if (colorPickerHelper && typeof colorPickerHelper.renderColorPairSwatch === 'function') {
-    colorPickerHelper.renderColorPairSwatch({
-      element,
-      fillIndex: index,
-      lineIndex: index,
-      fillColors,
-      lineColors,
-      fallbackFill: '#fff',
-      fallbackLine: '#000'
-    });
+  if (colorPickerHelper && typeof colorPickerHelper.applyColorPairSwatch === 'function') {
+    colorPickerHelper.applyColorPairSwatch(element, fillColor, lineColor);
     return;
   }
   if (element.classList) {
     element.classList.add('color-swatch--pair');
   }
-  element.style.setProperty('--swatch-fill', fillColor);
-  element.style.setProperty('--swatch-line', lineColor);
+  if (typeof fillColor === 'string' && fillColor) {
+    element.style.setProperty('--swatch-fill', fillColor);
+  }
+  if (typeof lineColor === 'string' && lineColor) {
+    element.style.setProperty('--swatch-line', lineColor);
+  }
+}
+
+function buildFillColorSlots(fillColors, lineColors) {
+  const slots = [];
+  const fallbackLine = lineColors[0] || '#000';
+  fillColors.forEach((color, index) => {
+    const lineColor = lineColors[index] || fallbackLine;
+    slots.push({
+      value: index + 1,
+      label: `Velg farge ${index + 1}`,
+      fillColor: color,
+      lineColor
+    });
+  });
+  return slots;
 }
 function getFillPalette() {
   return getLineFillPalettes().fillColors.slice(0, FILL_COLOR_COUNT);
@@ -347,51 +371,45 @@ function applyBlockPalette(block, paletteData) {
   return resolved;
 }
 
-function updateBlockFillPicker(block, paletteData) {
-  if (!block || !block.fillPicker) return;
-  const { activeButton, optionsPanel } = block.fillPicker;
-  if (!activeButton || !optionsPanel) return;
-  const resolved = paletteData || resolveBlockPalette(block.cfg);
-  const colors = resolved.palette;
-  const activeColor = colors[resolved.index - 1] || colors[0] || '#000';
-  if (colorPickerHelper && typeof colorPickerHelper.applyColorPairSwatch === 'function') {
-    colorPickerHelper.applyColorPairSwatch(activeButton, activeColor, resolved.line);
-  } else {
-    activeButton.style.backgroundColor = activeColor;
-    activeButton.style.borderColor = resolved.line;
+function renderBlockFillPicker(block, paletteOverride, linePaletteOverride) {
+  if (!block || !block.fillPicker || !colorPickerModule || typeof colorPickerModule.createColorPicker !== 'function') {
+    return;
   }
-  optionsPanel.querySelectorAll('.color-option-btn').forEach(btn => {
-    const btnIndex = sanitizeFillIndex(btn.dataset.colorIndex, colors.length);
-    btn.classList.toggle('is-selected', btnIndex === resolved.index);
-  });
-}
-
-function renderBlockFillPickerOptions(block, paletteOverride, linePaletteOverride) {
-  if (!block || !block.fillPicker) return;
-  const { optionsPanel } = block.fillPicker;
-  if (!optionsPanel) return;
   const palette = Array.isArray(paletteOverride) ? paletteOverride : getFillPalette();
   const linePalette = Array.isArray(linePaletteOverride) ? linePaletteOverride : getLinePalette();
-  optionsPanel.innerHTML = '';
-  palette.forEach((color, index) => {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'color-option-btn color-swatch--pair';
-    btn.dataset.colorIndex = String(index + 1);
-    btn.dataset.colorValue = color;
-    applyPairSwatch(btn, palette, linePalette, index + 1);
-    btn.setAttribute('aria-label', `Velg farge ${index + 1}`);
-    btn.addEventListener('click', event => {
-      event.stopPropagation();
-      if (!block.cfg) return;
-      block.cfg.fillColorIndex = sanitizeFillIndex(index + 1, palette.length);
-      updateBlockFillPicker(block, resolveBlockPalette(block.cfg, palette, linePalette));
-      optionsPanel.hidden = true;
-      draw(true);
+  const slots = buildFillColorSlots(palette, linePalette);
+  const renderStyle = ({ element, slot }) => {
+    applyPairSwatch(element, slot.fillColor, slot.lineColor);
+  };
+  const onSelect = value => {
+    if (!block.cfg) return;
+    block.cfg.fillColorIndex = sanitizeFillIndex(value, palette.length);
+    applyBlockPalette(block, resolveBlockPalette(block.cfg, palette, linePalette));
+    draw(true);
+  };
+  const getActiveValue = () => {
+    const resolved = resolveBlockPalette(block.cfg, palette, linePalette);
+    return resolved.index;
+  };
+  if (block.fillPicker.instance) {
+    block.fillPicker.instance.update({
+      slots,
+      renderStyle,
+      onSelect,
+      getActiveValue
     });
-    optionsPanel.appendChild(btn);
+    return;
+  }
+  const pickerInstance = colorPickerModule.createColorPicker({
+    element: block.fillPicker.element,
+    slots,
+    renderStyle,
+    onSelect,
+    getActiveValue
   });
-  updateBlockFillPicker(block, resolveBlockPalette(block.cfg, palette, linePalette));
+  if (pickerInstance) {
+    block.fillPicker.instance = pickerInstance;
+  }
 }
 
 function createBlockFillPicker(block, fieldset) {
@@ -417,19 +435,12 @@ function createBlockFillPicker(block, fieldset) {
   fieldset.appendChild(fillPickerRow);
   block.fillPicker = {
     root: fillPickerRow,
+    element: picker,
     activeButton: activeBtn,
-    optionsPanel
+    optionsPanel,
+    instance: null
   };
-  activeBtn.addEventListener('click', event => {
-    event.stopPropagation();
-    optionsPanel.hidden = !optionsPanel.hidden;
-  });
-  document.addEventListener('click', event => {
-    if (!fillPickerRow.contains(event.target)) {
-      optionsPanel.hidden = true;
-    }
-  });
-  renderBlockFillPickerOptions(block);
+  renderBlockFillPicker(block);
 }
 const DEFAULT_FRACTION_SLOT_INDICES = Object.freeze([13, 14, 18, 19, 20, 48]);
 let cachedPaletteConfig = null;
@@ -749,7 +760,7 @@ function applyFractionPalette(force = false) {
     if (!block || !block.cfg) return;
     const resolved = resolveBlockPalette(block.cfg, palette, linePalette);
     applyBlockPalette(block, resolved);
-    renderBlockFillPickerOptions(block, palette, linePalette);
+    renderBlockFillPicker(block, palette, linePalette);
   });
   refreshTenkeblokkerPaletteAttributes();
 }
@@ -2675,7 +2686,7 @@ function drawBlock(block) {
   const cfg = block === null || block === void 0 ? void 0 : block.cfg;
   if (!block || !cfg) return;
   const paletteData = applyBlockPalette(block);
-  updateBlockFillPicker(block, paletteData);
+  renderBlockFillPicker(block, paletteData.palette, getLinePalette());
   const blockHidden = !!cfg.hideBlock;
   if (blockHidden && !cfg.showWhole) cfg.showWhole = true;
   const metrics = getBlockMetrics(block);

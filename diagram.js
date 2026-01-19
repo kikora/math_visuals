@@ -40,6 +40,7 @@ const DEFAULT_GRAFTEGNER_COLOR_ROLES = [
   { fillIndex: 14, lineIndex: 15 }
 ];
 const colorPickerHelper = getColorPickerHelper();
+const colorPickerModule = getColorPickerModule();
 function sanitizeValueDisplay(value) {
   if (typeof value !== 'string') return 'none';
   const normalized = value.trim().toLowerCase();
@@ -620,6 +621,19 @@ function getColorPickerHelper() {
   return null;
 }
 
+function getColorPickerModule() {
+  const scope = typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : null;
+  if (scope && scope.MathVisualsColorPicker) {
+    return scope.MathVisualsColorPicker;
+  }
+  if (typeof require === 'function') {
+    try {
+      return require('./ui/colorpicker/index.js');
+    } catch (_) {}
+  }
+  return null;
+}
+
 function getPaletteApi() {
   const root = typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : null;
   if (!root || typeof root !== 'object') return null;
@@ -974,8 +988,24 @@ function setSeriesColorOverride(seriesIndex, color) {
   drawDiagram();
 }
 
+function buildSeriesColorSlots(optionColors, lineOptionColors) {
+  const slots = [];
+  const fallbackLine = lineOptionColors[0] || optionColors[0] || '#000';
+  optionColors.forEach((color, index) => {
+    slots.push({
+      value: index + 1,
+      label: `Velg farge ${index + 1}`,
+      fillColor: color,
+      lineColor: lineOptionColors[index] || fallbackLine
+    });
+  });
+  return slots;
+}
+
 function updateSeriesColorPickers() {
-  if (!seriesColorPickers.length) return;
+  if (!seriesColorPickers.length || !colorPickerModule || typeof colorPickerModule.createColorPicker !== 'function') {
+    return;
+  }
   const overrides = getSeriesColorOverrides();
   const paletteData = resolveDiagramPaletteData({
     seriesCount: Math.max(getEffectiveSeriesCount(), seriesColorPickers.length),
@@ -984,8 +1014,9 @@ function updateSeriesColorPickers() {
   });
   const optionColors = getSeriesColorOptionPalette(paletteData.fillPaletteEntries);
   const lineOptionColors = getSeriesColorOptionPalette(paletteData.linePaletteEntries);
+  const slots = buildSeriesColorSlots(optionColors, lineOptionColors);
   seriesColorPickers.forEach(picker => {
-    if (!picker || !picker.activeButton || !picker.optionsPanel) return;
+    if (!picker || !picker.root) return;
     const activeColor = overrides[picker.seriesIndex]
       || paletteData.seriesPalette[picker.seriesIndex]
       || optionColors[0]
@@ -995,39 +1026,43 @@ function updateSeriesColorPickers() {
       || lineOptionColors[picker.seriesIndex]
       || lineOptionColors[0]
       || activeColor;
-    if (colorPickerHelper && typeof colorPickerHelper.applyColorPairSwatch === 'function') {
-      colorPickerHelper.applyColorPairSwatch(picker.activeButton, activeColor, activeLineColor);
-    } else {
-      if (picker.activeButton.classList) {
-        picker.activeButton.classList.add('color-swatch--pair');
-      }
-      picker.activeButton.style.setProperty('--swatch-fill', activeColor);
-      picker.activeButton.style.setProperty('--swatch-line', activeLineColor);
-    }
-    if (picker.input) {
-      picker.input.value = activeColor || '';
-    }
-    if (!optionColors.length) return;
-    picker.optionsPanel.innerHTML = '';
-    optionColors.forEach((color, idx) => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'color-option-btn color-swatch--pair' + (color === activeColor ? ' is-selected' : '');
-      const lineColor = lineOptionColors[idx] || lineOptionColors[0] || activeLineColor;
+    const renderStyle = ({ element, slot, isActive }) => {
+      const fill = isActive ? activeColor : slot.fillColor;
+      const line = isActive ? activeLineColor : slot.lineColor;
       if (colorPickerHelper && typeof colorPickerHelper.applyColorPairSwatch === 'function') {
-        colorPickerHelper.applyColorPairSwatch(btn, color, lineColor);
+        colorPickerHelper.applyColorPairSwatch(element, fill, line);
       } else {
-        btn.style.setProperty('--swatch-fill', color);
-        btn.style.setProperty('--swatch-line', lineColor);
+        if (element.classList) {
+          element.classList.add('color-swatch--pair');
+        }
+        element.style.setProperty('--swatch-fill', fill);
+        element.style.setProperty('--swatch-line', line);
       }
-      btn.setAttribute('aria-label', `Velg farge ${idx + 1}`);
-      btn.addEventListener('click', event => {
-        event.stopPropagation();
-        setSeriesColorOverride(picker.seriesIndex, color);
-        picker.optionsPanel.hidden = true;
+    };
+    const onSelect = value => {
+      const slot = slots.find(entry => entry.value === value);
+      if (!slot) return;
+      setSeriesColorOverride(picker.seriesIndex, slot.fillColor);
+      if (picker.input) {
+        picker.input.value = slot.fillColor || '';
+      }
+    };
+    const getActiveValue = () => {
+      const normalized = sanitizeThemePaletteValue(activeColor);
+      const idx = optionColors.findIndex(color => sanitizeThemePaletteValue(color) === normalized);
+      return idx >= 0 ? idx + 1 : null;
+    };
+    if (picker.instance) {
+      picker.instance.update({ slots, renderStyle, onSelect, getActiveValue });
+    } else {
+      picker.instance = colorPickerModule.createColorPicker({
+        element: picker.root,
+        slots,
+        renderStyle,
+        onSelect,
+        getActiveValue
       });
-      picker.optionsPanel.appendChild(btn);
-    });
+    }
   });
 }
 
@@ -1038,27 +1073,14 @@ function initSeriesColorPickers() {
   pickerNodes.forEach(node => {
     const seriesIndex = Number.parseInt(node.dataset.seriesIndex, 10);
     if (!Number.isFinite(seriesIndex)) return;
-    const activeButton = node.querySelector('.color-swatch--active');
-    const optionsPanel = node.querySelector('.color-options');
     const input = node.querySelector('[data-series-color-input]');
-    if (!activeButton || !optionsPanel) return;
     const entry = {
       root: node,
       seriesIndex,
-      activeButton,
-      optionsPanel,
-      input
+      input,
+      instance: null
     };
     seriesColorPickers.push(entry);
-    activeButton.addEventListener('click', event => {
-      event.stopPropagation();
-      optionsPanel.hidden = !optionsPanel.hidden;
-    });
-    document.addEventListener('click', event => {
-      if (!node.contains(event.target)) {
-        optionsPanel.hidden = true;
-      }
-    });
   });
   updateSeriesColorPickers();
 }
