@@ -1051,7 +1051,7 @@
       previewButton.type = 'button';
       previewButton.className = 'example-description-toggle__button';
       previewButton.dataset.mode = 'preview';
-      previewButton.textContent = 'Forhåndsvisning';
+      previewButton.textContent = 'Oppgavevisning';
 
       const editButton = document.createElement('button');
       editButton.type = 'button';

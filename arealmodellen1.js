@@ -718,7 +718,7 @@ function buildArealmodellAltText(summary) {
     sentences.push("Delingslinjene er skjult.");
   }
   if (data.challengeActive && data.challengeGoal) {
-    sentences.push(`Oppgavemodus er aktiv for areal ${arealFormatInt(data.challengeGoal)}.`);
+    sentences.push(`Oppgavevisning er aktiv for areal ${arealFormatInt(data.challengeGoal)}.`);
   }
   return sentences.filter(Boolean).join(' ');
 }
