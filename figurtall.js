@@ -2,6 +2,8 @@ const PALETTE_CLIENT_ERROR_CODES = new Set(['MODULE_NOT_FOUND', 'ERR_MODULE_NOT_
 
 const paletteModule = loadPaletteServiceClient();
 const { paletteService } = paletteModule;
+const colorPickerModule = loadColorPickerService();
+const { colorPickerService } = colorPickerModule;
 
 function loadPaletteServiceClient() {
   const moduleExports = tryRequirePaletteClient();
@@ -86,6 +88,40 @@ function createFallbackPaletteClient() {
 
 function isValidColor(value) {
   return typeof value === 'string' && value.trim().length > 0;
+}
+
+function loadColorPickerService() {
+  const moduleExports = tryRequireColorPicker();
+  if (moduleExports && moduleExports.colorPickerService && typeof moduleExports.colorPickerService.createColorPicker === 'function') {
+    return moduleExports;
+  }
+  const scopes = [
+    typeof globalThis !== 'undefined' ? globalThis : null,
+    typeof window !== 'undefined' ? window : null,
+    typeof global !== 'undefined' ? global : null
+  ];
+  for (const scope of scopes) {
+    if (!scope || typeof scope !== 'object') continue;
+    const service = scope.MathVisualsColorPicker;
+    if (service && typeof service.createColorPicker === 'function') {
+      return { colorPickerService: service };
+    }
+  }
+  return { colorPickerService: { createColorPicker() { return null; } } };
+}
+
+function tryRequireColorPicker() {
+  if (typeof require !== 'function') {
+    return null;
+  }
+  try {
+    return require('./ui/colorpicker/colorpicker.js');
+  } catch (error) {
+    if (!error || !PALETTE_CLIENT_ERROR_CODES.has(error.code)) {
+      throw error;
+    }
+  }
+  return null;
 }
 
 (function () {
@@ -176,55 +212,35 @@ function isValidColor(value) {
     if (!Number.isFinite(numeric) || numeric < 1) return 1;
     return Math.min(numeric, max);
   }
-  function updateFillPickerSelection(palette) {
-    if (!fillColorPicker) return;
-    const activeButton = fillColorPicker.querySelector('.color-swatch--active');
-    const optionsPanel = fillColorPicker.querySelector('.color-options');
-    const colors = Array.isArray(palette) ? palette : getFillPalette();
-    if (!optionsPanel || !activeButton) return;
-    const safeIndex = sanitizeFillIndex(activeFillColorIndex, colors.length);
-    activeFillColorIndex = safeIndex;
-    const activeColor = colors[safeIndex - 1] || colors[0] || '#000';
-    activeButton.style.backgroundColor = activeColor;
-    optionsPanel.querySelectorAll('.color-option-btn').forEach(btn => {
-      const btnIndex = sanitizeFillIndex(btn.dataset.colorIndex, colors.length);
-      btn.classList.toggle('is-selected', btnIndex === safeIndex);
-    });
-  }
+  let fillColorPickerController = null;
   function renderFillColorPicker() {
     if (!fillColorPicker) return;
-    const activeButton = fillColorPicker.querySelector('.color-swatch--active');
-    const optionsPanel = fillColorPicker.querySelector('.color-options');
-    if (!activeButton || !optionsPanel) return;
     const colors = getFillPalette();
-    optionsPanel.innerHTML = '';
-    colors.forEach((color, index) => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'color-option-btn';
-      btn.dataset.colorIndex = String(index + 1);
-      btn.dataset.colorValue = color;
-      btn.style.backgroundColor = color;
-      btn.setAttribute('aria-label', `Velg farge ${index + 1}`);
-      btn.addEventListener('click', event => {
-        event.stopPropagation();
-        activeFillColorIndex = sanitizeFillIndex(index + 1, colors.length);
-        STATE.activeFillColorIndex = activeFillColorIndex;
-        updateFillPickerSelection(colors);
-        optionsPanel.hidden = true;
+    if (!fillColorPickerController) {
+      fillColorPickerController = colorPickerService.createColorPicker({
+        root: fillColorPicker,
+        palette: colors,
+        renderStyle: 'single',
+        indexMapping: { size: 1, fill: 0 },
+        placement: 'below',
+        labels: {
+          active: 'Velg fyllfarge',
+          option: index => `Velg farge ${index}`
+        },
+        getIndex: () => sanitizeFillIndex(activeFillColorIndex, colors.length),
+        onSelect: (index, selection, palette) => {
+          const paletteLength = Array.isArray(palette) ? palette.length : colors.length;
+          activeFillColorIndex = sanitizeFillIndex(index, paletteLength);
+          STATE.activeFillColorIndex = activeFillColorIndex;
+        }
       });
-      optionsPanel.appendChild(btn);
-    });
-    activeButton.addEventListener('click', event => {
-      event.stopPropagation();
-      optionsPanel.hidden = !optionsPanel.hidden;
-    });
-    document.addEventListener('click', event => {
-      if (!fillColorPicker.contains(event.target)) {
-        optionsPanel.hidden = true;
-      }
-    });
-    updateFillPickerSelection(colors);
+    }
+    if (fillColorPickerController) {
+      fillColorPickerController.update({
+        palette: colors,
+        index: sanitizeFillIndex(activeFillColorIndex, colors.length)
+      });
+    }
   }
   function getDefaultColorForIndex(index) {
     if (!Number.isFinite(index) || index < 0) return LEGACY_COLOR_PALETTE[0];

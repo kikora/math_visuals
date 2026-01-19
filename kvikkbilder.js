@@ -65,6 +65,8 @@
     error: false
   };
   let activeFillColorIndex = 1;
+  const colorPickerModule = loadColorPickerService();
+  const { colorPickerService } = colorPickerModule;
   function getThemeApi() {
     const theme = typeof window !== 'undefined' ? window.MathVisualsTheme : null;
     return theme && typeof theme === 'object' ? theme : null;
@@ -95,6 +97,36 @@
   }
   function isValidColor(value) {
     return typeof value === 'string' && value.trim().length > 0;
+  }
+  function loadColorPickerService() {
+    const moduleExports = tryRequireColorPicker();
+    if (moduleExports && moduleExports.colorPickerService && typeof moduleExports.colorPickerService.createColorPicker === 'function') {
+      return moduleExports;
+    }
+    const scopes = [
+      typeof globalThis !== 'undefined' ? globalThis : null,
+      typeof window !== 'undefined' ? window : null,
+      typeof global !== 'undefined' ? global : null
+    ];
+    for (const scope of scopes) {
+      if (!scope || typeof scope !== 'object') continue;
+      const service = scope.MathVisualsColorPicker;
+      if (service && typeof service.createColorPicker === 'function') {
+        return { colorPickerService: service };
+      }
+    }
+    return { colorPickerService: { createColorPicker() { return null; } } };
+  }
+
+  function tryRequireColorPicker() {
+    if (typeof require !== 'function') {
+      return null;
+    }
+    try {
+      return require('./ui/colorpicker/colorpicker.js');
+    } catch (_) {
+      return null;
+    }
   }
   function ensurePaletteSize(palette, fallback, target) {
     const base = Array.isArray(palette) ? palette.filter(isValidColor) : [];
@@ -391,21 +423,6 @@
     }
     return fallback;
   }
-  function updateFillPickerSelection(palette) {
-    if (!fillColorPicker) return;
-    const activeButton = fillColorPicker.querySelector('.color-swatch--active');
-    const optionsPanel = fillColorPicker.querySelector('.color-options');
-    const colors = Array.isArray(palette) ? palette : getFillPalette();
-    if (!activeButton || !optionsPanel) return;
-    const safeIndex = sanitizeFillIndex(activeFillColorIndex, colors.length);
-    activeFillColorIndex = safeIndex;
-    const activeColor = colors[safeIndex - 1] || colors[0] || DEFAULT_BRICK_PALETTE.left;
-    activeButton.style.backgroundColor = activeColor;
-    optionsPanel.querySelectorAll('.color-option-btn').forEach(btn => {
-      const btnIndex = sanitizeFillIndex(btn.dataset.colorIndex, colors.length);
-      btn.classList.toggle('is-selected', btnIndex === safeIndex);
-    });
-  }
   function syncBrickPaletteFromFill(palette) {
     const colors = Array.isArray(palette) ? palette : getFillPalette();
     const safeIndex = sanitizeFillIndex(activeFillColorIndex, colors.length);
@@ -420,44 +437,36 @@
       return true;
     });
   }
+  let fillColorPickerController = null;
   function renderFillColorPicker() {
     if (!fillColorPicker) return;
-    const activeButton = fillColorPicker.querySelector('.color-swatch--active');
-    const optionsPanel = fillColorPicker.querySelector('.color-options');
-    if (!activeButton || !optionsPanel) return;
     const colors = getFillPalette();
-    optionsPanel.innerHTML = '';
-    colors.forEach((color, index) => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'color-option-btn';
-      btn.dataset.colorIndex = String(index + 1);
-      btn.dataset.colorValue = color;
-      btn.style.backgroundColor = color;
-      btn.setAttribute('aria-label', `Velg farge ${index + 1}`);
-      btn.addEventListener('click', event => {
-        event.stopPropagation();
-        activeFillColorIndex = sanitizeFillIndex(index + 1, colors.length);
-        CFG.fillColorIndex = activeFillColorIndex;
-        updateFillPickerSelection(colors);
-        optionsPanel.hidden = true;
-        applyFillColorSelection(colors);
-      });
-      optionsPanel.appendChild(btn);
-    });
-    if (!fillColorPicker.dataset.bound) {
-      fillColorPicker.dataset.bound = 'true';
-      activeButton.addEventListener('click', event => {
-        event.stopPropagation();
-        optionsPanel.hidden = !optionsPanel.hidden;
-      });
-      document.addEventListener('click', event => {
-        if (!fillColorPicker.contains(event.target)) {
-          optionsPanel.hidden = true;
+    if (!fillColorPickerController) {
+      fillColorPickerController = colorPickerService.createColorPicker({
+        root: fillColorPicker,
+        palette: colors,
+        renderStyle: 'single',
+        indexMapping: { size: 1, fill: 0 },
+        placement: 'below',
+        labels: {
+          active: 'Velg fyllfarge',
+          option: index => `Velg farge ${index}`
+        },
+        getIndex: () => sanitizeFillIndex(activeFillColorIndex, colors.length),
+        onSelect: (index, selection, palette) => {
+          const paletteLength = Array.isArray(palette) ? palette.length : colors.length;
+          activeFillColorIndex = sanitizeFillIndex(index, paletteLength);
+          CFG.fillColorIndex = activeFillColorIndex;
+          applyFillColorSelection(palette);
         }
       });
     }
-    updateFillPickerSelection(colors);
+    if (fillColorPickerController) {
+      fillColorPickerController.update({
+        palette: colors,
+        index: sanitizeFillIndex(activeFillColorIndex, colors.length)
+      });
+    }
   }
   applyThemeToDocument();
   let BRICK_SRC;

@@ -132,11 +132,43 @@ const DEFAULT_POINT_COLORS = {
 };
 const DEFAULT_FUNCTION_EXPRESSION = 'f(x)=x^2-2';
 const DEFAULT_SCREEN_BOUNDS = [-5, 5, -5, 5];
+const colorPickerModule = loadColorPickerService();
+const { colorPickerService } = colorPickerModule;
 
 function getSettingsApi() {
   if (typeof window === 'undefined') return null;
   const api = window.MathVisualsSettings;
   return api && typeof api === 'object' ? api : null;
+}
+function loadColorPickerService() {
+  const moduleExports = tryRequireColorPicker();
+  if (moduleExports && moduleExports.colorPickerService && typeof moduleExports.colorPickerService.createColorPicker === 'function') {
+    return moduleExports;
+  }
+  const scopes = [
+    typeof globalThis !== 'undefined' ? globalThis : null,
+    typeof window !== 'undefined' ? window : null,
+    typeof global !== 'undefined' ? global : null
+  ];
+  for (const scope of scopes) {
+    if (!scope || typeof scope !== 'object') continue;
+    const service = scope.MathVisualsColorPicker;
+    if (service && typeof service.createColorPicker === 'function') {
+      return { colorPickerService: service };
+    }
+  }
+  return { colorPickerService: { createColorPicker() { return null; } } };
+}
+
+function tryRequireColorPicker() {
+  if (typeof require !== 'function') {
+    return null;
+  }
+  try {
+    return require('./ui/colorpicker/colorpicker.js');
+  } catch (_) {
+    return null;
+  }
 }
 function cycleColors(source, count) {
   const base = Array.isArray(source) ? source.filter(color => typeof color === 'string' && color) : [];
@@ -8028,6 +8060,60 @@ function setupSettingsForm() {
     if (options.includes(normalized)) return normalized;
     return options[0] || DEFAULT_COLOR_FALLBACK;
   };
+  const functionColorPickerControllers = new WeakMap();
+  const getColorIndexFromPalette = (palette, color) => {
+    if (!Array.isArray(palette) || !palette.length) return 1;
+    const normalized = normalizeColorValue(color) || '';
+    const index = palette.findIndex(entry => normalizeColorValue(entry) === normalized);
+    return index >= 0 ? index + 1 : 1;
+  };
+  const ensureFunctionColorPicker = (picker, input) => {
+    if (!picker) return null;
+    if (functionColorPickerControllers.has(picker)) {
+      return functionColorPickerControllers.get(picker);
+    }
+    const controller = colorPickerService.createColorPicker({
+      root: picker,
+      palette: getFunctionColorOptions(),
+      renderStyle: 'single',
+      indexMapping: { size: 1, fill: 0 },
+      placement: 'below',
+      labels: {
+        active: 'Endre farge',
+        option: index => `Velg farge ${index}`
+      },
+      getIndex: () => getColorIndexFromPalette(getFunctionColorOptions(), input ? input.value : ''),
+      onSelect: (index, colors, palette) => {
+        if (!input) return;
+        const selected = palette[index - 1] || colors.fillColor;
+        if (!selected) return;
+        input.value = selected;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    });
+    if (controller) {
+      functionColorPickerControllers.set(picker, controller);
+    }
+    return controller;
+  };
+  const refreshFunctionColorPickers = () => {
+    if (!funcRows) return;
+    const rows = Array.from(funcRows.querySelectorAll('.func-group'));
+    const palette = getFunctionColorOptions();
+    rows.forEach(row => {
+      const picker = row.querySelector('[data-color-picker]');
+      if (!picker) return;
+      const input = picker.querySelector('input[data-color]');
+      const controller = ensureFunctionColorPicker(picker, input);
+      if (controller) {
+        controller.update({
+          palette,
+          index: getColorIndexFromPalette(palette, input ? input.value : '')
+        });
+      }
+    });
+  };
   const toColorInputArray = inputs => {
     if (!inputs) return [];
     if (Array.isArray(inputs)) return inputs.filter(Boolean);
@@ -8086,6 +8172,7 @@ function setupSettingsForm() {
         }
       }
     });
+    refreshFunctionColorPickers();
   };
   refreshFunctionColorOptions();
   const applyColorManualClass = (row, manual) => {
@@ -9799,21 +9886,7 @@ function setupSettingsForm() {
               aria-label="Endre farge"
               aria-haspopup="true"
               aria-expanded="false"></button>
-      <div class="color-options" hidden>
-  `;
-
-    palette.slice(0, FUNCTION_COLOR_OPTION_COUNT).forEach((color, idx) => {
-      const isSelected = normalizeColorValue(color) === activeColor;
-      colorControlMarkup += `
-      <button type="button" class="color-option-btn ${isSelected ? 'is-selected' : ''}" 
-              style="background-color: ${color};" 
-              data-color-value="${color}" 
-              aria-label="Velg farge ${idx + 1}"></button>
-    `;
-    });
-
-    colorControlMarkup += `
-      </div>
+      <div class="color-options" hidden></div>
       <input type="hidden" data-color value="${activeColor}">
     </div>
   `;
@@ -10167,59 +10240,14 @@ function setupSettingsForm() {
     }
     const picker = row.querySelector('[data-color-picker]');
     if (picker) {
-      const activeBtn = picker.querySelector('.color-swatch--active');
-      const optionsPanel = picker.querySelector('.color-options');
       const hiddenInput = picker.querySelector('input[data-color]');
-
-      if (activeBtn && optionsPanel && hiddenInput) {
-        const closeAllPickers = () => {
-          document.querySelectorAll('[data-color-picker]').forEach(otherPicker => {
-            const otherPanel = otherPicker.querySelector('.color-options');
-            const otherButton = otherPicker.querySelector('.color-swatch--active');
-            if (otherPanel) otherPanel.hidden = true;
-            if (otherButton) otherButton.setAttribute('aria-expanded', 'false');
-          });
-        };
-
-        activeBtn.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-
-          const wasHidden = optionsPanel.hidden;
-          closeAllPickers();
-          optionsPanel.hidden = !wasHidden;
-          activeBtn.setAttribute('aria-expanded', String(!wasHidden));
+      const controller = ensureFunctionColorPicker(picker, hiddenInput);
+      if (controller) {
+        const palette = getFunctionColorOptions();
+        controller.update({
+          palette,
+          index: getColorIndexFromPalette(palette, hiddenInput ? hiddenInput.value : '')
         });
-
-        picker.querySelectorAll('.color-option-btn').forEach(btn => {
-          btn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-
-            const newColor = btn.dataset.colorValue;
-
-            activeBtn.style.backgroundColor = newColor;
-            hiddenInput.value = newColor;
-            optionsPanel.hidden = true;
-            activeBtn.setAttribute('aria-expanded', 'false');
-
-            picker.querySelectorAll('.color-option-btn').forEach(opt => {
-              opt.classList.toggle('is-selected', opt === btn);
-            });
-
-            hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
-            hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
-          });
-        });
-
-        const closeIfOutside = (e) => {
-          if (!optionsPanel.hidden && !picker.contains(e.target)) {
-            optionsPanel.hidden = true;
-            activeBtn.setAttribute('aria-expanded', 'false');
-          }
-        };
-
-        document.addEventListener('click', closeIfOutside);
       }
     }
     if (index === 1) {

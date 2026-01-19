@@ -929,6 +929,8 @@ const NKANT_FALLBACK_PALETTE = Array.from({ length: NKANT_GROUP_PALETTE_SIZE }, 
   const fallback = SETTINGS_FALLBACK_PALETTE.length ? SETTINGS_FALLBACK_PALETTE : ["#111827"];
   return fallback[idx % fallback.length];
 });
+const colorPickerModule = loadColorPickerService();
+const { colorPickerService } = colorPickerModule;
 
 // Hjelpere for å finne API-er
 function getThemeApi() {
@@ -952,7 +954,36 @@ function getThemeColor(token, fallback) {
 }
 
 let nkantPaletteCache = [];
-let nkantColorPickerDocBound = false;
+function loadColorPickerService() {
+  const moduleExports = tryRequireColorPicker();
+  if (moduleExports && moduleExports.colorPickerService && typeof moduleExports.colorPickerService.createColorPicker === 'function') {
+    return moduleExports;
+  }
+  const scopes = [
+    typeof globalThis !== 'undefined' ? globalThis : null,
+    typeof window !== 'undefined' ? window : null,
+    typeof global !== 'undefined' ? global : null
+  ];
+  for (const scope of scopes) {
+    if (!scope || typeof scope !== 'object') continue;
+    const service = scope.MathVisualsColorPicker;
+    if (service && typeof service.createColorPicker === 'function') {
+      return { colorPickerService: service };
+    }
+  }
+  return { colorPickerService: { createColorPicker() { return null; } } };
+}
+
+function tryRequireColorPicker() {
+  if (typeof require !== 'function') {
+    return null;
+  }
+  try {
+    return require('./ui/colorpicker/colorpicker.js');
+  } catch (_) {
+    return null;
+  }
+}
 
 function resolveNkantPalette() {
   const paletteApi = getPaletteApi();
@@ -1052,83 +1083,51 @@ function getFigureColorSetIndex(fig) {
   return sanitizeColorSetIndex(STATE.colorSetIndex);
 }
 
-function setTripleSwatchStyle(element, fillColor, lineColor, angleColor) {
-  if (!element) return;
-  element.style.setProperty('--swatch-color-1', fillColor);
-  element.style.setProperty('--swatch-color-2', lineColor);
-  element.style.setProperty('--swatch-color-3', angleColor);
-}
+const nkantColorPickerControllers = new WeakMap();
 
 function updateNkantColorPickerSelection(element, palette, colorSetIndex) {
   if (!element) return;
-  const activeButton = element.querySelector('.color-swatch--active');
-  const optionsPanel = element.querySelector('.color-options');
-  if (!activeButton || !optionsPanel) return;
-  const {
-    colors,
-    safeIndex,
-    fillColor,
-    lineColor,
-    angleColor
-  } = getNkantPaletteColors(palette, colorSetIndex);
-  setTripleSwatchStyle(activeButton, fillColor, lineColor, angleColor);
-  optionsPanel.querySelectorAll('.color-option-btn').forEach(btn => {
-    const btnIndex = sanitizeColorSetIndex(btn.dataset.colorIndex);
-    btn.classList.toggle('is-selected', btnIndex === safeIndex);
+  const controller = nkantColorPickerControllers.get(element);
+  if (!controller) return;
+  controller.update({
+    palette: Array.isArray(palette) ? palette : resolveNkantPalette(),
+    index: sanitizeColorSetIndex(colorSetIndex)
   });
 }
 
 function renderNkantColorPicker(element, palette, getColorSetIndex, onSelect) {
   if (!element) return;
-  const activeButton = element.querySelector('.color-swatch--active');
-  const optionsPanel = element.querySelector('.color-options');
-  if (!activeButton || !optionsPanel) return;
   const colors = Array.isArray(palette) ? palette : resolveNkantPalette();
-  optionsPanel.innerHTML = '';
-  for (let index = 0; index < NKANT_COLOR_SET_COUNT; index += 1) {
-    const baseIndex = index * NKANT_COLOR_SET_SIZE;
-    const fillColor = colors[baseIndex] || STYLE_DEFAULTS.faceFill;
-    const lineColor = colors[baseIndex + 1] || STYLE_DEFAULTS.edgeStroke;
-    const angleColor = colors[baseIndex + 2] || STYLE_DEFAULTS.angStroke;
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'color-option-btn color-option-btn--triple';
-    btn.dataset.colorIndex = String(index + 1);
-    setTripleSwatchStyle(btn, fillColor, lineColor, angleColor);
-    btn.setAttribute('aria-label', `Velg fargesett ${index + 1}`);
-    btn.addEventListener('click', event => {
-      event.stopPropagation();
-      const nextIndex = sanitizeColorSetIndex(index + 1);
-      if (typeof onSelect === 'function') {
-        onSelect(nextIndex);
-      }
-      updateNkantColorPickerSelection(element, colors, nextIndex);
-      optionsPanel.hidden = true;
-      activeButton.setAttribute('aria-expanded', 'false');
-    });
-    optionsPanel.appendChild(btn);
-  }
-  activeButton.addEventListener('click', event => {
-    event.stopPropagation();
-    const nextHidden = !optionsPanel.hidden;
-    optionsPanel.hidden = nextHidden;
-    activeButton.setAttribute('aria-expanded', String(!nextHidden));
-  });
-  if (!nkantColorPickerDocBound) {
-    document.addEventListener('click', event => {
-      document.querySelectorAll('[data-nkant-color-picker]').forEach(picker => {
-        if (!picker.contains(event.target)) {
-          const panel = picker.querySelector('.color-options');
-          if (panel) panel.hidden = true;
-          const active = picker.querySelector('.color-swatch--active');
-          if (active) active.setAttribute('aria-expanded', 'false');
+  let controller = nkantColorPickerControllers.get(element);
+  if (!controller) {
+    controller = colorPickerService.createColorPicker({
+      root: element,
+      palette: colors,
+      renderStyle: 'triple',
+      indexMapping: { size: NKANT_COLOR_SET_SIZE, fill: 0, line: 1, angle: 2 },
+      fallbacks: {
+        fill: STYLE_DEFAULTS.faceFill,
+        line: STYLE_DEFAULTS.edgeStroke,
+        angle: STYLE_DEFAULTS.angStroke
+      },
+      placement: 'below',
+      labels: {
+        active: 'Velg fargesett',
+        option: index => `Velg fargesett ${index}`
+      },
+      getIndex: () => (typeof getColorSetIndex === 'function' ? getColorSetIndex() : STATE.colorSetIndex),
+      onSelect: index => {
+        const nextIndex = sanitizeColorSetIndex(index);
+        if (typeof onSelect === 'function') {
+          onSelect(nextIndex);
         }
-      });
+      }
     });
-    nkantColorPickerDocBound = true;
+    if (controller) {
+      nkantColorPickerControllers.set(element, controller);
+    }
   }
-  const currentIndex = typeof getColorSetIndex === 'function' ? getColorSetIndex() : STATE.colorSetIndex;
-  updateNkantColorPickerSelection(element, colors, currentIndex);
+  updateNkantColorPickerSelection(element, colors, typeof getColorSetIndex === 'function' ? getColorSetIndex() : STATE.colorSetIndex);
 }
 
 // --- PATCH START: Manglende tema-funksjon ---

@@ -4,6 +4,8 @@ const PALETTE_CLIENT_ERROR_CODES = new Set(['MODULE_NOT_FOUND', 'ERR_MODULE_NOT_
 
 const paletteModule = loadPaletteServiceClient();
 const { paletteService } = paletteModule;
+const colorPickerModule = loadColorPickerService();
+const { colorPickerService } = colorPickerModule;
 
 function loadPaletteServiceClient() {
   const moduleExports = tryRequirePaletteClient();
@@ -88,6 +90,40 @@ function createFallbackPaletteClient() {
 
 function isValidColor(value) {
   return typeof value === 'string' && value.trim().length > 0;
+}
+
+function loadColorPickerService() {
+  const moduleExports = tryRequireColorPicker();
+  if (moduleExports && moduleExports.colorPickerService && typeof moduleExports.colorPickerService.createColorPicker === 'function') {
+    return moduleExports;
+  }
+  const scopes = [
+    typeof globalThis !== 'undefined' ? globalThis : null,
+    typeof window !== 'undefined' ? window : null,
+    typeof global !== 'undefined' ? global : null
+  ];
+  for (const scope of scopes) {
+    if (!scope || typeof scope !== 'object') continue;
+    const service = scope.MathVisualsColorPicker;
+    if (service && typeof service.createColorPicker === 'function') {
+      return { colorPickerService: service };
+    }
+  }
+  return { colorPickerService: { createColorPicker() { return null; } } };
+}
+
+function tryRequireColorPicker() {
+  if (typeof require !== 'function') {
+    return null;
+  }
+  try {
+    return require('./ui/colorpicker/colorpicker.js');
+  } catch (error) {
+    if (!error || !PALETTE_CLIENT_ERROR_CODES.has(error.code)) {
+      throw error;
+    }
+  }
+  return null;
 }
 
 const DEFAULT_FILL_COLOR_INDEX = 1;
@@ -277,46 +313,30 @@ function applyBlockPalette(block, paletteData) {
   return resolved;
 }
 
+const blockFillPickerControllers = new WeakMap();
+
 function updateBlockFillPicker(block, paletteData) {
   if (!block || !block.fillPicker) return;
-  const { activeButton, optionsPanel } = block.fillPicker;
-  if (!activeButton || !optionsPanel) return;
+  const controller = blockFillPickerControllers.get(block);
+  if (!controller) return;
   const resolved = paletteData || resolveBlockPalette(block.cfg);
-  const colors = resolved.palette;
-  const activeColor = colors[resolved.index - 1] || colors[0] || '#000';
-  activeButton.style.backgroundColor = activeColor;
-  optionsPanel.querySelectorAll('.color-option-btn').forEach(btn => {
-    const btnIndex = sanitizeFillIndex(btn.dataset.colorIndex, colors.length);
-    btn.classList.toggle('is-selected', btnIndex === resolved.index);
+  controller.update({
+    palette: resolved.palette,
+    index: resolved.index
   });
 }
 
 function renderBlockFillPickerOptions(block, paletteOverride, linePaletteOverride) {
   if (!block || !block.fillPicker) return;
-  const { optionsPanel } = block.fillPicker;
-  if (!optionsPanel) return;
+  const controller = blockFillPickerControllers.get(block);
+  if (!controller) return;
   const palette = Array.isArray(paletteOverride) ? paletteOverride : getFillPalette();
   const linePalette = Array.isArray(linePaletteOverride) ? linePaletteOverride : getLinePalette();
-  optionsPanel.innerHTML = '';
-  palette.forEach((color, index) => {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'color-option-btn';
-    btn.dataset.colorIndex = String(index + 1);
-    btn.dataset.colorValue = color;
-    btn.style.backgroundColor = color;
-    btn.setAttribute('aria-label', `Velg farge ${index + 1}`);
-    btn.addEventListener('click', event => {
-      event.stopPropagation();
-      if (!block.cfg) return;
-      block.cfg.fillColorIndex = sanitizeFillIndex(index + 1, palette.length);
-      updateBlockFillPicker(block, resolveBlockPalette(block.cfg, palette, linePalette));
-      optionsPanel.hidden = true;
-      draw(true);
-    });
-    optionsPanel.appendChild(btn);
+  const resolved = resolveBlockPalette(block.cfg, palette, linePalette);
+  controller.update({
+    palette,
+    index: resolved.index
   });
-  updateBlockFillPicker(block, resolveBlockPalette(block.cfg, palette, linePalette));
 }
 
 function createBlockFillPicker(block, fieldset) {
@@ -340,21 +360,31 @@ function createBlockFillPicker(block, fieldset) {
   fillPickerRow.appendChild(fillLabel);
   fillPickerRow.appendChild(picker);
   fieldset.appendChild(fillPickerRow);
-  block.fillPicker = {
+  block.fillPicker = { root: fillPickerRow };
+  const controller = colorPickerService.createColorPicker({
     root: fillPickerRow,
-    activeButton: activeBtn,
-    optionsPanel
-  };
-  activeBtn.addEventListener('click', event => {
-    event.stopPropagation();
-    optionsPanel.hidden = !optionsPanel.hidden;
-  });
-  document.addEventListener('click', event => {
-    if (!fillPickerRow.contains(event.target)) {
-      optionsPanel.hidden = true;
+    palette: getFillPalette(),
+    renderStyle: 'single',
+    indexMapping: { size: 1, fill: 0 },
+    placement: 'below',
+    labels: {
+      active: 'Velg fyllfarge',
+      option: index => `Velg farge ${index}`
+    },
+    getIndex: () => getBlockFillIndex(block.cfg, getFillPalette().length),
+    onSelect: (index, colors, palette) => {
+      if (!block.cfg) return;
+      block.cfg.fillColorIndex = sanitizeFillIndex(index, palette.length);
+      const linePalette = getLinePalette();
+      const resolved = resolveBlockPalette(block.cfg, palette, linePalette);
+      applyBlockPalette(block, resolved);
+      draw(true);
     }
   });
-  renderBlockFillPickerOptions(block);
+  if (controller) {
+    blockFillPickerControllers.set(block, controller);
+    renderBlockFillPickerOptions(block);
+  }
 }
 const DEFAULT_FRACTION_SLOT_INDICES = Object.freeze([13, 14, 18, 19, 20, 48]);
 let cachedPaletteConfig = null;

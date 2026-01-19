@@ -31,6 +31,8 @@ const VALUE_DISPLAY_OPTIONS = ['none', 'number', 'fraction', 'percent'];
 const PIE_LABEL_POSITIONS = ['outside', 'inside'];
 const SERIES_COLOR_OPTION_COUNT = 6;
 const DIAGRAM_FILL_COLOR_COUNT = 6;
+const colorPickerModule = loadColorPickerService();
+const { colorPickerService } = colorPickerModule;
 function sanitizeValueDisplay(value) {
   if (typeof value !== 'string') return 'none';
   const normalized = value.trim().toLowerCase();
@@ -98,6 +100,37 @@ function sanitizeDiagramType(value, hasSecondSeries) {
   const normalized = typeof value === 'string' ? value.trim().toLowerCase() : '';
   const allowed = hasSecondSeries ? ['bar', 'grouped', 'stacked', 'line'] : ['bar', 'grouped', 'stacked', 'line', 'pie'];
   return allowed.includes(normalized) ? normalized : 'bar';
+}
+
+function loadColorPickerService() {
+  const moduleExports = tryRequireColorPicker();
+  if (moduleExports && moduleExports.colorPickerService && typeof moduleExports.colorPickerService.createColorPicker === 'function') {
+    return moduleExports;
+  }
+  const scopes = [
+    typeof globalThis !== 'undefined' ? globalThis : null,
+    typeof window !== 'undefined' ? window : null,
+    typeof global !== 'undefined' ? global : null
+  ];
+  for (const scope of scopes) {
+    if (!scope || typeof scope !== 'object') continue;
+    const service = scope.MathVisualsColorPicker;
+    if (service && typeof service.createColorPicker === 'function') {
+      return { colorPickerService: service };
+    }
+  }
+  return { colorPickerService: { createColorPicker() { return null; } } };
+}
+
+function tryRequireColorPicker() {
+  if (typeof require !== 'function') {
+    return null;
+  }
+  try {
+    return require('./ui/colorpicker/colorpicker.js');
+  } catch (_) {
+    return null;
+  }
 }
 
 function normalizeNumberArray(value) {
@@ -894,25 +927,20 @@ function updateSeriesColorPickers() {
       || paletteData.seriesPalette[picker.seriesIndex]
       || optionColors[0]
       || EMERGENCY_SERIES_COLORS[0];
-    picker.activeButton.style.backgroundColor = activeColor;
     if (picker.input) {
       picker.input.value = activeColor || '';
     }
-    if (!optionColors.length) return;
-    picker.optionsPanel.innerHTML = '';
-    optionColors.forEach((color, idx) => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'color-option-btn' + (color === activeColor ? ' is-selected' : '');
-      btn.style.backgroundColor = color;
-      btn.setAttribute('aria-label', `Velg farge ${idx + 1}`);
-      btn.addEventListener('click', event => {
-        event.stopPropagation();
-        setSeriesColorOverride(picker.seriesIndex, color);
-        picker.optionsPanel.hidden = true;
-      });
-      picker.optionsPanel.appendChild(btn);
+    if (!picker.controller) return;
+    const normalizedActive = typeof activeColor === 'string' ? activeColor.trim().toLowerCase() : '';
+    const optionIndex = optionColors.findIndex(color => (color || '').trim().toLowerCase() === normalizedActive);
+    const safeIndex = optionIndex >= 0 ? optionIndex + 1 : 1;
+    picker.controller.update({
+      palette: optionColors,
+      index: safeIndex
     });
+    if (picker.input) {
+      picker.input.value = activeColor || '';
+    }
   });
 }
 
@@ -932,18 +960,28 @@ function initSeriesColorPickers() {
       seriesIndex,
       activeButton,
       optionsPanel,
-      input
+      input,
+      controller: null
     };
-    seriesColorPickers.push(entry);
-    activeButton.addEventListener('click', event => {
-      event.stopPropagation();
-      optionsPanel.hidden = !optionsPanel.hidden;
-    });
-    document.addEventListener('click', event => {
-      if (!node.contains(event.target)) {
-        optionsPanel.hidden = true;
+    entry.controller = colorPickerService.createColorPicker({
+      root: node,
+      palette: [],
+      renderStyle: 'single',
+      indexMapping: { size: 1, fill: 0 },
+      placement: 'below',
+      labels: {
+        active: 'Velg farge',
+        option: index => `Velg farge ${index}`
+      },
+      getIndex: () => 1,
+      onSelect: (index, colors, palette) => {
+        const selected = palette[index - 1] || colors.fillColor;
+        if (selected) {
+          setSeriesColorOverride(seriesIndex, selected);
+        }
       }
     });
+    seriesColorPickers.push(entry);
   });
   updateSeriesColorPickers();
 }
