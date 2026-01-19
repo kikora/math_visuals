@@ -774,15 +774,28 @@ function resolveDiagramPaletteData(options = {}) {
   if (overrides.length) {
     seriesPalette = seriesPalette.map((color, index) => overrides[index] || color);
   }
+  const lineBasePalette = linePaletteEntries.length ? linePaletteEntries : seriesPalette;
+  let lineSeriesPalette = ensurePalette(lineBasePalette, requestedSeriesCount, seriesFallback);
+  if (overrides.length && fillPaletteEntries.length && linePaletteEntries.length) {
+    lineSeriesPalette = lineSeriesPalette.map((color, index) => {
+      const override = overrides[index];
+      if (!override) return color;
+      const fillIndex = fillPaletteEntries.findIndex(entry => entry === override);
+      if (fillIndex === -1 || !linePaletteEntries[fillIndex]) return color;
+      return linePaletteEntries[fillIndex];
+    });
+  }
   const pieBase = fillPaletteEntries.concat(linePaletteEntries);
   const pieFallback = hasGroupPalette ? [] : EMERGENCY_PIE_PALETTE;
   const piePalette = ensurePalette(pieBase, PIE_COLOR_CLASS_COUNT, pieFallback);
 
   return {
     seriesPalette,
+    lineSeriesPalette,
     piePalette,
     paletteEntries,
     fillPaletteEntries,
+    linePaletteEntries,
     normalizedProfileName
   };
 }
@@ -791,14 +804,15 @@ function applyDiagramTheme(options = {}) {
   const root = document.documentElement;
   if (!root) return;
   const style = root.style;
-  const { seriesPalette, piePalette, normalizedProfileName } = resolveDiagramPaletteData({
+  const { seriesPalette, lineSeriesPalette, piePalette, normalizedProfileName } = resolveDiagramPaletteData({
     seriesCount: options.seriesCount,
     paletteSize: options.paletteSize,
     seriesOverrides: getSeriesColorOverrides()
   });
   for (let i = 0; i < seriesPalette.length; i++) {
     setCssVariable(`--diagram-series-${i}`, seriesPalette[i], style);
-    setCssVariable(`--diagram-line-series-${i}`, seriesPalette[i], style);
+    const lineColor = lineSeriesPalette && lineSeriesPalette[i] ? lineSeriesPalette[i] : seriesPalette[i];
+    setCssVariable(`--diagram-line-series-${i}`, lineColor, style);
   }
   for (let i = seriesPalette.length; i < 4; i++) {
     style.removeProperty(`--diagram-series-${i}`);
