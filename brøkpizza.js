@@ -634,13 +634,14 @@ function getPizzaLineColor(index) {
 }
 
 function getPizzaColors() {
+  const fillColor = getPizzaFillColor(0);
   const lineColor = getPizzaLineColor(0);
   const base = {
-    fill: getThemeColor('pizza.fill', getPizzaFillColor(0)),
-    rim: getThemeColor('pizza.rim', lineColor),
-    dash: getThemeColor('pizza.dash', lineColor),
+    fill: fillColor,
+    rim: lineColor,
+    dash: lineColor,
     handle: getThemeColor('pizza.handle', LEGACY_PIZZA_COLORS.handle),
-    handleStroke: getThemeColor('pizza.handleStroke', lineColor)
+    handleStroke: lineColor
   };
   return {
     fill: base.fill,
