@@ -146,6 +146,10 @@ summary {
   background: var(--swatch-fill);
 }
 
+.color-option-btn.color-swatch--pair {
+  background: var(--swatch-line);
+}
+
 html,
 body {
   height: 100%;
