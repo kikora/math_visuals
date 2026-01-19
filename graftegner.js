@@ -331,6 +331,28 @@ function getPaletteApi() {
 function getPaletteConfig() {
   return (typeof window !== 'undefined' && window.MathVisualsPaletteConfig) || null;
 }
+function getColorPickerHelper() {
+  const scope = typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : null;
+  if (scope && scope.MathVisualsColorPickerHelper) {
+    return scope.MathVisualsColorPickerHelper;
+  }
+  if (typeof require === 'function') {
+    try {
+      return require('./colorpicker-helper.js');
+    } catch (_) {}
+  }
+  return null;
+}
+
+const DEFAULT_GRAFTEGNER_COLOR_ROLES = [
+  { fillIndex: 5, lineIndex: 4 },
+  { fillIndex: 7, lineIndex: 6 },
+  { fillIndex: 9, lineIndex: 8 },
+  { fillIndex: 10, lineIndex: 11 },
+  { fillIndex: 12, lineIndex: 13 },
+  { fillIndex: 14, lineIndex: 15 }
+];
+const colorPickerHelper = getColorPickerHelper();
 
 function getThemeColor(token, fallback) {
   const theme = getThemeApi();
@@ -504,6 +526,13 @@ function resolveGraftegnerFillSlotPositions() {
       const id = entry && typeof entry.groupId === 'string' ? entry.groupId.trim().toLowerCase() : '';
       return id === GRAFTEGNER_GROUP_ID;
     });
+    if (group && colorPickerHelper && typeof colorPickerHelper.resolveRoleSlotPairs === 'function') {
+      const pairs = colorPickerHelper.resolveRoleSlotPairs(config, GRAFTEGNER_GROUP_ID, DEFAULT_GRAFTEGNER_COLOR_ROLES);
+      if (pairs.length) {
+        graftegnerFillSlotPositions = pairs.map(pair => pair.fillSlotIndex);
+        return graftegnerFillSlotPositions.slice();
+      }
+    }
     if (group && Array.isArray(group.slots)) {
       const positions = group.slots
         .map((slot, index) => {

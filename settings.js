@@ -888,6 +888,39 @@
     return row;
   }
 
+  function resolveGraftegnerRolePairs(group) {
+    if (!group || !Array.isArray(group.slots)) return [];
+    const slotsByIndex = new Map();
+    group.slots.forEach(slot => {
+      if (!slot || typeof slot !== 'object') return;
+      if (Number.isInteger(slot.index) && slot.index >= 0) {
+        slotsByIndex.set(slot.index, slot);
+      }
+    });
+    const pairs = [];
+    if (Array.isArray(group.colorRoles) && group.colorRoles.length) {
+      group.colorRoles.forEach(role => {
+        if (!role || typeof role !== 'object') return;
+        const fillSlot = slotsByIndex.get(role.fillIndex);
+        const lineSlot = slotsByIndex.get(role.lineIndex);
+        if (fillSlot && lineSlot) {
+          pairs.push({ fillSlot, lineSlot });
+        }
+      });
+    }
+    if (pairs.length) {
+      return pairs;
+    }
+    for (let slotIndex = 0; slotIndex < group.slots.length; slotIndex += 2) {
+      const fillSlot = group.slots[slotIndex];
+      const lineSlot = group.slots[slotIndex + 1];
+      if (fillSlot && lineSlot) {
+        pairs.push({ fillSlot, lineSlot });
+      }
+    }
+    return pairs;
+  }
+
   function appendSlotToTable(container, slotElement) {
     if (!container || !slotElement) return;
     container.appendChild(slotElement);
@@ -942,14 +975,15 @@
       }
       if (normalizedGroupId === 'graftegner') {
         graftegnerContrastRows.length = 0;
-        for (let slotIndex = 0; slotIndex < group.slots.length; slotIndex += 2) {
-          const fillSlot = group.slots[slotIndex];
-          const lineSlot = group.slots[slotIndex + 1];
-          if (fillSlot && lineSlot) {
-            appendSlotToTable(table, createGraftegnerPairRow(fillSlot, lineSlot));
-          } else if (fillSlot) {
-            appendSlotToTable(table, createColorSlotElement(fillSlot));
-          }
+        const pairs = resolveGraftegnerRolePairs(group);
+        if (pairs.length) {
+          pairs.forEach(pair => {
+            appendSlotToTable(table, createGraftegnerPairRow(pair.fillSlot, pair.lineSlot));
+          });
+        } else {
+          group.slots.forEach(slot => {
+            appendSlotToTable(table, createColorSlotElement(slot));
+          });
         }
       } else if (normalizedGroupId === 'nkant') {
         table.classList.add('color-table--nkant');

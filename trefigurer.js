@@ -1240,11 +1240,64 @@
     if (!match) return null;
     return parseInt(match[1], 16);
   }
+  function getColorPickerHelper() {
+    const scope = typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : null;
+    if (scope && scope.MathVisualsColorPickerHelper) {
+      return scope.MathVisualsColorPickerHelper;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./colorpicker-helper.js');
+      } catch (_) {}
+    }
+    return null;
+  }
   const FALLBACK_COLOR_OPTIONS = ['#3b82f6', '#f97316', '#10b981', '#ef4444', '#6366f1', '#0ea5e9'];
+  const DEFAULT_GRAFTEGNER_COLOR_ROLES = [
+    { fillIndex: 5, lineIndex: 4 },
+    { fillIndex: 7, lineIndex: 6 },
+    { fillIndex: 9, lineIndex: 8 },
+    { fillIndex: 10, lineIndex: 11 },
+    { fillIndex: 12, lineIndex: 13 },
+    { fillIndex: 14, lineIndex: 15 }
+  ];
+  const colorPickerHelper = getColorPickerHelper();
   function getPaletteApi() {
     if (typeof window === 'undefined') return null;
     const api = window.MathVisualsPalette;
     return api && typeof api.getGroupPalette === 'function' ? api : null;
+  }
+  function resolvePaletteConfig() {
+    const scopes = [
+      typeof window !== 'undefined' ? window : null,
+      typeof globalThis !== 'undefined' ? globalThis : null,
+      typeof global !== 'undefined' ? global : null
+    ];
+    for (const scope of scopes) {
+      if (!scope || typeof scope !== 'object') continue;
+      const config = scope.MathVisualsPaletteConfig;
+      if (config && typeof config === 'object') {
+        return config;
+      }
+    }
+    if (typeof require === 'function') {
+      try {
+        const mod = require('./palette/palette-config.js');
+        if (mod && typeof mod === 'object') {
+          return mod;
+        }
+      } catch (_) {}
+    }
+    return null;
+  }
+  let paletteConfigResolved = false;
+  let paletteConfigCache = null;
+  function getPaletteConfig() {
+    if (!paletteConfigResolved) {
+      paletteConfigResolved = true;
+      paletteConfigCache = resolvePaletteConfig();
+    }
+    return paletteConfigCache;
   }
   function normalizeHexColor(color) {
     if (typeof color !== 'string') return null;
@@ -1262,7 +1315,21 @@
   function isValidColor(value) {
     return typeof value === 'string' && value.trim().length > 0;
   }
-  function getFillPalette() {
+  function getGraftegnerRoleSlotPairs() {
+    const config = getPaletteConfig();
+    if (colorPickerHelper && typeof colorPickerHelper.resolveRoleSlotPairs === 'function') {
+      return colorPickerHelper.resolveRoleSlotPairs(config, 'graftegner', DEFAULT_GRAFTEGNER_COLOR_ROLES);
+    }
+    const pairs = [];
+    for (let index = 0; index < FALLBACK_COLOR_OPTIONS.length; index += 1) {
+      pairs.push({
+        fillSlotIndex: index * 2,
+        lineSlotIndex: index * 2 + 1
+      });
+    }
+    return pairs;
+  }
+  function getLineFillPalettes() {
     const paletteApi = getPaletteApi();
     let colors = [];
     if (paletteApi) {
@@ -1273,16 +1340,25 @@
       }
     }
     const sanitized = Array.isArray(colors) ? colors.filter(isValidColor) : [];
-    let filtered = sanitized;
-    if (sanitized.length >= 2) {
-      const fills = sanitized.filter((_, index) => index % 2 === 0);
-      if (fills.length) {
-        filtered = fills;
+    const fillColors = [];
+    const lineColors = [];
+    const roleSlots = getGraftegnerRoleSlotPairs();
+    if (sanitized.length && roleSlots.length) {
+      roleSlots.forEach(role => {
+        const fill = sanitized[role.fillSlotIndex];
+        const line = sanitized[role.lineSlotIndex];
+        fillColors.push(fill || line || FALLBACK_COLOR_OPTIONS[0]);
+        lineColors.push(line || fill || '#000');
+      });
+    } else if (sanitized.length >= 2) {
+      for (let index = 0; index < sanitized.length; index += 2) {
+        const fill = sanitized[index];
+        const line = sanitized[index + 1];
+        fillColors.push(fill || line || FALLBACK_COLOR_OPTIONS[0]);
+        lineColors.push(line || fill || '#000');
       }
     }
-    if (!filtered.length) {
-      filtered = FALLBACK_COLOR_OPTIONS.slice();
-    }
+    let filtered = fillColors.length ? fillColors : FALLBACK_COLOR_OPTIONS.slice();
     const unique = [];
     const seen = new Set();
     filtered.forEach(color => {
@@ -1292,27 +1368,61 @@
         unique.push(color);
       }
     });
-    return unique.length ? unique : FALLBACK_COLOR_OPTIONS.slice();
+    const finalFillColors = unique.length ? unique : FALLBACK_COLOR_OPTIONS.slice();
+    const finalLineColors = lineColors.length ? lineColors : finalFillColors.map(() => '#000');
+    return { fillColors: finalFillColors, lineColors: finalLineColors };
+  }
+  function getFillPalette() {
+    return getLineFillPalettes().fillColors;
+  }
+  function getLinePalette() {
+    return getLineFillPalettes().lineColors;
+  }
+  function applyPairSwatch(element, fillColors, lineColors, index) {
+    if (!element) return;
+    const fillColor = fillColors[index - 1] || fillColors[0] || '#fff';
+    const lineColor = lineColors[index - 1] || lineColors[0] || '#000';
+    if (colorPickerHelper && typeof colorPickerHelper.renderColorPairSwatch === 'function') {
+      colorPickerHelper.renderColorPairSwatch({
+        element,
+        fillIndex: index,
+        lineIndex: index,
+        fillColors,
+        lineColors,
+        fallbackFill: '#fff',
+        fallbackLine: '#000'
+      });
+      return;
+    }
+    element.style.backgroundColor = fillColor;
+    element.style.borderColor = lineColor;
   }
   function updateFillColorPickerActive() {
     if (!fillColorPicker) return;
     const activeButton = fillColorPicker.querySelector('.color-swatch--active');
     if (!activeButton) return;
     const current = colorInput && typeof colorInput.value === 'string' && colorInput.value ? colorInput.value : '#3b82f6';
-    activeButton.style.backgroundColor = current;
+    if (colorPickerHelper && typeof colorPickerHelper.applyColorPairSwatch === 'function') {
+      colorPickerHelper.applyColorPairSwatch(activeButton, current, current);
+    } else {
+      activeButton.style.backgroundColor = current;
+      activeButton.style.borderColor = current;
+    }
   }
   function renderFillColorPicker() {
     if (!fillColorPicker) return;
     const activeButton = fillColorPicker.querySelector('.color-swatch--active');
     const optionsPanel = fillColorPicker.querySelector('.color-options');
     if (!activeButton || !optionsPanel) return;
-    const palette = getFillPalette();
+    const paletteData = getLineFillPalettes();
+    const palette = paletteData.fillColors;
+    const linePalette = paletteData.lineColors;
     optionsPanel.innerHTML = '';
     palette.forEach((color, index) => {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'color-option-btn';
-      btn.style.backgroundColor = color;
+      applyPairSwatch(btn, palette, linePalette, index + 1);
       btn.dataset.color = color;
       btn.setAttribute('aria-label', `Velg farge ${index + 1}`);
       optionsPanel.appendChild(btn);
