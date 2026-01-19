@@ -132,9 +132,7 @@ function loadNkantResolveSettingsPalette(projectName, options = {}) {
   const paletteHelper = options.groupPaletteHelper === null ? undefined : options.groupPaletteHelper;
 
   windowStub.MathVisualsPaletteConfig = paletteConfig;
-  windowStub.MathVisualsSettings = {
-    getActiveProject: () => projectName
-  };
+  windowStub.MathVisualsSettings = {};
   if (options.paletteApi === null) {
     delete windowStub.MathVisualsPalette;
   } else {
@@ -710,8 +708,7 @@ test.describe('brøkfigurer palette fallback', () => {
       return [];
     };
     windowStub.MathVisualsSettings = {
-      getGroupPalette: settingsGroupPalette,
-      getActiveProject: () => null
+      getGroupPalette: settingsGroupPalette
     };
     const themeGroupPalette = function themeGroupPalette() {
       return [];
@@ -763,7 +760,7 @@ test.describe('brøkfigurer palette fallback', () => {
       const colors = windowStub.STATE.colors || [];
       expect(colors.length).toBeGreaterThan(0);
 
-      const fallbackPalette = resolveProjectGroupFallbackPaletteForTest('kikora', 'graftegner');
+      const fallbackPalette = resolveGroupFallbackPaletteForTest('graftegner');
       expect(fallbackPalette.length).toBeGreaterThan(0);
 
       const expected = Array.from({ length: colors.length }, (_, index) => {
@@ -843,12 +840,12 @@ function sanitizePaletteForTest(values) {
   return sanitized;
 }
 
-function resolveProjectGroupFallbackPaletteForTest(projectName, groupId) {
+const LEGACY_FRACTION_PALETTE = ['#B25FE3', '#6C1BA2', '#534477', '#873E79', '#BF4474', '#E31C3D'];
+
+function resolveGroupFallbackPaletteForTest(groupId) {
   const config = paletteConfig || {};
-  const fallbacks = (config && config.PROJECT_FALLBACKS) || {};
-  const normalizedProject = typeof projectName === 'string' ? projectName.trim().toLowerCase() : '';
   const basePalette = sanitizePaletteForTest(
-    (normalizedProject && fallbacks[normalizedProject]) || fallbacks.default || []
+    LEGACY_FRACTION_PALETTE
   );
   if (!basePalette.length) {
     return [];
@@ -903,25 +900,6 @@ function resolveProjectGroupFallbackPaletteForTest(projectName, groupId) {
 function loadSettingsWithPaletteSpy(spyImplementation) {
   const paletteCalls = [];
   const previousFetch = global.fetch;
-  const overriddenGroups = new Set();
-
-  const markOverrides = (projectName, palettes) => {
-    const normalizedProject = typeof projectName === 'string' ? projectName.trim().toLowerCase() : '';
-    if (!normalizedProject || !palettes || typeof palettes !== 'object') {
-      return;
-    }
-    Object.keys(palettes).forEach(groupId => {
-      const normalizedGroup = typeof groupId === 'string' ? groupId.trim().toLowerCase() : '';
-      if (!normalizedGroup) return;
-      const key = `${normalizedProject}:${normalizedGroup}`;
-      const values = palettes[groupId];
-      if (Array.isArray(values) && values.some(value => typeof value === 'string' && value.trim())) {
-        overriddenGroups.add(key);
-      } else {
-        overriddenGroups.delete(key);
-      }
-    });
-  };
 
   delete global.MathVisualsSettings;
   delete require.cache[SETTINGS_MODULE];
@@ -932,24 +910,6 @@ function loadSettingsWithPaletteSpy(spyImplementation) {
     getGroupPalette(groupId, options) {
       const result = spyImplementation(groupId, options);
       paletteCalls.push({ groupId, options });
-      const settings = options && options.settings;
-      if (settings && settings.projects && typeof settings.projects === 'object') {
-        const projectKey =
-          typeof options?.project === 'string' && options.project
-            ? options.project.trim().toLowerCase()
-            : typeof settings.getActiveProject === 'function'
-            ? settings.getActiveProject()
-            : null;
-        const normalizedGroup = typeof groupId === 'string' ? groupId.trim().toLowerCase() : '';
-        const project = projectKey && settings.projects[projectKey];
-        const stored = project && project.groupPalettes && project.groupPalettes[normalizedGroup];
-        if (normalizedGroup && overriddenGroups.has(`${projectKey}:${normalizedGroup}`)) {
-          if (Array.isArray(stored) && stored.length) {
-            return stored.slice();
-          }
-          overriddenGroups.delete(`${projectKey}:${normalizedGroup}`);
-        }
-      }
       return Array.isArray(result) ? result : ['#123456'];
     },
     getProjectGroupPalettes() {
@@ -967,41 +927,6 @@ function loadSettingsWithPaletteSpy(spyImplementation) {
   require('../examples.js');
 
   const api = global.MathVisualsSettings || (global.window && global.window.MathVisualsSettings);
-
-  const originalUpdateSettings = api.updateSettings;
-  api.updateSettings = patch => {
-    if (patch && typeof patch === 'object') {
-      if (patch.groupPalettes && typeof patch.groupPalettes === 'object') {
-        const target =
-          typeof patch.activeProject === 'string' && patch.activeProject
-            ? patch.activeProject
-            : api.getActiveProject && api.getActiveProject();
-        markOverrides(target, patch.groupPalettes);
-      }
-      if (patch.projects && typeof patch.projects === 'object') {
-        Object.keys(patch.projects).forEach(projectName => {
-          const source = patch.projects[projectName];
-          if (source && typeof source === 'object' && source.groupPalettes) {
-            markOverrides(projectName, source.groupPalettes);
-          }
-        });
-      }
-    }
-    return originalUpdateSettings.call(api, patch);
-  };
-
-  const originalSetSettings = api.setSettings;
-  api.setSettings = next => {
-    if (next && typeof next === 'object' && next.projects && typeof next.projects === 'object') {
-      Object.keys(next.projects).forEach(projectName => {
-        const source = next.projects[projectName];
-        if (source && typeof source === 'object' && source.groupPalettes) {
-          markOverrides(projectName, source.groupPalettes);
-        }
-      });
-    }
-    return originalSetSettings.call(api, next);
-  };
 
   global.fetch = previousFetch;
 
@@ -1023,7 +948,7 @@ function loadThemeModule() {
 }
 
 test.describe('MathVisualsSettings.getGroupPalette', () => {
-  test('forwards project override with legacy signature', () => {
+  test('ignores project override with legacy signature', () => {
     const { api, paletteCalls } = loadSettingsWithPaletteSpy(() => ['#abcdef']);
 
     const palette = api.getGroupPalette('graftegner', 4, { project: 'kikora' });
@@ -1032,11 +957,11 @@ test.describe('MathVisualsSettings.getGroupPalette', () => {
     expect(paletteCalls).toHaveLength(1);
     const [{ groupId, options }] = paletteCalls;
     expect(groupId).toBe('graftegner');
-    expect(options.project).toBe('kikora');
+    expect(options.project).toBeUndefined();
     expect(options.count).toBe(4);
   });
 
-  test('supports options-object signature and preserves project override', () => {
+  test('supports options-object signature and ignores project override', () => {
     const { api, paletteCalls } = loadSettingsWithPaletteSpy(() => ['#fedcba']);
 
     const palette = api.getGroupPalette('graftegner', { project: 'annet', count: 2 });
@@ -1045,62 +970,48 @@ test.describe('MathVisualsSettings.getGroupPalette', () => {
     expect(paletteCalls).toHaveLength(1);
     const [{ groupId, options }] = paletteCalls;
     expect(groupId).toBe('graftegner');
-    expect(options.project).toBe('annet');
+    expect(options.project).toBeUndefined();
     expect(options.count).toBe(2);
   });
 });
 
 test.describe('MathVisualsSettings fallback parity', () => {
-  test('settings sortering fallback matches theme fallback for core projects', () => {
+  test('settings sortering fallback matches theme fallback for global palette', () => {
     global.MathVisualsPaletteConfig = paletteConfig;
     const themePalette = require('../theme/palette.js');
     expect(themePalette && typeof themePalette.getProjectGroupPalettes).toBe('function');
 
     const { api } = loadSettingsWithPaletteSpy(() => []);
-    const projects = ['campus', 'kikora', 'annet'];
+    const settings = api.getSettings();
+    const settingsSortering =
+      settings.groupPalettes && Array.isArray(settings.groupPalettes.sortering)
+        ? settings.groupPalettes.sortering
+        : [];
+    const themeGroups = themePalette.getProjectGroupPalettes('default', { settings }) || {};
+    const themeSortering = Array.isArray(themeGroups.sortering) ? themeGroups.sortering : [];
 
-    projects.forEach(project => {
-      const settingsProject = api.getProjectSettings(project);
-      expect(settingsProject).toBeTruthy();
-      const settingsSortering =
-        settingsProject &&
-        settingsProject.groupPalettes &&
-        Array.isArray(settingsProject.groupPalettes.sortering)
-          ? settingsProject.groupPalettes.sortering
-          : [];
-
-      const themeGroups =
-        themePalette.getProjectGroupPalettes(project, { settings: { projects: {} } }) || {};
-      const themeSortering = Array.isArray(themeGroups.sortering) ? themeGroups.sortering : [];
-
-      expect(settingsSortering.length).toBeGreaterThan(0);
-      expect(themeSortering.length).toBeGreaterThan(0);
-      expect(settingsSortering).toEqual(themeSortering);
-    });
+    expect(settingsSortering.length).toBeGreaterThan(0);
+    expect(themeSortering.length).toBeGreaterThan(0);
+    expect(settingsSortering).toEqual(themeSortering);
   });
 });
 
 test.describe('nkant settings palette fallback', () => {
-  test('uses project-specific fallbacks when palette APIs return no colors', () => {
+  test('uses global fallbacks when palette APIs return no colors', () => {
     const campus = loadNkantResolveSettingsPalette('campus');
     expect(typeof campus.resolveSettingsPalette).toBe('function');
     const campusResult = campus.resolveSettingsPalette.call(campus.context.window, 4);
     expect(campusResult.source).toBe('project-fallback');
-    const campusExpected = paletteConfig.PROJECT_FALLBACKS.campus
+    const expected = paletteConfig.PROJECT_FALLBACKS.default
       .slice(0, 4)
       .map(color => color.toLowerCase());
-    expect(campusResult.colors).toEqual(campusExpected);
+    expect(campusResult.colors).toEqual(expected);
 
     const annet = loadNkantResolveSettingsPalette('annet');
     expect(typeof annet.resolveSettingsPalette).toBe('function');
     const annetResult = annet.resolveSettingsPalette.call(annet.context.window, 4);
     expect(annetResult.source).toBe('project-fallback');
-    const annetExpected = paletteConfig.PROJECT_FALLBACKS.annet
-      .slice(0, 4)
-      .map(color => color.toLowerCase());
-    expect(annetResult.colors).toEqual(annetExpected);
-
-    expect(campusResult.colors).not.toEqual(annetResult.colors);
+    expect(annetResult.colors).toEqual(expected);
   });
 });
 
@@ -1167,19 +1078,19 @@ test.describe('MathVisualsTheme.getPalette', () => {
   });
 });
 
-test.describe('MathVisualsSettings project palette formats', () => {
+test.describe('MathVisualsSettings palette formats', () => {
   test('exposes groupPalettes alongside defaultColors', () => {
     const { api } = loadSettingsWithPaletteSpy(() => ['#abcdef']);
 
-    const campus = api.getProjectSettings('campus');
-    expect(campus).toBeTruthy();
-    expect(campus.groupPalettes).toBeTruthy();
-    expect(campus.groupPalettes.graftegner).toBeTruthy();
-    expect(Array.isArray(campus.defaultColors)).toBe(true);
-    expect(campus.defaultColors[0]).toBeDefined();
-    const firstGroupColor = campus.groupPalettes.graftegner && campus.groupPalettes.graftegner[0];
+    const settings = api.getSettings();
+    expect(settings).toBeTruthy();
+    expect(settings.groupPalettes).toBeTruthy();
+    expect(settings.groupPalettes.graftegner).toBeTruthy();
+    expect(Array.isArray(settings.defaultColors)).toBe(true);
+    expect(settings.defaultColors[0]).toBeDefined();
+    const firstGroupColor = settings.groupPalettes.graftegner && settings.groupPalettes.graftegner[0];
     if (firstGroupColor) {
-      expect(campus.defaultColors[0]).toBe(firstGroupColor);
+      expect(settings.defaultColors[0]).toBe(firstGroupColor);
     }
   });
 
@@ -1187,118 +1098,41 @@ test.describe('MathVisualsSettings project palette formats', () => {
     const { api } = loadSettingsWithPaletteSpy(() => ['#abcdef']);
 
     const update = api.setSettings({
-      activeProject: 'campus',
-      projects: {
-        campus: {
-          groupPalettes: {
-            graftegner: ['#111111'],
-            ukjent: ['#222222', ' #333333 ']
-          }
-        }
+      groupPalettes: {
+        graftegner: ['#111111'],
+        ukjent: ['#222222', ' #333333 ']
       }
     });
 
-    expect(update.projects.campus.groupPalettes.graftegner[0]).toBe('#111111');
-    expect(update.projects.campus.defaultColors[0]).toBe('#111111');
-    expect(update.projects.campus.groupPalettes.ukjent).toBeUndefined();
-    expect(update.projects.campus.defaultColors).not.toEqual(expect.arrayContaining(['#222222']));
+    expect(update.groupPalettes.graftegner[0]).toBe('#111111');
+    expect(update.defaultColors[0]).toBe('#111111');
+    expect(update.groupPalettes.ukjent).toBeUndefined();
+    expect(update.defaultColors).not.toEqual(expect.arrayContaining(['#222222']));
 
     const settings = api.getSettings();
-    const campus = settings.projects.campus;
-    expect(campus.groupPalettes.graftegner[0]).toBe('#111111');
-    expect(campus.defaultColors[0]).toBe('#111111');
-    expect(campus.groupPalettes.ukjent).toBeUndefined();
-    expect(campus.defaultColors).not.toEqual(expect.arrayContaining(['#222222']));
+    expect(settings.groupPalettes.graftegner[0]).toBe('#111111');
+    expect(settings.defaultColors[0]).toBe('#111111');
+    expect(settings.groupPalettes.ukjent).toBeUndefined();
+    expect(settings.defaultColors).not.toEqual(expect.arrayContaining(['#222222']));
   });
 
-  test('creates groupPalettes for new projects', () => {
-    const { api } = loadSettingsWithPaletteSpy(() => ['#abcdef']);
-
-    const settings = api.updateSettings({
-      projects: {
-        'custom-app': {
-          groupPalettes: {
-            graftegner: ['#123456'],
-            ukjent: ['#654321']
-          }
-        }
-      }
-    });
-
-    const project = settings.projects['custom-app'];
-    expect(project).toBeTruthy();
-    expect(project.groupPalettes.graftegner[0]).toBe('#123456');
-    expect(project.defaultColors[0]).toBe('#123456');
-    expect(project.groupPalettes.ukjent).toBeUndefined();
-  });
-
-  test('updateSettings accepts root-level groupPalettes for active project', () => {
+  test('updateSettings accepts root-level groupPalettes', () => {
     const { api } = loadSettingsWithPaletteSpy(() => ['#abcdef']);
 
     const update = api.updateSettings({
-      activeProject: 'campus',
       groupPalettes: {
         graftegner: ['#010101', ' #020202 '],
         ukjent: ['#030303']
       }
     });
 
-    const campus = update.projects.campus;
-    expect(campus).toBeTruthy();
-    expect(campus.groupPalettes.graftegner).toEqual(['#010101', '#020202']);
-    expect(campus.defaultColors[0]).toBe('#010101');
-    expect(campus.groupPalettes.ukjent).toBeUndefined();
+    expect(update.groupPalettes.graftegner).toEqual(['#010101', '#020202']);
+    expect(update.defaultColors[0]).toBe('#010101');
+    expect(update.groupPalettes.ukjent).toBeUndefined();
 
-    const persisted = api.getSettings().projects.campus;
+    const persisted = api.getSettings();
     expect(persisted.groupPalettes.graftegner).toEqual(['#010101', '#020202']);
     expect(persisted.defaultColors[0]).toBe('#010101');
     expect(persisted.groupPalettes.ukjent).toBeUndefined();
-  });
-
-  test('retains graftegner graph and axis colors after switching projects', () => {
-    const { api } = loadSettingsWithPaletteSpy(() => ['#abcdef']);
-
-    const graphColor = '#ff00ff';
-    const axisColor = '#000000';
-    const kikoraGraph = '#00ff00';
-    const kikoraAxis = '#111111';
-
-    const campusUpdate = api.updateSettings({
-      activeProject: 'campus',
-      groupPalettes: {
-        graftegner: [graphColor, axisColor]
-      }
-    });
-
-    expect(campusUpdate.projects.campus.groupPalettes.graftegner).toEqual([
-      graphColor,
-      axisColor
-    ]);
-    expect(campusUpdate.projects.campus.defaultColors[0]).toBe(graphColor);
-    expect(campusUpdate.projects.campus.defaultColors[19]).toBe(axisColor);
-
-    api.updateSettings({
-      activeProject: 'kikora',
-      groupPalettes: {
-        graftegner: [kikoraGraph, kikoraAxis]
-      }
-    });
-
-    api.setActiveProject('kikora', { notify: false });
-    api.setActiveProject('campus', { notify: false });
-
-    const campusSettings = api.getProjectSettings('campus');
-    expect(campusSettings.groupPalettes.graftegner).toEqual([graphColor, axisColor]);
-    expect(campusSettings.defaultColors[0]).toBe(graphColor);
-    expect(campusSettings.defaultColors[19]).toBe(axisColor);
-
-    const graftegnerPalette = api.getGroupPalette('graftegner', 2, { project: 'campus' });
-    expect(graftegnerPalette[0]).toBe(graphColor);
-    expect(graftegnerPalette[1]).toBe(axisColor);
-
-    const kikoraSettings = api.getProjectSettings('kikora');
-    expect(kikoraSettings.groupPalettes.graftegner).toEqual([kikoraGraph, kikoraAxis]);
-    expect(kikoraSettings.defaultColors[0]).toBe(kikoraGraph);
-    expect(kikoraSettings.defaultColors[19]).toBe(kikoraAxis);
   });
 });

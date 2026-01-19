@@ -940,94 +940,6 @@ function getPaletteApi() {
 function getSettingsApi() {
   return (typeof window !== "undefined" && window.MathVisualsSettings) || null;
 }
-  function getPaletteProjectResolver() {
-    const scopes = [
-      typeof window !== "undefined" ? window : null,
-      typeof globalThis !== "undefined" ? globalThis : null,
-      typeof global !== "undefined" ? global : null
-  ];
-  for (const scope of scopes) {
-    if (!scope || typeof scope !== "object") continue;
-    const resolver = scope.MathVisualsPaletteProjectResolver;
-    if (resolver && typeof resolver.resolvePaletteProject === "function") {
-      return resolver;
-    }
-  }
-  if (typeof require === "function") {
-    try {
-      const mod = require("./palette/resolve-palette-project.js");
-      if (mod && typeof mod.resolvePaletteProject === "function") {
-        return mod;
-      }
-    } catch (_) {}
-  }
-  return null;
-}
-
-  // Hjelper for å finne aktivt prosjekt (Single Source of Truth = DOM-attributter)
-  function normalizeProjectName(value) {
-    if (typeof value !== "string") return "";
-    const first = value.trim().split(/\s+/)[0];
-    return first ? first.toLowerCase() : "";
-  }
-
-  function getActiveProjectName() {
-    const doc = typeof document !== "undefined" ? document : null;
-    const root = doc && doc.documentElement ? doc.documentElement : null;
-
-    // 1. Sjekk DOM-roten først. Dette er fasiten for hva som vises på siden.
-    if (root) {
-      const attr =
-        root.getAttribute("data-mv-active-project") ||
-        root.getAttribute("data-theme-profile") ||
-        root.getAttribute("data-project");
-
-      const normalizedAttr = normalizeProjectName(attr);
-      if (normalizedAttr) return normalizedAttr;
-    }
-
-    // 2. Sjekk Theme API (som er koblet til visningen)
-    const theme = getThemeApi();
-    if (theme && typeof theme.getActiveProfileName === "function") {
-      try {
-        const val = theme.getActiveProfileName();
-        const normalizedTheme = normalizeProjectName(val);
-        if (normalizedTheme) return normalizedTheme;
-      } catch (_) {}
-    }
-
-    const resolver = getPaletteProjectResolver();
-    const settings = getSettingsApi();
-
-    if (resolver && typeof resolver.resolvePaletteProject === "function") {
-      try {
-        const resolved = resolver.resolvePaletteProject({
-          document: doc || undefined,
-          root: root || undefined,
-          theme: theme || undefined,
-          settings: settings || undefined,
-          location: typeof window !== "undefined" ? window.location : undefined
-        });
-        const normalizedResolved = normalizeProjectName(resolved);
-        if (normalizedResolved) return normalizedResolved;
-      } catch (_) {}
-    }
-
-    if (settings && typeof settings.getActiveProject === "function") {
-      try {
-        const value = settings.getActiveProject();
-        const normalizedSettingsProject = normalizeProjectName(value);
-        if (normalizedSettingsProject) return normalizedSettingsProject;
-      } catch (_) {}
-    }
-
-    if (settings && typeof settings.activeProject === "string") {
-      const normalizedSettingsProject = normalizeProjectName(settings.activeProject);
-      if (normalizedSettingsProject) return normalizedSettingsProject;
-    }
-
-    return null;
-  }
 
 function getThemeColor(token, fallback) {
   const theme = getThemeApi();
@@ -1043,14 +955,12 @@ let nkantPaletteCache = [];
 let nkantColorPickerDocBound = false;
 
 function resolveNkantPalette() {
-  const project = getActiveProjectName();
   const paletteApi = getPaletteApi();
   const settings = getSettingsApi();
   const theme = getThemeApi();
 
   const request = {
-    count: NKANT_GROUP_PALETTE_SIZE,
-    project: project
+    count: NKANT_GROUP_PALETTE_SIZE
   };
 
   let groupPalette = [];
@@ -1070,26 +980,14 @@ function resolveNkantPalette() {
   if ((!groupPalette || !groupPalette.length) && settings && typeof settings.getGroupPalette === 'function') {
     groupPalette = resolveGroupPalette(() => settings.getGroupPalette('nkant', request));
     if ((!groupPalette || !groupPalette.length) && settings.getGroupPalette.length >= 3) {
-      groupPalette = resolveGroupPalette(() =>
-        settings.getGroupPalette(
-          'nkant',
-          NKANT_GROUP_PALETTE_SIZE,
-          project ? { project } : undefined
-        )
-      );
+      groupPalette = resolveGroupPalette(() => settings.getGroupPalette('nkant', NKANT_GROUP_PALETTE_SIZE));
     }
   }
 
   if ((!groupPalette || !groupPalette.length) && theme && typeof theme.getGroupPalette === 'function') {
     groupPalette = resolveGroupPalette(() => theme.getGroupPalette('nkant', request));
     if ((!groupPalette || !groupPalette.length) && theme.getGroupPalette.length >= 3) {
-      groupPalette = resolveGroupPalette(() =>
-        theme.getGroupPalette(
-          'nkant',
-          NKANT_GROUP_PALETTE_SIZE,
-          project ? { project } : undefined
-        )
-      );
+      groupPalette = resolveGroupPalette(() => theme.getGroupPalette('nkant', NKANT_GROUP_PALETTE_SIZE));
     }
   }
 
@@ -1278,7 +1176,7 @@ function scheduleThemeRefresh(delay = 50) {
 
       observer.observe(document.documentElement, {
         attributes: true,
-        attributeFilter: ['data-project', 'data-mv-active-project', 'data-theme-profile']
+        attributeFilter: ['data-theme-profile']
       });
     }
 

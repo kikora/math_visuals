@@ -630,104 +630,36 @@ initExamples();
     return DEFAULT_PROJECT;
   }
 
-  function buildDefaultProjects() {
-    const projects = {};
-    Object.keys(PROJECT_FALLBACKS).forEach(name => {
-      if (name === 'default') return;
-      const groupPalettes = getProjectFallbackPalette(name);
-      projects[name] = {
-        groupPalettes: cloneProjectPalette(groupPalettes),
-        defaultColors: expandPalette(name, groupPalettes)
-      };
-    });
-    return projects;
-  }
-
-  function cloneProjects(projects) {
-    const out = {};
-    if (!projects || typeof projects !== 'object') return out;
-    Object.keys(projects).forEach(name => {
-      const entry = projects[name];
-      if (!entry || typeof entry !== 'object') return;
-      const normalizedPalette = normalizeProjectPalette(
-        name,
-        entry.groupPalettes != null ? entry.groupPalettes : entry.defaultColors
-      );
-      const groupPalettes = cloneProjectPalette(normalizedPalette);
-      out[name] = {
-        groupPalettes,
-        defaultColors: expandPalette(name, groupPalettes)
-      };
-    });
-    return out;
-  }
-
   function normalizeSettings(value) {
     const input = value && typeof value === 'object' ? value : {};
-    const rawProjects = input.projects && typeof input.projects === 'object' ? input.projects : null;
-    const projects = buildDefaultProjects();
-    const order = DEFAULT_PROJECT_ORDER.slice();
+    let groupPalettes = null;
 
-    if (rawProjects) {
-      Object.keys(rawProjects).forEach(name => {
-        const normalized = typeof name === 'string' ? name.trim().toLowerCase() : '';
-        if (!normalized) return;
-        const source = rawProjects[name];
-        const normalizedPalette = normalizeProjectPalette(
-          normalized,
-          source && (source.groupPalettes != null ? source.groupPalettes : source.defaultColors)
-        );
-        const groupPalettes = cloneProjectPalette(normalizedPalette);
-        const defaultColors = expandPalette(normalized, groupPalettes);
-        const updated = {
-          ...(projects[normalized] ? projects[normalized] : {}),
-          groupPalettes,
-          defaultColors
-        };
-        projects[normalized] = updated;
-        if (!order.includes(normalized)) {
-          order.push(normalized);
-        }
-      });
+    if (input.groupPalettes != null || input.defaultColors != null) {
+      const palette = normalizeProjectPalette(DEFAULT_PROJECT, input.groupPalettes != null ? input.groupPalettes : input.defaultColors);
+      groupPalettes = cloneProjectPalette(palette);
+    } else if (input.projects && typeof input.projects === 'object') {
+      const projectName = resolveProjectName(input.project || input.defaultProject, input.projects);
+      const source = input.projects[projectName];
+      const normalizedPalette = normalizeProjectPalette(
+        projectName,
+        source && (source.groupPalettes != null ? source.groupPalettes : source.defaultColors)
+      );
+      groupPalettes = cloneProjectPalette(normalizedPalette);
     }
 
-    if (input.defaultColors != null) {
-      const projectName = resolveProjectName(input.activeProject || input.project || input.defaultProject, projects);
-      const palette = normalizeProjectPalette(projectName, input.defaultColors);
-      const groupPalettes = cloneProjectPalette(palette);
-      const defaultColors = expandPalette(projectName, groupPalettes);
-      projects[projectName] = {
-        ...projects[projectName],
-        groupPalettes,
-        defaultColors
-      };
-      if (!order.includes(projectName)) {
-        order.push(projectName);
-      }
+    if (!groupPalettes) {
+      groupPalettes = cloneProjectPalette(getProjectFallbackPalette());
     }
 
-    const activeProject = resolveProjectName(input.activeProject || input.project || input.defaultProject, projects);
-    const normalized = {
+    return {
       version: 1,
-      projects,
-      activeProject,
-      projectOrder: order,
+      groupPalettes,
+      defaultColors: expandPalette(DEFAULT_PROJECT, groupPalettes),
       updatedAt: new Date().toISOString()
     };
-
-    const active = projects[activeProject];
-    const palette = expandPalette(
-      activeProject,
-      active && active.groupPalettes ? active.groupPalettes : getProjectFallbackPalette(activeProject)
-    );
-    normalized.defaultColors = palette;
-    return normalized;
   }
 
-  const DEFAULT_SETTINGS = normalizeSettings({
-    projects: buildDefaultProjects(),
-    activeProject: DEFAULT_PROJECT
-  });
+  const DEFAULT_SETTINGS = normalizeSettings({});
 
   function cloneSettings(source) {
     const target = source && typeof source === 'object' ? source : settings;
@@ -739,16 +671,6 @@ initExamples();
   }
 
   let settings = cloneSettings(DEFAULT_SETTINGS);
-  let activeProject = settings.activeProject;
-
-  function getProjectPalette(name) {
-    const resolved = resolveProjectName(name || activeProject, settings.projects);
-    const project = settings.projects[resolved];
-    if (project && project.groupPalettes) {
-      return expandPalette(resolved, project.groupPalettes);
-    }
-    return expandPalette(resolved, getProjectFallbackPalette(resolved));
-  }
 
   function parseInlineStyle(element) {
     const map = new Map();
@@ -798,7 +720,9 @@ initExamples();
         inlineStyle.delete(name);
       }
     };
-    const basePalette = getProjectPalette(activeProject);
+    const basePalette = Array.isArray(settings.defaultColors) && settings.defaultColors.length
+      ? settings.defaultColors
+      : expandPalette(DEFAULT_PROJECT, settings.groupPalettes);
     const palette = ensureColorCount(basePalette, Math.max(basePalette.length, FALLBACK_COLORS.length));
     const limit = Math.max(palette.length, FALLBACK_COLORS.length);
     for (let i = 0; i < limit; i += 1) {
@@ -817,9 +741,6 @@ initExamples();
       } else {
         root.removeAttribute('style');
       }
-    }
-    if (typeof activeProject === 'string' && activeProject) {
-      root.setAttribute('data-mv-active-project', activeProject);
     }
   }
 
@@ -842,26 +763,12 @@ initExamples();
 
   function buildPersistPayload(next) {
     const source = next && typeof next === 'object' ? next : {};
-    const projects = cloneProjects(source.projects ? source.projects : settings.projects);
-    const desiredActiveProject = source.activeProject ? source.activeProject : activeProject;
-    const resolvedActiveProject = resolveProjectName(desiredActiveProject, projects);
-    const payload = {
-      version: source.version ? source.version : 1,
-      activeProject: resolvedActiveProject,
-      projectOrder: Array.isArray(source.projectOrder)
-        ? source.projectOrder.slice()
-        : Array.isArray(settings.projectOrder)
-        ? settings.projectOrder.slice()
-        : Object.keys(projects),
-      projects
+    const normalized = normalizeSettings(source);
+    return {
+      version: source.version ? source.version : normalized.version,
+      groupPalettes: normalized.groupPalettes,
+      defaultColors: normalized.defaultColors
     };
-    const activeEntry = projects[resolvedActiveProject];
-    const groupPalettes =
-      activeEntry && activeEntry.groupPalettes
-        ? cloneProjectPalette(activeEntry.groupPalettes)
-        : cloneProjectPalette(getProjectFallbackPalette(resolvedActiveProject));
-    payload.defaultColors = expandPalette(resolvedActiveProject, groupPalettes);
-    return payload;
   }
 
   function resolveApiUrl() {
@@ -901,7 +808,6 @@ initExamples();
       .then(remote => {
         if (!remote || typeof remote !== 'object') return;
         settings = normalizeSettings(remote);
-        activeProject = settings.activeProject;
         notifyChange({ emitEvent: true });
       })
       .catch(error => {
@@ -911,7 +817,6 @@ initExamples();
 
   function commitSettings(next, options) {
     settings = normalizeSettings(next);
-    activeProject = settings.activeProject;
     if (!options || options.persist !== false) {
       persistSettings(settings);
     }
@@ -923,38 +828,14 @@ initExamples();
 
   function getDefaultColors(count, opts) {
     const size = Number.isFinite(count) && count > 0 ? Math.trunc(count) : undefined;
-    const projectName = opts && opts.project ? resolveProjectName(opts.project, settings.projects) : activeProject;
-    const palette = getProjectPalette(projectName);
+    const palette = Array.isArray(settings.defaultColors) && settings.defaultColors.length
+      ? settings.defaultColors
+      : expandPalette(DEFAULT_PROJECT, settings.groupPalettes);
     return ensureColorCount(palette, size || palette.length);
   }
 
   function getSettings() {
     return cloneSettings();
-  }
-
-  function mergeProjectUpdates(base, updates) {
-    if (!updates || typeof updates !== 'object') return;
-    Object.keys(updates).forEach(name => {
-      const normalized = typeof name === 'string' ? name.trim().toLowerCase() : '';
-      if (!normalized) return;
-      const source = updates[name];
-      if (!base[normalized]) {
-        const fallback = getProjectFallbackPalette(normalized);
-        base[normalized] = {
-          groupPalettes: cloneProjectPalette(fallback),
-          defaultColors: expandPalette(normalized, fallback)
-        };
-      }
-      if (source && (source.groupPalettes != null || source.defaultColors != null)) {
-        const normalizedPalette = normalizeProjectPalette(
-          normalized,
-          source.groupPalettes != null ? source.groupPalettes : source.defaultColors
-        );
-        const groupPalettes = cloneProjectPalette(normalizedPalette);
-        base[normalized].groupPalettes = groupPalettes;
-        base[normalized].defaultColors = expandPalette(normalized, groupPalettes);
-      }
-    });
   }
 
   function setSettings(next) {
@@ -965,23 +846,23 @@ initExamples();
     const merged = cloneSettings(settings);
     if (patch && typeof patch === 'object') {
       if (patch.groupPalettes != null || patch.defaultColors != null) {
-        const targetProject = resolveProjectName(patch.activeProject || activeProject, merged.projects);
-        merged.projects[targetProject] = merged.projects[targetProject] || {};
         const normalizedPalette = normalizeProjectPalette(
-          targetProject,
+          DEFAULT_PROJECT,
           patch.groupPalettes != null ? patch.groupPalettes : patch.defaultColors
         );
-        const groupPalettes = cloneProjectPalette(normalizedPalette);
-        const flattened = expandPalette(targetProject, groupPalettes);
-        merged.projects[targetProject].groupPalettes = groupPalettes;
-        merged.projects[targetProject].defaultColors = flattened;
-        merged.defaultColors = flattened;
-      }
-      if (patch.projects) {
-        mergeProjectUpdates(merged.projects, patch.projects);
-      }
-      if (patch.activeProject) {
-        merged.activeProject = resolveProjectName(patch.activeProject, merged.projects);
+        merged.groupPalettes = cloneProjectPalette(normalizedPalette);
+        merged.defaultColors = expandPalette(DEFAULT_PROJECT, merged.groupPalettes);
+      } else if (patch.projects && typeof patch.projects === 'object') {
+        const projectName = resolveProjectName(patch.project || patch.defaultProject, patch.projects);
+        const source = patch.projects[projectName];
+        if (source && (source.groupPalettes != null || source.defaultColors != null)) {
+          const normalizedPalette = normalizeProjectPalette(
+            projectName,
+            source.groupPalettes != null ? source.groupPalettes : source.defaultColors
+          );
+          merged.groupPalettes = cloneProjectPalette(normalizedPalette);
+          merged.defaultColors = expandPalette(DEFAULT_PROJECT, merged.groupPalettes);
+        }
       }
     }
     return commitSettings(merged, { persist: true, notify: true });
@@ -999,59 +880,6 @@ initExamples();
     return () => {
       listeners.delete(callback);
     };
-  }
-
-  function setActiveProject(name, options) {
-    const resolved = resolveProjectName(name, settings.projects);
-    if (resolved === activeProject) {
-      if (!options || options.notify !== false) {
-        notifyChange({ emitEvent: !options || options.emitEvent !== false });
-      }
-      return resolved;
-    }
-    activeProject = resolved;
-    settings.activeProject = resolved;
-    settings.defaultColors = getProjectPalette(resolved);
-    if (!options || options.notify !== false) {
-      notifyChange({ emitEvent: !options || options.emitEvent !== false });
-    }
-    if (options && options.persist) {
-      persistSettings(settings);
-    }
-    return resolved;
-  }
-
-  function getActiveProject() {
-    return activeProject;
-  }
-
-  function listProjects() {
-    return Array.isArray(settings.projectOrder) ? settings.projectOrder.slice() : Object.keys(settings.projects);
-  }
-
-  function getProjectSettings(name) {
-    const resolved = resolveProjectName(name, settings.projects);
-    const project = settings.projects[resolved];
-    if (!project || typeof project !== 'object') {
-      const fallbackPalettes = getProjectFallbackPalette(resolved);
-      return {
-        groupPalettes: cloneProjectPalette(fallbackPalettes),
-        defaultColors: expandPalette(resolved, fallbackPalettes)
-      };
-    }
-    try {
-      return JSON.parse(JSON.stringify(project));
-    } catch (_) {
-      const groupPalettes = project.groupPalettes
-        ? cloneProjectPalette(project.groupPalettes)
-        : cloneProjectPalette(getProjectFallbackPalette(resolved));
-      return {
-        groupPalettes,
-        defaultColors: Array.isArray(project.defaultColors)
-          ? project.defaultColors.slice()
-          : expandPalette(resolved, groupPalettes)
-      };
-    }
   }
 
   function loadFromRemote(options) {
@@ -1113,7 +941,6 @@ initExamples();
       .then(remote => {
         if (!remote || typeof remote !== 'object') return cloneSettings();
         settings = normalizeSettings(remote);
-        activeProject = settings.activeProject;
         if (opts.notify !== false) {
           notifyChange({ emitEvent: opts.emitEvent !== false });
         }
@@ -1161,41 +988,33 @@ initExamples();
   settingsApi.defaults = () => cloneSettings(DEFAULT_SETTINGS);
   settingsApi.fallbackColors = FALLBACK_COLORS.slice();
   settingsApi.STORAGE_KEY = SETTINGS_STORAGE_KEY;
-  settingsApi.getActiveProject = () => getActiveProject();
-  settingsApi.setActiveProject = (name, options) => setActiveProject(name, options);
-  settingsApi.listProjects = () => listProjects();
-  settingsApi.getProjectSettings = name => getProjectSettings(name);
   settingsApi.getGroupPalette = (groupId, countOrOptions, maybeOpts) => {
     const usingOptionsObject =
       countOrOptions && typeof countOrOptions === 'object' && !Array.isArray(countOrOptions);
     const rawCount = usingOptionsObject ? countOrOptions.count : countOrOptions;
     const size = Number.isFinite(rawCount) && rawCount > 0 ? Math.trunc(rawCount) : undefined;
     const optionSource = usingOptionsObject ? countOrOptions : maybeOpts;
-    const projectName =
-      optionSource && optionSource.project
-        ? resolveProjectName(optionSource.project, settings.projects)
-        : activeProject;
     const helperOptions = {};
     if (optionSource && typeof optionSource === 'object') {
       Object.keys(optionSource).forEach(key => {
+        if (key === 'project') return;
         helperOptions[key] = optionSource[key];
       });
     }
-    helperOptions.project = projectName;
     helperOptions.count = size;
     if (!helperOptions.settings || typeof helperOptions.settings !== 'object') {
       helperOptions.settings = {
-        projects: settings.projects,
-        activeProject,
-        getActiveProject: () => activeProject,
-        getProjectSettings: name => getProjectSettings(name),
-        getDefaultColors: (desiredCount, options) => getDefaultColors(desiredCount, options)
+        groupPalettes: settings.groupPalettes,
+        defaultColors: settings.defaultColors,
+        getDefaultColors: desiredCount => getDefaultColors(desiredCount)
       };
     }
     if (paletteHelper && typeof paletteHelper.getGroupPalette === 'function') {
       return paletteHelper.getGroupPalette(groupId, helperOptions);
     }
-    const basePalette = getProjectPalette(projectName);
+    const basePalette = Array.isArray(settings.defaultColors) && settings.defaultColors.length
+      ? settings.defaultColors
+      : expandPalette(DEFAULT_PROJECT, settings.groupPalettes);
     return ensureColorCount(basePalette, size || basePalette.length);
   };
   settingsApi.refresh = options => loadFromRemote(options);

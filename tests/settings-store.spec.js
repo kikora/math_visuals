@@ -11,7 +11,8 @@ delete process.env.REDIS_PASSWORD;
 const {
   setSettings,
   getSettings,
-  resetSettings
+  resetSettings,
+  expandPalette
 } = require('../api/_lib/settings-store');
 
 test.afterAll(() => {
@@ -49,52 +50,27 @@ function buildGroupedPalette(overrides = {}) {
 }
 
 test.describe('settings-store palette handling', () => {
-  test('stores grouped project palettes and retrieves consistent hex colors', async () => {
-    const campusPalette = buildGroupedPalette();
-  const customPalette = buildGroupedPalette({
-      graftegner: ['#101010', '#202020'],
-      ukjent: ['#222222', ' #333333 ', '#444444']
-    });
-
-    // Apply overrides to ensure variation between palettes
-    customPalette.graftegner = ['#101010', '#202020'];
-    customPalette.ukjent = ['#222222', ' #333333 ', '#444444'];
-
+  test('stores grouped palettes and retrieves consistent hex colors', async () => {
+    const basePalette = buildGroupedPalette();
     const payload = {
-      activeProject: 'custom-app',
-      projects: {
-        campus: { defaultColors: campusPalette },
-        'custom-app': { defaultColors: customPalette }
-      },
-      projectOrder: ['campus', 'custom-app']
+      groupPalettes: basePalette
     };
 
     const saved = await setSettings(payload);
+    const expectedDefault = expandPalette('campus', basePalette);
 
-    expect(saved.projects.campus.groupPalettes).toBeDefined();
-    expect(saved.projects.campus.groupPalettes.graftegner[0]).toBe('#123456');
-    expect(saved.projects.campus.groupPalettes.graftegner[1]).toBe('#654321');
-    expect(saved.projects['custom-app'].groupPalettes).toBeDefined();
-    expect(saved.projects['custom-app'].groupPalettes.graftegner[0]).toBe('#101010');
-    expect(saved.projects['custom-app'].groupPalettes.graftegner[1]).toBe('#202020');
-    expect(saved.projects.campus.defaultColors[0]).toBe('#123456');
-    expect(saved.projects['custom-app'].defaultColors[0]).toBe('#101010');
-    expect(saved.activeProject).toBe('custom-app');
-    expect(saved.defaultColors[0]).toBe('#101010');
+    expect(saved.groupPalettes).toBeDefined();
+    expect(saved.groupPalettes.graftegner[0]).toBe('#123456');
+    expect(saved.groupPalettes.graftegner[1]).toBe('#654321');
+    expect(saved.defaultColors[0]).toBe(expectedDefault[0]);
 
     const retrieved = await getSettings();
 
-    expect(retrieved.projects.campus.groupPalettes.graftegner[0]).toBe('#123456');
-    expect(retrieved.projects.campus.groupPalettes.graftegner[1]).toBe('#654321');
-    expect(retrieved.projects['custom-app'].groupPalettes.graftegner[0]).toBe('#101010');
-    expect(retrieved.projects['custom-app'].groupPalettes.graftegner[1]).toBe('#202020');
-    expect(retrieved.projects.campus.defaultColors[0]).toBe('#123456');
-    expect(retrieved.projects['custom-app'].defaultColors[0]).toBe('#101010');
-    expect(retrieved.defaultColors[0]).toBe('#101010');
+    expect(retrieved.groupPalettes.graftegner[0]).toBe('#123456');
+    expect(retrieved.groupPalettes.graftegner[1]).toBe('#654321');
+    expect(retrieved.defaultColors[0]).toBe(expectedDefault[0]);
 
-    expect(saved.projects.campus.groupPalettes.ukjent).toBeUndefined();
-    expect(saved.projects['custom-app'].groupPalettes.ukjent).toBeUndefined();
-    expect(retrieved.projects.campus.groupPalettes.ukjent).toBeUndefined();
-    expect(retrieved.projects['custom-app'].groupPalettes.ukjent).toBeUndefined();
+    expect(saved.groupPalettes.ukjent).toBeUndefined();
+    expect(retrieved.groupPalettes.ukjent).toBeUndefined();
   });
 });
