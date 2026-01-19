@@ -3,6 +3,7 @@
   const statusElement = document.querySelector('[data-status]');
   const filterWrapper = document.querySelector('[data-filter-wrapper]');
   const filterSelect = document.querySelector('[data-tool-filter]');
+  const searchInput = document.querySelector('[data-search-input]');
   const sortSelect = document.querySelector('[data-sort-order]');
   const storageNote = document.querySelector('[data-storage-note]');
   const trashToggle = document.querySelector('[data-trash-toggle]');
@@ -3832,12 +3833,56 @@
     }
   }
 
+  function buildEntrySearchText(entry) {
+    if (!entry || typeof entry !== 'object') {
+      return '';
+    }
+    const parts = [];
+    const append = (value) => {
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (trimmed) {
+          parts.push(trimmed);
+        }
+      }
+    };
+
+    append(extractEntryName(entry));
+    append(entry.tool);
+    append(entry.description);
+    append(entry.summary);
+
+    if (entry.summary && typeof entry.summary === 'object') {
+      append(entry.summary.text);
+      append(entry.summary.description);
+      append(entry.summary.altText);
+    }
+
+    if (entry.metadata && typeof entry.metadata === 'object') {
+      append(entry.metadata.description);
+      append(entry.metadata.summary);
+    }
+
+    return parts.join(' ');
+  }
+
   function render({ announceSort = false } = {}) {
     pruneSelection();
     const selectedTool = filterSelect && filterSelect.value !== 'all' ? filterSelect.value : null;
-    const filteredEntries = selectedTool
-      ? allEntries.filter(entry => entry.tool === selectedTool)
-      : allEntries.slice();
+    const rawSearchQuery = searchInput && typeof searchInput.value === 'string'
+      ? searchInput.value.trim()
+      : '';
+    const normalizedSearchQuery = rawSearchQuery.toLowerCase();
+    const filteredEntries = allEntries.filter(entry => {
+      if (selectedTool && entry.tool !== selectedTool) {
+        return false;
+      }
+      if (!normalizedSearchQuery) {
+        return true;
+      }
+      const searchText = buildEntrySearchText(entry).toLowerCase();
+      return searchText.includes(normalizedSearchQuery);
+    });
 
     if (archiveDialog && archiveDialog.isOpen()) {
       archiveDialog.close({ returnFocus: false });
@@ -3846,9 +3891,16 @@
     cardIdCounter = 0;
 
     if (!filteredEntries.length) {
-      const message = allEntries.length
-        ? 'Ingen SVG-er matcher valgt filter.'
-        : 'Ingen SVG-er funnet ennå.';
+      let message = 'Ingen SVG-er funnet ennå.';
+      if (allEntries.length) {
+        if (normalizedSearchQuery && selectedTool) {
+          message = 'Ingen SVG-er matcher søket og valgt filter.';
+        } else if (normalizedSearchQuery) {
+          message = 'Ingen SVG-er matcher søket.';
+        } else if (selectedTool) {
+          message = 'Ingen SVG-er matcher valgt filter.';
+        }
+      }
       setStatus(message);
       visibleEntries = [];
       updateSelectionSummary();
@@ -4533,6 +4585,12 @@
 
   if (filterSelect) {
     filterSelect.addEventListener('change', () => {
+      render();
+    });
+  }
+
+  if (searchInput) {
+    searchInput.addEventListener('input', () => {
       render();
     });
   }

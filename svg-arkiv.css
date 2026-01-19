@@ -351,6 +351,14 @@ body {
   color: #1f2937;
 }
 
+.svg-archive__search {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.95rem;
+  color: #1f2937;
+}
+
 .svg-archive__trash-toggle {
   display: inline-flex;
   align-items: center;
@@ -385,6 +393,16 @@ body {
 }
 
 .svg-archive__filter select {
+  min-width: 220px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5f5;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+}
+
+.svg-archive__search input {
   min-width: 220px;
   padding: 8px 12px;
   border-radius: 8px;
@@ -1120,18 +1138,21 @@ dialog.svg-archive__dialog::backdrop {
 }
 
 .svg-archive-page--compact .svg-archive__filter,
-.svg-archive-page--compact .svg-archive__sort {
+.svg-archive-page--compact .svg-archive__sort,
+.svg-archive-page--compact .svg-archive__search {
   font-size: 0.88rem;
 }
 
 .svg-archive-page--compact .svg-archive__filter span,
 .svg-archive-page--compact .svg-archive__sort span,
-.svg-archive-page--compact .svg-archive__compact-toggle span {
+.svg-archive-page--compact .svg-archive__compact-toggle span,
+.svg-archive-page--compact .svg-archive__search span {
   white-space: nowrap;
 }
 
 .svg-archive-page--compact .svg-archive__filter select,
-.svg-archive-page--compact .svg-archive__sort select {
+.svg-archive-page--compact .svg-archive__sort select,
+.svg-archive-page--compact .svg-archive__search input {
   min-width: 200px;
   padding: 6px 10px;
 }
@@ -1152,13 +1173,15 @@ dialog.svg-archive__dialog::backdrop {
 
   .svg-archive-page--compact .svg-archive__filter,
   .svg-archive-page--compact .svg-archive__sort,
-  .svg-archive-page--compact .svg-archive__compact-toggle {
+  .svg-archive-page--compact .svg-archive__compact-toggle,
+  .svg-archive-page--compact .svg-archive__search {
     width: 100%;
     align-items: flex-start;
   }
 
   .svg-archive-page--compact .svg-archive__filter select,
-  .svg-archive-page--compact .svg-archive__sort select {
+  .svg-archive-page--compact .svg-archive__sort select,
+  .svg-archive-page--compact .svg-archive__search input {
     width: 100%;
   }
 }
