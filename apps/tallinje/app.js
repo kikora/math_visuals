@@ -36,7 +36,21 @@ export const tallinjeApp = defineMathVisualApp({
           return;
         }
         didMount = true;
-        instanceApi = setupTallinjeApp({ registerCleanup });
+        instanceApi = setupTallinjeApp({ registerCleanup, target });
+        if (!instanceApi && typeof window !== 'undefined' && typeof document !== 'undefined') {
+          const retryMount = () => {
+            if (instanceApi || !didMount) return;
+            instanceApi = setupTallinjeApp({ registerCleanup, target });
+          };
+          if (document.readyState === 'loading') {
+            window.addEventListener('DOMContentLoaded', retryMount, { once: true });
+            registerCleanup(() => {
+              window.removeEventListener('DOMContentLoaded', retryMount);
+            });
+          } else {
+            window.setTimeout(retryMount, 0);
+          }
+        }
       },
       update(payload) {
         if (instanceApi && typeof instanceApi.update === 'function') {
@@ -64,15 +78,17 @@ export const tallinjeApp = defineMathVisualApp({
 
 export default tallinjeApp;
 
-function setupTallinjeApp({ registerCleanup }) {
+function setupTallinjeApp({ registerCleanup, target } = {}) {
   const SVG_NS = 'http://www.w3.org/2000/svg';
   const XLINK_NS = 'http://www.w3.org/1999/xlink';
-  const svg = document.getElementById('numberLineSvg');
+  const root = target && typeof target.querySelector === 'function' ? target : document;
+  const svg = root
+    ? root.querySelector('#numberLineSvg')
+    : typeof document !== 'undefined'
+      ? document.getElementById('numberLineSvg')
+      : null;
   if (!svg) {
-    return {
-      update() {},
-      destroy() {}
-    };
+    return null;
   }
 
   const fromInput = document.getElementById('cfg-from');
