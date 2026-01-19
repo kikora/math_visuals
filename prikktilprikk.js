@@ -2792,7 +2792,7 @@
   }
 
   function updateModeUI() {
-    if (modeLabel) modeLabel.textContent = isEditMode ? 'Modus: Redigeringsmodus' : 'Modus: Oppgavemodus';
+    if (modeLabel) modeLabel.textContent = isEditMode ? 'Modus: Redigeringsmodus' : 'Modus: Oppgavevisning';
     if (checkBtn) checkBtn.disabled = isEditMode;
     if (clearBtn) clearBtn.disabled = isEditMode;
     document.body.classList.toggle('is-edit-mode', isEditMode);
