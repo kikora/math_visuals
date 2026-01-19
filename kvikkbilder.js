@@ -65,9 +65,62 @@
     error: false
   };
   let activeFillColorIndex = 1;
+  const DEFAULT_GRAFTEGNER_COLOR_ROLES = [
+    { fillIndex: 5, lineIndex: 4 },
+    { fillIndex: 7, lineIndex: 6 },
+    { fillIndex: 9, lineIndex: 8 },
+    { fillIndex: 10, lineIndex: 11 },
+    { fillIndex: 12, lineIndex: 13 },
+    { fillIndex: 14, lineIndex: 15 }
+  ];
+  const colorPickerHelper = getColorPickerHelper();
   function getThemeApi() {
     const theme = typeof window !== 'undefined' ? window.MathVisualsTheme : null;
     return theme && typeof theme === 'object' ? theme : null;
+  }
+  function getColorPickerHelper() {
+    const scope = typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : null;
+    if (scope && scope.MathVisualsColorPickerHelper) {
+      return scope.MathVisualsColorPickerHelper;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./colorpicker-helper.js');
+      } catch (_) {}
+    }
+    return null;
+  }
+  function resolvePaletteConfig() {
+    const scopes = [
+      typeof window !== 'undefined' ? window : null,
+      typeof globalThis !== 'undefined' ? globalThis : null,
+      typeof global !== 'undefined' ? global : null
+    ];
+    for (const scope of scopes) {
+      if (!scope || typeof scope !== 'object') continue;
+      const config = scope.MathVisualsPaletteConfig;
+      if (config && typeof config === 'object') {
+        return config;
+      }
+    }
+    if (typeof require === 'function') {
+      try {
+        const mod = require('./palette/palette-config.js');
+        if (mod && typeof mod === 'object') {
+          return mod;
+        }
+      } catch (_) {}
+    }
+    return null;
+  }
+  let paletteConfigResolved = false;
+  let paletteConfigCache = null;
+  function getPaletteConfig() {
+    if (!paletteConfigResolved) {
+      paletteConfigResolved = true;
+      paletteConfigCache = resolvePaletteConfig();
+    }
+    return paletteConfigCache;
   }
   function applyThemeToDocument() {
     const theme = getThemeApi();
@@ -140,9 +193,63 @@
     }
     return ensurePaletteSize([], LEGACY_FILL_PALETTE, target);
   }
+  function getGraftegnerRoleSlotPairs() {
+    const config = getPaletteConfig();
+    if (colorPickerHelper && typeof colorPickerHelper.resolveRoleSlotPairs === 'function') {
+      return colorPickerHelper.resolveRoleSlotPairs(config, 'graftegner', DEFAULT_GRAFTEGNER_COLOR_ROLES);
+    }
+    const pairs = [];
+    for (let index = 0; index < FILL_COLOR_COUNT; index += 1) {
+      pairs.push({
+        fillSlotIndex: index * 2,
+        lineSlotIndex: index * 2 + 1
+      });
+    }
+    return pairs;
+  }
+  function getLineFillPalettes() {
+    const palette = getPaletteFromTheme(FILL_COLOR_COUNT * 2);
+    const fillColors = [];
+    const lineColors = [];
+    const roleSlots = getGraftegnerRoleSlotPairs();
+    if (roleSlots.length) {
+      roleSlots.forEach(role => {
+        const fill = palette[role.fillSlotIndex];
+        const line = palette[role.lineSlotIndex];
+        fillColors.push(fill || line || LEGACY_FILL_PALETTE[0]);
+        lineColors.push(line || fill || '#000');
+      });
+    } else {
+      for (let index = 0; index < palette.length; index += 2) {
+        const fill = palette[index];
+        const line = palette[index + 1];
+        fillColors.push(fill || line || LEGACY_FILL_PALETTE[0]);
+        lineColors.push(line || fill || '#000');
+      }
+    }
+    return { fillColors, lineColors };
+  }
   function getFillPalette() {
-    const palette = getPaletteFromTheme(FILL_COLOR_COUNT);
-    return Array.isArray(palette) ? palette.slice(0, FILL_COLOR_COUNT) : [];
+    return getLineFillPalettes().fillColors.slice(0, FILL_COLOR_COUNT);
+  }
+  function applyPairSwatch(element, fillColors, lineColors, index) {
+    if (!element) return;
+    const fillColor = fillColors[index - 1] || fillColors[0] || '#fff';
+    const lineColor = lineColors[index - 1] || lineColors[0] || '#000';
+    if (colorPickerHelper && typeof colorPickerHelper.renderColorPairSwatch === 'function') {
+      colorPickerHelper.renderColorPairSwatch({
+        element,
+        fillIndex: index,
+        lineIndex: index,
+        fillColors,
+        lineColors,
+        fallbackFill: '#fff',
+        fallbackLine: '#000'
+      });
+      return;
+    }
+    element.style.backgroundColor = fillColor;
+    element.style.borderColor = lineColor;
   }
   function sanitizeFillIndex(value, paletteLength) {
     const numeric = Number.parseInt(value, 10);
@@ -395,12 +502,13 @@
     if (!fillColorPicker) return;
     const activeButton = fillColorPicker.querySelector('.color-swatch--active');
     const optionsPanel = fillColorPicker.querySelector('.color-options');
-    const colors = Array.isArray(palette) ? palette : getFillPalette();
+    const paletteData = getLineFillPalettes();
+    const colors = Array.isArray(palette) ? palette : paletteData.fillColors.slice(0, FILL_COLOR_COUNT);
+    const lineColors = paletteData.lineColors.slice(0, colors.length);
     if (!activeButton || !optionsPanel) return;
     const safeIndex = sanitizeFillIndex(activeFillColorIndex, colors.length);
     activeFillColorIndex = safeIndex;
-    const activeColor = colors[safeIndex - 1] || colors[0] || DEFAULT_BRICK_PALETTE.left;
-    activeButton.style.backgroundColor = activeColor;
+    applyPairSwatch(activeButton, colors, lineColors, safeIndex);
     optionsPanel.querySelectorAll('.color-option-btn').forEach(btn => {
       const btnIndex = sanitizeFillIndex(btn.dataset.colorIndex, colors.length);
       btn.classList.toggle('is-selected', btnIndex === safeIndex);
@@ -425,7 +533,9 @@
     const activeButton = fillColorPicker.querySelector('.color-swatch--active');
     const optionsPanel = fillColorPicker.querySelector('.color-options');
     if (!activeButton || !optionsPanel) return;
-    const colors = getFillPalette();
+    const paletteData = getLineFillPalettes();
+    const colors = paletteData.fillColors.slice(0, FILL_COLOR_COUNT);
+    const lineColors = paletteData.lineColors.slice(0, colors.length);
     optionsPanel.innerHTML = '';
     colors.forEach((color, index) => {
       const btn = document.createElement('button');
@@ -433,7 +543,7 @@
       btn.className = 'color-option-btn';
       btn.dataset.colorIndex = String(index + 1);
       btn.dataset.colorValue = color;
-      btn.style.backgroundColor = color;
+      applyPairSwatch(btn, colors, lineColors, index + 1);
       btn.setAttribute('aria-label', `Velg farge ${index + 1}`);
       btn.addEventListener('click', event => {
         event.stopPropagation();

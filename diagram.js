@@ -31,6 +31,15 @@ const VALUE_DISPLAY_OPTIONS = ['none', 'number', 'fraction', 'percent'];
 const PIE_LABEL_POSITIONS = ['outside', 'inside'];
 const SERIES_COLOR_OPTION_COUNT = 6;
 const DIAGRAM_FILL_COLOR_COUNT = 6;
+const DEFAULT_GRAFTEGNER_COLOR_ROLES = [
+  { fillIndex: 5, lineIndex: 4 },
+  { fillIndex: 7, lineIndex: 6 },
+  { fillIndex: 9, lineIndex: 8 },
+  { fillIndex: 10, lineIndex: 11 },
+  { fillIndex: 12, lineIndex: 13 },
+  { fillIndex: 14, lineIndex: 15 }
+];
+const colorPickerHelper = getColorPickerHelper();
 function sanitizeValueDisplay(value) {
   if (typeof value !== 'string') return 'none';
   const normalized = value.trim().toLowerCase();
@@ -598,11 +607,59 @@ function getThemeApi() {
   return theme && typeof theme === 'object' ? theme : null;
 }
 
+function getColorPickerHelper() {
+  const scope = typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : null;
+  if (scope && scope.MathVisualsColorPickerHelper) {
+    return scope.MathVisualsColorPickerHelper;
+  }
+  if (typeof require === 'function') {
+    try {
+      return require('./colorpicker-helper.js');
+    } catch (_) {}
+  }
+  return null;
+}
+
 function getPaletteApi() {
   const root = typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : null;
   if (!root || typeof root !== 'object') return null;
   const palette = root.MathVisualsPalette;
   return palette && typeof palette.getGroupPalette === 'function' ? palette : null;
+}
+
+let paletteConfigResolved = false;
+let paletteConfigCache = null;
+
+function resolvePaletteConfig() {
+  const scopes = [
+    typeof window !== 'undefined' ? window : null,
+    typeof globalThis !== 'undefined' ? globalThis : null,
+    typeof global !== 'undefined' ? global : null
+  ];
+  for (const scope of scopes) {
+    if (!scope || typeof scope !== 'object') continue;
+    const config = scope.MathVisualsPaletteConfig;
+    if (config && typeof config === 'object') {
+      return config;
+    }
+  }
+  if (typeof require === 'function') {
+    try {
+      const mod = require('./palette/palette-config.js');
+      if (mod && typeof mod === 'object') {
+        return mod;
+      }
+    } catch (_) {}
+  }
+  return null;
+}
+
+function getPaletteConfig() {
+  if (!paletteConfigResolved) {
+    paletteConfigResolved = true;
+    paletteConfigCache = resolvePaletteConfig();
+  }
+  return paletteConfigCache;
 }
 
 function getActiveThemeProjectName(theme = getThemeApi()) {
@@ -853,16 +910,54 @@ function getSeriesColorOptionPalette(paletteEntries = []) {
   return [];
 }
 
-function getFillPaletteEntries(paletteEntries = [], fallback = []) {
+function getGraftegnerRoleSlotPairs() {
+  const config = getPaletteConfig();
+  if (colorPickerHelper && typeof colorPickerHelper.resolveRoleSlotPairs === 'function') {
+    return colorPickerHelper.resolveRoleSlotPairs(config, SHARED_GROUP_ID, DEFAULT_GRAFTEGNER_COLOR_ROLES);
+  }
+  const pairs = [];
+  for (let index = 0; index < DIAGRAM_FILL_COLOR_COUNT; index += 1) {
+    pairs.push({
+      fillSlotIndex: index * 2,
+      lineSlotIndex: index * 2 + 1
+    });
+  }
+  return pairs;
+}
+
+function getLineFillPaletteEntries(paletteEntries = [], fallback = []) {
   const sanitized = Array.isArray(paletteEntries) ? paletteEntries.filter(color => !!color) : [];
-  const fillEntries = sanitized.filter((_, index) => index % 2 === 0);
-  return ensurePalette(fillEntries, DIAGRAM_FILL_COLOR_COUNT, fallback);
+  const fillEntries = [];
+  const lineEntries = [];
+  const roleSlots = getGraftegnerRoleSlotPairs();
+  if (roleSlots.length) {
+    roleSlots.forEach(role => {
+      const fill = sanitized[role.fillSlotIndex];
+      const line = sanitized[role.lineSlotIndex];
+      fillEntries.push(fill || line);
+      lineEntries.push(line || fill);
+    });
+  } else {
+    sanitized.forEach((color, index) => {
+      if (index % 2 === 0) {
+        fillEntries.push(color);
+      } else {
+        lineEntries.push(color);
+      }
+    });
+  }
+  return {
+    fillEntries: ensurePalette(fillEntries, DIAGRAM_FILL_COLOR_COUNT, fallback),
+    lineEntries: ensurePalette(lineEntries, DIAGRAM_FILL_COLOR_COUNT, fallback)
+  };
+}
+
+function getFillPaletteEntries(paletteEntries = [], fallback = []) {
+  return getLineFillPaletteEntries(paletteEntries, fallback).fillEntries;
 }
 
 function getLinePaletteEntries(paletteEntries = [], fallback = []) {
-  const sanitized = Array.isArray(paletteEntries) ? paletteEntries.filter(color => !!color) : [];
-  const lineEntries = sanitized.filter((_, index) => index % 2 !== 0);
-  return ensurePalette(lineEntries, DIAGRAM_FILL_COLOR_COUNT, fallback);
+  return getLineFillPaletteEntries(paletteEntries, fallback).lineEntries;
 }
 
 function setSeriesColorOverride(seriesIndex, color) {
@@ -888,13 +983,24 @@ function updateSeriesColorPickers() {
     seriesOverrides: overrides
   });
   const optionColors = getSeriesColorOptionPalette(paletteData.fillPaletteEntries);
+  const lineOptionColors = getSeriesColorOptionPalette(paletteData.linePaletteEntries);
   seriesColorPickers.forEach(picker => {
     if (!picker || !picker.activeButton || !picker.optionsPanel) return;
     const activeColor = overrides[picker.seriesIndex]
       || paletteData.seriesPalette[picker.seriesIndex]
       || optionColors[0]
       || EMERGENCY_SERIES_COLORS[0];
-    picker.activeButton.style.backgroundColor = activeColor;
+    const activeLineColor =
+      paletteData.lineSeriesPalette[picker.seriesIndex]
+      || lineOptionColors[picker.seriesIndex]
+      || lineOptionColors[0]
+      || activeColor;
+    if (colorPickerHelper && typeof colorPickerHelper.applyColorPairSwatch === 'function') {
+      colorPickerHelper.applyColorPairSwatch(picker.activeButton, activeColor, activeLineColor);
+    } else {
+      picker.activeButton.style.backgroundColor = activeColor;
+      picker.activeButton.style.borderColor = activeLineColor;
+    }
     if (picker.input) {
       picker.input.value = activeColor || '';
     }
@@ -904,7 +1010,13 @@ function updateSeriesColorPickers() {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'color-option-btn' + (color === activeColor ? ' is-selected' : '');
-      btn.style.backgroundColor = color;
+      const lineColor = lineOptionColors[idx] || lineOptionColors[0] || activeLineColor;
+      if (colorPickerHelper && typeof colorPickerHelper.applyColorPairSwatch === 'function') {
+        colorPickerHelper.applyColorPairSwatch(btn, color, lineColor);
+      } else {
+        btn.style.backgroundColor = color;
+        btn.style.borderColor = lineColor;
+      }
       btn.setAttribute('aria-label', `Velg farge ${idx + 1}`);
       btn.addEventListener('click', event => {
         event.stopPropagation();

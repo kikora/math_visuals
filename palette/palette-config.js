@@ -168,6 +168,14 @@ function buildLegacyPaletteConfig() {
       title: 'Felles farger',
       description:
         'Farger som brukes av graftegner, diagram, brøksirkler, brøkfigurer, tallfigurer, kvikkbilder, tenkeblokker, brøkvegg og 3D-figurer.',
+      colorRoles: [
+        { fillIndex: 5, lineIndex: 4 },
+        { fillIndex: 7, lineIndex: 6 },
+        { fillIndex: 9, lineIndex: 8 },
+        { fillIndex: 10, lineIndex: 11 },
+        { fillIndex: 12, lineIndex: 13 },
+        { fillIndex: 14, lineIndex: 15 }
+      ],
       slots: [
         { index: 5, label: 'Fyll 1', description: 'Fyllfarge til linje 1.' },
         { index: 4, label: 'Linje 1', description: 'Linjefarge til fyll 1.' },
@@ -241,17 +249,36 @@ function buildLegacyPaletteConfig() {
       .filter(slot => Number.isInteger(slot.index) && slot.index >= 0);
   }
 
+  function cloneColorRoles(colorRoles) {
+    if (!Array.isArray(colorRoles)) return [];
+    return colorRoles
+      .map(role => {
+        if (!role || typeof role !== 'object') return null;
+        const fillIndex = Number.isInteger(role.fillIndex) ? Number(role.fillIndex) : null;
+        const lineIndex = Number.isInteger(role.lineIndex) ? Number(role.lineIndex) : null;
+        if (!Number.isInteger(fillIndex) || fillIndex < 0) return null;
+        if (!Number.isInteger(lineIndex) || lineIndex < 0) return null;
+        return {
+          fillIndex,
+          lineIndex
+        };
+      })
+      .filter(Boolean);
+  }
+
   const COLOR_SLOT_GROUPS = deepFreeze(
     RAW_COLOR_SLOT_GROUPS.map((group, groupIndex) => {
       const normalizedId =
         group && typeof group.groupId === 'string' ? group.groupId.trim().toLowerCase() : `gruppe-${groupIndex + 1}`;
       const groupId = normalizedId || `gruppe-${groupIndex + 1}`;
       const slots = cloneSlots(group && group.slots, groupId);
+      const colorRoles = cloneColorRoles(group && group.colorRoles);
       return deepFreeze({
         groupId,
         title: group && group.title ? String(group.title) : '',
         description: group && group.description ? String(group.description) : '',
         slots,
+        colorRoles,
         groupIndex
       });
     })

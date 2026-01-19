@@ -84,6 +84,19 @@ function createFallbackPaletteClient() {
   };
 }
 
+function getColorPickerHelper() {
+  const scope = typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : null;
+  if (scope && scope.MathVisualsColorPickerHelper) {
+    return scope.MathVisualsColorPickerHelper;
+  }
+  if (typeof require === 'function') {
+    try {
+      return require('./colorpicker-helper.js');
+    } catch (_) {}
+  }
+  return null;
+}
+
 function isValidColor(value) {
   return typeof value === 'string' && value.trim().length > 0;
 }
@@ -106,6 +119,7 @@ function isValidColor(value) {
     const FILL_COLOR_COUNT = 6;
     const STATE = typeof window.STATE === 'object' && window.STATE ? window.STATE : {};
     window.STATE = STATE;
+    const colorPickerHelper = getColorPickerHelper();
     let isSyncingTheme = false;
     let themeObserver = null;
     let rows = 3;
@@ -185,7 +199,12 @@ function isValidColor(value) {
     const safeIndex = sanitizeFillIndex(activeFillColorIndex, colors.length);
     activeFillColorIndex = safeIndex;
     const activeColor = colors[safeIndex - 1] || colors[0] || '#000';
-    activeButton.style.backgroundColor = activeColor;
+    if (colorPickerHelper && typeof colorPickerHelper.applyColorPairSwatch === 'function') {
+      colorPickerHelper.applyColorPairSwatch(activeButton, activeColor, activeColor);
+    } else {
+      activeButton.style.backgroundColor = activeColor;
+      activeButton.style.borderColor = activeColor;
+    }
     optionsPanel.querySelectorAll('.color-option-btn').forEach(btn => {
       const btnIndex = sanitizeFillIndex(btn.dataset.colorIndex, colors.length);
       btn.classList.toggle('is-selected', btnIndex === safeIndex);
@@ -204,7 +223,12 @@ function isValidColor(value) {
       btn.className = 'color-option-btn';
       btn.dataset.colorIndex = String(index + 1);
       btn.dataset.colorValue = color;
-      btn.style.backgroundColor = color;
+      if (colorPickerHelper && typeof colorPickerHelper.applyColorPairSwatch === 'function') {
+        colorPickerHelper.applyColorPairSwatch(btn, color, color);
+      } else {
+        btn.style.backgroundColor = color;
+        btn.style.borderColor = color;
+      }
       btn.setAttribute('aria-label', `Velg farge ${index + 1}`);
       btn.addEventListener('click', event => {
         event.stopPropagation();

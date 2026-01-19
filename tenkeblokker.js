@@ -86,6 +86,19 @@ function createFallbackPaletteClient() {
   };
 }
 
+function getColorPickerHelper() {
+  const scope = typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : null;
+  if (scope && scope.MathVisualsColorPickerHelper) {
+    return scope.MathVisualsColorPickerHelper;
+  }
+  if (typeof require === 'function') {
+    try {
+      return require('./colorpicker-helper.js');
+    } catch (_) {}
+  }
+  return null;
+}
+
 function isValidColor(value) {
   return typeof value === 'string' && value.trim().length > 0;
 }
@@ -157,6 +170,15 @@ const UNION_BRACE_INNER_WIDTH = UNION_BRACE_BOUNDS.right - UNION_BRACE_BOUNDS.le
 const UNION_BRACE_INNER_HEIGHT = UNION_BRACE_BOUNDS.bottom - UNION_BRACE_BOUNDS.top;
 const SHARED_GROUP_ID = 'graftegner';
 const FILL_COLOR_COUNT = 6;
+const DEFAULT_GRAFTEGNER_COLOR_ROLES = [
+  { fillIndex: 5, lineIndex: 4 },
+  { fillIndex: 7, lineIndex: 6 },
+  { fillIndex: 9, lineIndex: 8 },
+  { fillIndex: 10, lineIndex: 11 },
+  { fillIndex: 12, lineIndex: 13 },
+  { fillIndex: 14, lineIndex: 15 }
+];
+const colorPickerHelper = getColorPickerHelper();
 const FRACTION_FALLBACK_COLORS = Object.freeze([
   '#dbe7ff',
   '#c7d2fe',
@@ -222,6 +244,41 @@ function sanitizeFillIndex(value, paletteLength) {
   if (!Number.isFinite(numeric) || numeric < 1) return 1;
   return Math.min(numeric, max);
 }
+
+function getGraftegnerRoleSlotPairs() {
+  const config = getPaletteConfig();
+  if (colorPickerHelper && typeof colorPickerHelper.resolveRoleSlotPairs === 'function') {
+    return colorPickerHelper.resolveRoleSlotPairs(config, SHARED_GROUP_ID, DEFAULT_GRAFTEGNER_COLOR_ROLES);
+  }
+  const pairs = [];
+  for (let index = 0; index < FILL_COLOR_COUNT; index += 1) {
+    pairs.push({
+      fillSlotIndex: index * 2,
+      lineSlotIndex: index * 2 + 1
+    });
+  }
+  return pairs;
+}
+
+function applyPairSwatch(element, fillColors, lineColors, index) {
+  if (!element) return;
+  const fillColor = fillColors[index - 1] || fillColors[0] || '#fff';
+  const lineColor = lineColors[index - 1] || lineColors[0] || '#000';
+  if (colorPickerHelper && typeof colorPickerHelper.renderColorPairSwatch === 'function') {
+    colorPickerHelper.renderColorPairSwatch({
+      element,
+      fillIndex: index,
+      lineIndex: index,
+      fillColors,
+      lineColors,
+      fallbackFill: '#fff',
+      fallbackLine: '#000'
+    });
+    return;
+  }
+  element.style.backgroundColor = fillColor;
+  element.style.borderColor = lineColor;
+}
 function getFillPalette() {
   return getLineFillPalettes().fillColors.slice(0, FILL_COLOR_COUNT);
 }
@@ -239,11 +296,21 @@ function getLineFillPalettes() {
   const normalized = ensurePaletteCount(palette, fallback, targetCount);
   const fillColors = [];
   const lineColors = [];
-  for (let index = 0; index < targetCount; index += 2) {
-    const fill = normalized[index];
-    const line = normalized[index + 1];
-    fillColors.push(fill || line || FRACTION_FALLBACK_COLORS[0]);
-    lineColors.push(line || fill || '#000000');
+  const roleSlots = getGraftegnerRoleSlotPairs();
+  if (roleSlots.length) {
+    roleSlots.forEach(role => {
+      const fill = normalized[role.fillSlotIndex];
+      const line = normalized[role.lineSlotIndex];
+      fillColors.push(fill || line || FRACTION_FALLBACK_COLORS[0]);
+      lineColors.push(line || fill || '#000000');
+    });
+  } else {
+    for (let index = 0; index < targetCount; index += 2) {
+      const fill = normalized[index];
+      const line = normalized[index + 1];
+      fillColors.push(fill || line || FRACTION_FALLBACK_COLORS[0]);
+      lineColors.push(line || fill || '#000000');
+    }
   }
   return { fillColors, lineColors };
 }
@@ -284,7 +351,12 @@ function updateBlockFillPicker(block, paletteData) {
   const resolved = paletteData || resolveBlockPalette(block.cfg);
   const colors = resolved.palette;
   const activeColor = colors[resolved.index - 1] || colors[0] || '#000';
-  activeButton.style.backgroundColor = activeColor;
+  if (colorPickerHelper && typeof colorPickerHelper.applyColorPairSwatch === 'function') {
+    colorPickerHelper.applyColorPairSwatch(activeButton, activeColor, resolved.line);
+  } else {
+    activeButton.style.backgroundColor = activeColor;
+    activeButton.style.borderColor = resolved.line;
+  }
   optionsPanel.querySelectorAll('.color-option-btn').forEach(btn => {
     const btnIndex = sanitizeFillIndex(btn.dataset.colorIndex, colors.length);
     btn.classList.toggle('is-selected', btnIndex === resolved.index);
@@ -304,7 +376,7 @@ function renderBlockFillPickerOptions(block, paletteOverride, linePaletteOverrid
     btn.className = 'color-option-btn';
     btn.dataset.colorIndex = String(index + 1);
     btn.dataset.colorValue = color;
-    btn.style.backgroundColor = color;
+    applyPairSwatch(btn, palette, linePalette, index + 1);
     btn.setAttribute('aria-label', `Velg farge ${index + 1}`);
     btn.addEventListener('click', event => {
       event.stopPropagation();
@@ -452,6 +524,26 @@ function getFractionSlotIndices(config) {
     return DEFAULT_FRACTION_SLOT_INDICES.slice();
   }
   const indices = [];
+  if (Array.isArray(config.COLOR_SLOT_GROUPS)) {
+    const match = config.COLOR_SLOT_GROUPS.find(group => {
+      if (!group || typeof group.groupId !== 'string') return false;
+      return group.groupId.trim().toLowerCase() === SHARED_GROUP_ID;
+    });
+    if (match && Array.isArray(match.colorRoles) && match.colorRoles.length) {
+      match.colorRoles.forEach(role => {
+        if (!role || typeof role !== 'object') return;
+        if (Number.isInteger(role.fillIndex) && role.fillIndex >= 0) {
+          indices.push(role.fillIndex);
+        }
+        if (Number.isInteger(role.lineIndex) && role.lineIndex >= 0) {
+          indices.push(role.lineIndex);
+        }
+      });
+    }
+  }
+  if (indices.length) {
+    return indices;
+  }
   if (config.GROUP_SLOT_INDICES && typeof config.GROUP_SLOT_INDICES === 'object') {
     const raw = config.GROUP_SLOT_INDICES[SHARED_GROUP_ID];
     if (Array.isArray(raw)) {

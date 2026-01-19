@@ -87,6 +87,19 @@ function createFallbackPaletteClient() {
   };
 }
 
+function getColorPickerHelper() {
+  const scope = typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : null;
+  if (scope && scope.MathVisualsColorPickerHelper) {
+    return scope.MathVisualsColorPickerHelper;
+  }
+  if (typeof require === 'function') {
+    try {
+      return require('./colorpicker-helper.js');
+    } catch (_) {}
+  }
+  return null;
+}
+
 function isValidColor(value) {
   return typeof value === 'string' && value.trim().length > 0;
 }
@@ -111,6 +124,15 @@ const LEGACY_PIZZA_COLORS = {
 };
 const SHARED_GROUP_ID = 'graftegner';
 const FILL_COLOR_COUNT = 6;
+const DEFAULT_GRAFTEGNER_COLOR_ROLES = [
+  { fillIndex: 5, lineIndex: 4 },
+  { fillIndex: 7, lineIndex: 6 },
+  { fillIndex: 9, lineIndex: 8 },
+  { fillIndex: 10, lineIndex: 11 },
+  { fillIndex: 12, lineIndex: 13 },
+  { fillIndex: 14, lineIndex: 15 }
+];
+const colorPickerHelper = getColorPickerHelper();
 function getFillColorPickers() {
   if (typeof document === 'undefined') return [];
   return Array.from(document.querySelectorAll('[data-fill-color-picker]'));
@@ -275,6 +297,27 @@ function getGroupSlotIndices(config, groupId) {
   if (!config) return [];
   const normalizedGroupId = typeof groupId === 'string' ? groupId.trim().toLowerCase() : '';
   if (!normalizedGroupId) return [];
+  if (Array.isArray(config.COLOR_SLOT_GROUPS)) {
+    const group = config.COLOR_SLOT_GROUPS.find(entry => {
+      const groupKey = typeof entry?.groupId === 'string' ? entry.groupId.trim().toLowerCase() : '';
+      return groupKey === normalizedGroupId;
+    });
+    if (group && Array.isArray(group.colorRoles) && group.colorRoles.length) {
+      const indices = [];
+      group.colorRoles.forEach(role => {
+        if (!role || typeof role !== 'object') return;
+        if (Number.isInteger(role.fillIndex) && role.fillIndex >= 0) {
+          indices.push(role.fillIndex);
+        }
+        if (Number.isInteger(role.lineIndex) && role.lineIndex >= 0) {
+          indices.push(role.lineIndex);
+        }
+      });
+      if (indices.length) {
+        return indices;
+      }
+    }
+  }
   const indexMap = config.GROUP_SLOT_INDICES;
   if (indexMap && typeof indexMap === 'object') {
     const indices = indexMap[normalizedGroupId];
@@ -300,6 +343,41 @@ function getGroupSlotIndices(config, groupId) {
     }
   }
   return [];
+}
+
+function getGraftegnerRoleSlotPairs() {
+  const config = getPaletteConfig();
+  if (colorPickerHelper && typeof colorPickerHelper.resolveRoleSlotPairs === 'function') {
+    return colorPickerHelper.resolveRoleSlotPairs(config, SHARED_GROUP_ID, DEFAULT_GRAFTEGNER_COLOR_ROLES);
+  }
+  const pairs = [];
+  for (let index = 0; index < FILL_COLOR_COUNT; index += 1) {
+    pairs.push({
+      fillSlotIndex: index * 2,
+      lineSlotIndex: index * 2 + 1
+    });
+  }
+  return pairs;
+}
+
+function applyPairSwatch(element, fillColors, lineColors, index) {
+  if (!element) return;
+  const fillColor = fillColors[index - 1] || fillColors[0] || '#fff';
+  const lineColor = lineColors[index - 1] || lineColors[0] || '#000';
+  if (colorPickerHelper && typeof colorPickerHelper.renderColorPairSwatch === 'function') {
+    colorPickerHelper.renderColorPairSwatch({
+      element,
+      fillIndex: index,
+      lineIndex: index,
+      fillColors,
+      lineColors,
+      fallbackFill: '#fff',
+      fallbackLine: '#000'
+    });
+    return;
+  }
+  element.style.backgroundColor = fillColor;
+  element.style.borderColor = lineColor;
 }
 
 function getProjectGroupFallbackPalette(projectName, groupId, basePalette) {
@@ -514,11 +592,21 @@ function getLineFillPalettes() {
   const palette = Array.isArray(result.palette) ? result.palette : [];
   const lineColors = [];
   const fillColors = [];
-  for (let index = 0; index < targetCount; index += 2) {
-    const fill = palette[index];
-    const line = palette[index + 1];
-    fillColors.push(fill || line || '#fff');
-    lineColors.push(line || fill || '#000');
+  const roleSlots = getGraftegnerRoleSlotPairs();
+  if (roleSlots.length) {
+    roleSlots.forEach(role => {
+      const fill = palette[role.fillSlotIndex];
+      const line = palette[role.lineSlotIndex];
+      fillColors.push(fill || line || '#fff');
+      lineColors.push(line || fill || '#000');
+    });
+  } else {
+    for (let index = 0; index < targetCount; index += 2) {
+      const fill = palette[index];
+      const line = palette[index + 1];
+      fillColors.push(fill || line || '#fff');
+      lineColors.push(line || fill || '#000');
+    }
   }
   return { fillColors, lineColors };
 }
@@ -566,12 +654,13 @@ function updateFillPickerSelection(picker, palette) {
   if (!picker) return;
   const activeButton = picker.querySelector('.color-swatch--active');
   const optionsPanel = picker.querySelector('.color-options');
-  const colors = Array.isArray(palette) ? palette : getFillPalette();
+  const paletteData = getLineFillPalettes();
+  const colors = Array.isArray(palette) ? palette : paletteData.fillColors.slice(0, FILL_COLOR_COUNT);
+  const lineColors = paletteData.lineColors.slice(0, colors.length);
   if (!optionsPanel || !activeButton) return;
   const pizzaIndex = getPickerPizzaIndex(picker);
   const safeIndex = getPizzaFillIndex(pizzaIndex);
-  const activeColor = colors[safeIndex - 1] || colors[0] || '#000';
-  activeButton.style.backgroundColor = activeColor;
+  applyPairSwatch(activeButton, colors, lineColors, safeIndex);
   optionsPanel.querySelectorAll('.color-option-btn').forEach(btn => {
     const btnIndex = sanitizeFillIndex(btn.dataset.colorIndex, colors.length);
     btn.classList.toggle('is-selected', btnIndex === safeIndex);
@@ -581,7 +670,9 @@ function updateFillPickerSelection(picker, palette) {
 function renderFillColorPickers() {
   const pickers = getFillColorPickers();
   if (!pickers.length) return;
-  const colors = getFillPalette();
+  const paletteData = getLineFillPalettes();
+  const colors = paletteData.fillColors.slice(0, FILL_COLOR_COUNT);
+  const lineColors = paletteData.lineColors.slice(0, colors.length);
   pickers.forEach(picker => {
     const activeButton = picker.querySelector('.color-swatch--active');
     const optionsPanel = picker.querySelector('.color-options');
@@ -593,7 +684,7 @@ function renderFillColorPickers() {
       btn.className = 'color-option-btn';
       btn.dataset.colorIndex = String(index + 1);
       btn.dataset.colorValue = color;
-      btn.style.backgroundColor = color;
+      applyPairSwatch(btn, colors, lineColors, index + 1);
       btn.setAttribute('aria-label', `Velg farge ${index + 1}`);
       btn.addEventListener('click', event => {
         event.stopPropagation();
