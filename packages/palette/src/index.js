@@ -67,18 +67,18 @@ const RAW_COLOR_SLOT_GROUPS = [
     description:
       'Farger som brukes av graftegner, diagram, brøksirkler, brøkfigurer, tallfigurer, kvikkbilder, tenkeblokker, brøkvegg og 3D-figurer.',
     slots: [
-      { index: 5, label: 'Fyll 1', description: 'Fyllfarge til linje 1.' },
-      { index: 4, label: 'Linje 1', description: 'Linjefarge til fyll 1.' },
-      { index: 7, label: 'Fyll 2', description: 'Fyllfarge til linje 2.' },
-      { index: 6, label: 'Linje 2', description: 'Linjefarge til fyll 2.' },
-      { index: 9, label: 'Fyll 3', description: 'Fyllfarge til linje 3.' },
-      { index: 8, label: 'Linje 3', description: 'Linjefarge til fyll 3.' },
-      { index: 10, label: 'Fyll 4', description: 'Fyllfarge til linje 4.' },
-      { index: 11, label: 'Linje 4', description: 'Linjefarge til fyll 4.' },
-      { index: 12, label: 'Fyll 5', description: 'Fyllfarge til linje 5.' },
-      { index: 13, label: 'Linje 5', description: 'Linjefarge til fyll 5.' },
-      { index: 14, label: 'Fyll 6', description: 'Fyllfarge til linje 6.' },
-      { index: 15, label: 'Linje 6', description: 'Linjefarge til fyll 6.' }
+      { index: 0, label: 'Fyll 1', description: 'Fyllfarge til linje 1.' },
+      { index: 1, label: 'Linje 1', description: 'Linjefarge til fyll 1.' },
+      { index: 2, label: 'Fyll 2', description: 'Fyllfarge til linje 2.' },
+      { index: 3, label: 'Linje 2', description: 'Linjefarge til fyll 2.' },
+      { index: 4, label: 'Fyll 3', description: 'Fyllfarge til linje 3.' },
+      { index: 5, label: 'Linje 3', description: 'Linjefarge til fyll 3.' },
+      { index: 6, label: 'Fyll 4', description: 'Fyllfarge til linje 4.' },
+      { index: 7, label: 'Linje 4', description: 'Linjefarge til fyll 4.' },
+      { index: 8, label: 'Fyll 5', description: 'Fyllfarge til linje 5.' },
+      { index: 9, label: 'Linje 5', description: 'Linjefarge til fyll 5.' },
+      { index: 10, label: 'Fyll 6', description: 'Fyllfarge til linje 6.' },
+      { index: 11, label: 'Linje 6', description: 'Linjefarge til fyll 6.' }
     ]
   },
   {
