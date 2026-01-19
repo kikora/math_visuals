@@ -15,10 +15,7 @@
   const selectAllToggle = document.querySelector('[data-select-all]');
   const selectionCountElement = document.querySelector('[data-selection-count]');
   const renameSelectedButton = document.querySelector('[data-selection-rename]');
-  const headerToggle = document.querySelector('[data-header-toggle]');
-  const headerInfo = document.querySelector('[data-header-info]');
-  const compactToggle = document.querySelector('[data-compact-toggle]');
-  const sizeOptions = Array.from(document.querySelectorAll('[data-size-option]'));
+  const sizeSelect = document.querySelector('[data-size-select]');
   const pageBody = document.querySelector('.svg-archive-page');
   const rootElement = document.documentElement;
 
@@ -66,7 +63,6 @@
     : null;
   const TRASH_QUEUE_STORAGE_KEY = 'mathvis:examples:trashQueue:v1';
   const ARCHIVE_CACHE_STORAGE_KEY = 'mathvis:svgArchive:cache:v1';
-  const COMPACT_STORAGE_KEY = 'mathvis:svgArchive:compactMode:v1';
   const ARCHIVE_SIZE_STORAGE_KEY = 'mathvis:svgArchive:cardSize:v1';
   const ARCHIVE_SIZE_CLASS_PREFIX = 'svg-archive-size--';
   const ARCHIVE_SIZE_PRESETS = {
@@ -81,52 +77,6 @@
   const entryAltTextCache = new Map();
   const selectedSlugs = new Set();
   let cardIdCounter = 0;
-  const headerExpandedLabel = (headerToggle?.dataset.labelExpanded || headerToggle?.textContent || '').trim() || 'Skjul info';
-  const headerCollapsedLabel = (headerToggle?.dataset.labelCollapsed || '').trim() || 'Vis info';
-
-  function setHeaderExpanded(isExpanded) {
-    if (headerInfo) {
-      headerInfo.hidden = !isExpanded;
-    }
-    if (headerToggle) {
-      headerToggle.setAttribute('aria-expanded', String(isExpanded));
-      headerToggle.textContent = isExpanded ? headerExpandedLabel : headerCollapsedLabel;
-    }
-  }
-
-  function readCompactPreference() {
-    if (typeof window === 'undefined') {
-      return false;
-    }
-    try {
-      return window.localStorage.getItem(COMPACT_STORAGE_KEY) === '1';
-    } catch (error) {
-      return false;
-    }
-  }
-
-  function writeCompactPreference(enabled) {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    try {
-      if (enabled) {
-        window.localStorage.setItem(COMPACT_STORAGE_KEY, '1');
-      } else {
-        window.localStorage.removeItem(COMPACT_STORAGE_KEY);
-      }
-    } catch (error) {}
-  }
-
-  function applyCompactMode(enabled) {
-    if (pageBody) {
-      pageBody.classList.toggle('svg-archive-page--compact', enabled);
-    }
-    if (compactToggle) {
-      compactToggle.checked = enabled;
-    }
-  }
-
   function readArchiveSizePreference() {
     if (typeof window === 'undefined') {
       return 'medium';
@@ -162,9 +112,9 @@
       rootElement.classList.add(`${ARCHIVE_SIZE_CLASS_PREFIX}${resolvedSize}`);
       rootElement.style.setProperty('--archive-card-min', minWidth);
     }
-    sizeOptions.forEach((option) => {
-      option.checked = option.value === resolvedSize;
-    });
+    if (sizeSelect) {
+      sizeSelect.value = resolvedSize;
+    }
   }
 
   function getGlobalTrashQueue() {
@@ -185,35 +135,16 @@
     return null;
   }
 
-  if (headerToggle && headerInfo) {
-    const initialExpanded = headerToggle.getAttribute('aria-expanded') !== 'false';
-    setHeaderExpanded(initialExpanded);
-    headerToggle.addEventListener('click', () => {
-      const isExpanded = headerToggle.getAttribute('aria-expanded') === 'true';
-      setHeaderExpanded(!isExpanded);
-    });
+  if (pageBody) {
+    pageBody.classList.add('svg-archive-page--compact');
   }
 
-  if (compactToggle) {
-    applyCompactMode(readCompactPreference());
-    compactToggle.addEventListener('change', () => {
-      const enabled = compactToggle.checked;
-      applyCompactMode(enabled);
-      writeCompactPreference(enabled);
-    });
-  }
-
-  if (sizeOptions.length) {
+  if (sizeSelect) {
     applyArchiveSize(readArchiveSizePreference());
-    sizeOptions.forEach((option) => {
-      option.addEventListener('change', () => {
-        if (!option.checked) {
-          return;
-        }
-        const value = option.value;
-        applyArchiveSize(value);
-        writeArchiveSizePreference(value);
-      });
+    sizeSelect.addEventListener('change', () => {
+      const value = sizeSelect.value;
+      applyArchiveSize(value);
+      writeArchiveSizePreference(value);
     });
   }
 
