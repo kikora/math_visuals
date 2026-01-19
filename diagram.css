@@ -103,11 +103,11 @@
 .xLabel{fill:var(--diagram-text-color);font-size:calc(var(--diagram-text-scale, 1) * 20px);text-anchor:middle}
 
 /* Søyler + vurderingsrammer */
-.bar{stroke:var(--diagram-bar-stroke);stroke-width:4;opacity:1;fill-opacity:1}
+.bar{stroke:none;stroke-width:0;opacity:1;fill-opacity:1}
 .bar.series0{fill:var(--diagram-series-0)}
 .bar.series1{fill:var(--diagram-series-1)}
-.bar.badge-ok{stroke:#2e7d32;stroke-width:4}
-.bar.badge-no{stroke:#c62828;stroke-width:4}
+.bar.badge-ok{stroke:none;stroke-width:0}
+.bar.badge-no{stroke:none;stroke-width:0}
 .pie-slice.badge-ok{stroke:#2e7d32;stroke-width:4}
 .pie-slice.badge-no{stroke:#c62828;stroke-width:4}
 
