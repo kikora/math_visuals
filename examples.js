@@ -1646,6 +1646,24 @@ initExamples();
       window.location.replace(target.toString());
     } catch (_) {}
   })();
+  (function redirectStandaloneToolPageToShell() {
+    if (typeof window === 'undefined') return;
+    if (window.top && window.top !== window) return;
+    const { pathname, search, hash } = window.location || {};
+    const path = typeof pathname === 'string' ? pathname : '';
+    if (!path || path === '/') return;
+    if (!/\.html?$/i.test(path)) return;
+    if (/\/index\.html?$/i.test(path)) return;
+    try {
+      const target = new URL(
+        '/index.html',
+        window.location && window.location.origin ? window.location.origin : undefined
+      );
+      const rawPath = `${path}${typeof search === 'string' ? search : ''}${typeof hash === 'string' ? hash : ''}`;
+      target.searchParams.set('path', rawPath);
+      window.location.replace(target.toString());
+    } catch (_) {}
+  })();
   function normalizePathname(pathname, options) {
     const preserveCase = !!(options && options.preserveCase);
     if (typeof pathname !== 'string') return '/';
