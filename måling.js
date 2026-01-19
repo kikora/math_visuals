@@ -6639,7 +6639,11 @@ const FIGURE_LIBRARY_APP_KEY = 'maling';
       return;
     }
     const preset = figureData.byId.get(presetId);
-    if (!preset || preset.custom) {
+    if (!preset) {
+      return;
+    }
+    const isCustomPlaceholder = preset.custom && preset.id === CUSTOM_FIGURE_ID;
+    if (isCustomPlaceholder) {
       return;
     }
     updateSettings({
