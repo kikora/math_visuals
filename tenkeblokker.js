@@ -184,12 +184,12 @@ const UNION_BRACE_INNER_HEIGHT = UNION_BRACE_BOUNDS.bottom - UNION_BRACE_BOUNDS.
 const SHARED_GROUP_ID = 'graftegner';
 const FILL_COLOR_COUNT = 6;
 const DEFAULT_GRAFTEGNER_COLOR_ROLES = [
-  { fillIndex: 5, lineIndex: 4 },
-  { fillIndex: 7, lineIndex: 6 },
-  { fillIndex: 9, lineIndex: 8 },
-  { fillIndex: 10, lineIndex: 11 },
-  { fillIndex: 12, lineIndex: 13 },
-  { fillIndex: 14, lineIndex: 15 }
+  { fillIndex: 0, lineIndex: 1 },
+  { fillIndex: 2, lineIndex: 3 },
+  { fillIndex: 4, lineIndex: 5 },
+  { fillIndex: 6, lineIndex: 7 },
+  { fillIndex: 8, lineIndex: 9 },
+  { fillIndex: 10, lineIndex: 11 }
 ];
 const colorPickerHelper = getColorPickerHelper();
 const colorPickerModule = getColorPickerModule();
