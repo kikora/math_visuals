@@ -972,9 +972,16 @@ function resolveNkantPalette() {
   const paletteApi = getPaletteApi();
   const settings = getSettingsApi();
   const theme = getThemeApi();
+  const settingsData =
+    settings && typeof settings.getSettings === 'function'
+      ? settings.getSettings()
+      : settings && typeof settings === 'object'
+      ? settings
+      : null;
 
   const request = {
-    count: NKANT_GROUP_PALETTE_SIZE
+    count: NKANT_GROUP_PALETTE_SIZE,
+    settings: settingsData
   };
 
   let groupPalette = [];
