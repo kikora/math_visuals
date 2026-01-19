@@ -6019,32 +6019,36 @@ function bindUI() {
 
       const specRow = document.createElement("div");
       specRow.className = "specs-row";
-      const specInput = document.createElement("textarea");
-      specInput.rows = 2;
+      const specInput = document.createElement("input");
+      specInput.type = "text";
       specInput.spellcheck = false;
       specInput.value = fig.specText || "";
       specInput.addEventListener("input", () => {
         fig.specText = specInput.value;
         syncSpecsTextFromFigures();
       });
-      specRow.appendChild(specInput);
-      const drawBtn = document.createElement("button");
-        drawBtn.type = "button";
-        drawBtn.className = "btn figure-config__draw";
-        drawBtn.textContent = "Tegn";
-        drawBtn.addEventListener("click", () => {
+      specInput.addEventListener("keydown", event => {
+        if (event.key === "Enter") {
+          event.preventDefault();
           updateState(() => {
             fig.specText = specInput.value;
             syncSpecsTextFromFigures();
           });
+        }
+      });
+      specInput.addEventListener("blur", () => {
+        updateState(() => {
+          fig.specText = specInput.value;
+          syncSpecsTextFromFigures();
         });
-      specRow.appendChild(drawBtn);
+      });
+      specRow.appendChild(specInput);
       wrapper.appendChild(specRow);
 
       const colorRow = document.createElement("div");
       colorRow.className = "figure-config__colors";
       const colorLabel = document.createElement("label");
-      colorLabel.textContent = "Farger";
+      colorLabel.textContent = "Farger (Fyll, linje og vinkel)";
       colorRow.appendChild(colorLabel);
 
       const colorPicker = document.createElement("div");
@@ -6063,11 +6067,6 @@ function bindUI() {
       colorPicker.appendChild(swatchBtn);
       colorPicker.appendChild(optionsPanel);
       colorRow.appendChild(colorPicker);
-
-      const colorNote = document.createElement("div");
-      colorNote.className = "small";
-      colorNote.textContent = "Fyll, linje og vinkel.";
-      colorRow.appendChild(colorNote);
 
       const palette = nkantPaletteCache.length ? nkantPaletteCache : resolveNkantPalette();
       const colorSetIndex = getFigureColorSetIndex(fig);
