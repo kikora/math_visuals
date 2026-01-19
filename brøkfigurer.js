@@ -468,8 +468,11 @@ function isValidColor(value) {
       });
       return;
     }
-    element.style.backgroundColor = fillColor;
-    element.style.borderColor = lineColor;
+    if (element.classList) {
+      element.classList.add('color-swatch--pair');
+    }
+    element.style.setProperty('--swatch-fill', fillColor);
+    element.style.setProperty('--swatch-line', lineColor);
   }
 
   function getSettingsApi() {
@@ -810,7 +813,7 @@ function isValidColor(value) {
       colors.forEach((color, index) => {
         const btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = 'color-option-btn';
+        btn.className = 'color-option-btn color-swatch--pair';
         btn.dataset.colorIndex = String(index + 1);
         btn.dataset.colorValue = color;
         applyPairSwatch(btn, colors, lineColors, index + 1);
@@ -1306,7 +1309,7 @@ function isValidColor(value) {
       <div class="fill-color-picker" data-fill-color-picker data-figure-id="${id}">
         <span class="fill-color-picker__label">Fyllfarge</span>
         <div class="color-picker">
-          <button type="button" class="color-swatch color-swatch--active" aria-label="Velg fyllfarge"></button>
+          <button type="button" class="color-swatch color-swatch--active color-swatch--pair" aria-label="Velg fyllfarge"></button>
           <div class="color-options" hidden></div>
         </div>
       </div>

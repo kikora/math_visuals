@@ -376,8 +376,11 @@ function applyPairSwatch(element, fillColors, lineColors, index) {
     });
     return;
   }
-  element.style.backgroundColor = fillColor;
-  element.style.borderColor = lineColor;
+  if (element.classList) {
+    element.classList.add('color-swatch--pair');
+  }
+  element.style.setProperty('--swatch-fill', fillColor);
+  element.style.setProperty('--swatch-line', lineColor);
 }
 
 function getProjectGroupFallbackPalette(projectName, groupId, basePalette) {
@@ -679,9 +682,9 @@ function renderFillColorPickers() {
     if (!activeButton || !optionsPanel) return;
     optionsPanel.innerHTML = '';
     colors.forEach((color, index) => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'color-option-btn';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'color-option-btn color-swatch--pair';
       btn.dataset.colorIndex = String(index + 1);
       btn.dataset.colorValue = color;
       applyPairSwatch(btn, colors, lineColors, index + 1);

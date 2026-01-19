@@ -80,12 +80,12 @@
       height:32px;
       border-radius:50%;
       border:2px solid #fff;
-      box-shadow:0 0 0 1px #d1d5db;
+      --swatch-outer-ring:0 0 0 1px #d1d5db;
       cursor:pointer;
       padding:0;
       transition:transform 0.1s;
     }
-    .color-swatch--active:hover{transform:scale(1.1);box-shadow:0 0 0 1px #9ca3af;}
+    .color-swatch--active:hover{transform:scale(1.1);--swatch-outer-ring:0 0 0 1px #9ca3af;}
     .color-options{
       position:absolute;
       top:100%;
@@ -115,13 +115,14 @@
       width:24px;
       height:24px;
       border-radius:50%;
-      border:1px solid rgba(0,0,0,0.1);
+      border:0;
+      background:transparent;
       cursor:pointer;
       padding:0;
       transition:transform 0.1s;
     }
     .color-option-btn:hover{transform:scale(1.2);}
-    .color-option-btn.is-selected{outline:2px solid #6366f1;outline-offset:2px;}
+    .color-option-btn.is-selected{--swatch-outer-ring:0 0 0 2px #6366f1;}
     .color-options[hidden]{display:none !important;}
     .checkbox-row{display:flex;align-items:center;gap:6px;}
     #playBtn{
@@ -185,7 +186,7 @@
           <div class="fill-color-picker" data-fill-color-picker>
             <span class="fill-color-picker__label">Fyllfarge</span>
             <div class="color-picker">
-              <button type="button" class="color-swatch color-swatch--active" aria-label="Velg fyllfarge"></button>
+              <button type="button" class="color-swatch color-swatch--active color-swatch--pair" aria-label="Velg fyllfarge"></button>
               <div class="color-options" hidden></div>
             </div>
           </div>

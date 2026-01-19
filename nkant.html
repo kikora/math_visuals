@@ -71,12 +71,12 @@
       height:32px;
       border-radius:50%;
       border:2px solid #fff;
-      box-shadow:0 0 0 1px #d1d5db;
+      --swatch-outer-ring:0 0 0 1px #d1d5db;
       cursor:pointer;
       padding:0;
       transition:transform 0.1s;
     }
-    .color-swatch--active:hover{transform:scale(1.1);box-shadow:0 0 0 1px #9ca3af;}
+    .color-swatch--active:hover{transform:scale(1.1);--swatch-outer-ring:0 0 0 1px #9ca3af;}
     .color-swatch--triple{
       background:linear-gradient(90deg,var(--swatch-color-1) 0 33%,var(--swatch-color-2) 33% 66%,var(--swatch-color-3) 66% 100%);
     }
@@ -109,7 +109,8 @@
       width:24px;
       height:24px;
       border-radius:50%;
-      border:1px solid rgba(0,0,0,0.1);
+      border:0;
+      background:transparent;
       cursor:pointer;
       padding:0;
       transition:transform 0.1s;
