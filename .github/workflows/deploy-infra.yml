@@ -70,6 +70,26 @@ jobs:
           role-to-assume: ${{ env.AWS_IAC_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Debug CloudFront invalidation paths
+        run: |
+          if [ -z "${STATIC_SITE_CLOUDFRONT_DISTRIBUTION_ID:-}" ]; then
+            echo "STATIC_SITE_CLOUDFRONT_DISTRIBUTION_ID is empty; CloudFront invalidation will be resolved from stack outputs."
+          else
+            echo "STATIC_SITE_CLOUDFRONT_DISTRIBUTION_ID is set."
+          fi
+          if [ -n "${{ github.event.inputs.cloudfront_invalidation_paths }}" ]; then
+            echo "Using workflow_dispatch input for invalidation paths."
+          elif [ -n "${CLOUDFRONT_INVALIDATION_PATHS:-}" ]; then
+            echo "Using CLOUDFRONT_INVALIDATION_PATHS from secrets/default."
+          else
+            echo "CLOUDFRONT_INVALIDATION_PATHS is empty."
+          fi
+          if [ -z "${CLOUDFRONT_INVALIDATION_PATHS:-}" ]; then
+            echo "CLOUDFRONT_INVALIDATION_PATHS length: 0"
+          else
+            echo "CLOUDFRONT_INVALIDATION_PATHS length: ${#CLOUDFRONT_INVALIDATION_PATHS}"
+          fi
+
       - name: Ensure App Runner service-linked role exists
         run: |
           # App Runner stacks require the AWSServiceRoleForAppRunner role. See infra/README.md for IAM guidance.
@@ -419,6 +439,26 @@ jobs:
               CloudFrontPriceClass=$STATIC_SITE_CLOUDFRONT_PRICE_CLASS \
               SharedParametersStackName=$SHARED_PARAMETERS_STACK_NAME
 
+      - name: Resolve static site outputs
+        run: |
+          set -euo pipefail
+
+          site_bucket=$(aws cloudformation describe-stacks \
+            --stack-name "$STATIC_STACK_NAME" \
+            --query "Stacks[0].Outputs[?OutputKey=='StaticSiteBucketName'].OutputValue" \
+            --output text)
+          distribution_id=$(aws cloudformation describe-stacks \
+            --stack-name "$STATIC_STACK_NAME" \
+            --query "Stacks[0].Outputs[?OutputKey=='CloudFrontDistributionId'].OutputValue" \
+            --output text)
+
+          if [ -n "$site_bucket" ] && [ "$site_bucket" != "None" ]; then
+            echo "STATIC_SITE_BUCKET_NAME=$site_bucket" >> "$GITHUB_ENV"
+          fi
+          if [ -n "$distribution_id" ] && [ "$distribution_id" != "None" ]; then
+            echo "STATIC_SITE_CLOUDFRONT_DISTRIBUTION_ID=$distribution_id" >> "$GITHUB_ENV"
+          fi
+
       - name: Build and upload static assets
         env:
           SITE_BUCKET_NAME: ${{ env.STATIC_SITE_BUCKET_NAME }}
@@ -450,20 +490,6 @@ jobs:
           echo "📄 Laster opp index.html..."
           aws s3 cp public/index.html "s3://$SITE_BUCKET_NAME/index.html" \
             --cache-control "no-cache,no-store,must-revalidate"
-
-      - name: Resolve CloudFront distribution ID
-        if: ${{ env.STATIC_SITE_CLOUDFRONT_DISTRIBUTION_ID == '' }}
-        run: |
-          set -euo pipefail
-          distribution_id=$(aws cloudformation describe-stacks \
-            --stack-name "$STATIC_STACK_NAME" \
-            --query "Stacks[0].Outputs[?OutputKey=='CloudFrontDistributionId'].OutputValue" \
-            --output text)
-          if [ -z "$distribution_id" ] || [ "$distribution_id" = "None" ]; then
-            echo "Fant ikke CloudFrontDistributionId-output for $STATIC_STACK_NAME" >&2
-            exit 1
-          fi
-          echo "STATIC_SITE_CLOUDFRONT_DISTRIBUTION_ID=$distribution_id" >> "$GITHUB_ENV"
 
       - name: Invalidate CloudFront cache
         if: ${{ env.STATIC_SITE_CLOUDFRONT_DISTRIBUTION_ID != '' }}
