@@ -40,7 +40,7 @@ function createStubElement() {
 }
 
 test.describe('tenkeblokker fraction palette fallbacks', () => {
-  test('resolves different fallback colors per project when APIs are unavailable', () => {
+  test('resolves global fallback colors when APIs are unavailable', () => {
     const originalGlobals = {
       window: global.window,
       document: global.document,
@@ -145,12 +145,10 @@ test.describe('tenkeblokker fraction palette fallbacks', () => {
       expect(annetColors).toHaveLength(2);
       expect(campusExtended).toHaveLength(4);
       expect(annetExtended).toHaveLength(4);
-      expect(campusColors).toEqual(['#c0ffee', '#123456']);
-      expect(annetColors).toEqual(['#ff7700', '#004477']);
-      expect(campusColors).not.toEqual(annetColors);
-      expect(campusExtended).toEqual(['#c0ffee', '#123456', '#c0ffee', '#123456']);
-      expect(annetExtended).toEqual(['#ff7700', '#004477', '#ff7700', '#004477']);
-      expect(campusExtended).not.toEqual(annetExtended);
+      expect(campusColors).toEqual(['#abcdef', '#fedcba']);
+      expect(annetColors).toEqual(['#abcdef', '#fedcba']);
+      expect(campusExtended).toEqual(['#abcdef', '#fedcba', '#abcdef', '#fedcba']);
+      expect(annetExtended).toEqual(['#abcdef', '#fedcba', '#abcdef', '#fedcba']);
     } finally {
       delete require.cache[require.resolve('../tenkeblokker.js')];
       restoreGlobal('window', originalGlobals.window);

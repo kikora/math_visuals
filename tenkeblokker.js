@@ -233,7 +233,7 @@ function getLinePalette() {
 function getLineFillPalettes() {
   const targetCount = FILL_COLOR_COUNT * 2;
   const palette = resolveFractionPalette(targetCount);
-  const fallbackPalette = resolveProjectFractionFallback(resolvePaletteProjectName());
+  const fallbackPalette = resolveFractionFallbackPalette();
   const fallback =
     Array.isArray(fallbackPalette) && fallbackPalette.length ? fallbackPalette : FRACTION_FALLBACK_COLORS;
   const normalized = ensurePaletteCount(palette, fallback, targetCount);
@@ -403,68 +403,6 @@ function getPaletteProjectResolver() {
   return null;
 }
 
-function getActiveThemeProjectName(theme = getThemeApi()) {
-  if (!theme || typeof theme.getActiveProfileName !== 'function') return null;
-  try {
-    const value = theme.getActiveProfileName();
-    if (typeof value === 'string' && value.trim()) {
-      return value.trim().toLowerCase();
-    }
-  } catch (_) {}
-  return null;
-}
-
-function resolvePaletteProjectName() {
-  const resolver = getPaletteProjectResolver();
-  const doc = typeof document !== 'undefined' ? document : null;
-  const theme = getThemeApi();
-  const settings = getSettingsApi();
-  if (resolver && typeof resolver.resolvePaletteProject === 'function') {
-    try {
-      const resolved = resolver.resolvePaletteProject({
-        document: doc || undefined,
-        root: doc && doc.documentElement ? doc.documentElement : undefined,
-        theme: theme || undefined,
-        settings: settings || undefined,
-        location: typeof window !== 'undefined' ? window.location : undefined
-      });
-      if (typeof resolved === 'string' && resolved) {
-        return resolved;
-      }
-    } catch (_) {}
-  }
-  if (doc && doc.documentElement) {
-    const root = doc.documentElement;
-    const direct =
-      (typeof root.getAttribute === 'function' && root.getAttribute('data-project')) ||
-      (root.dataset && root.dataset.project);
-    if (typeof direct === 'string' && direct.trim()) {
-      return direct.trim().toLowerCase();
-    }
-    const activeAttr = root.getAttribute && root.getAttribute('data-mv-active-project');
-    if (typeof activeAttr === 'string' && activeAttr.trim()) {
-      return activeAttr.trim().toLowerCase();
-    }
-    const profileAttr = root.getAttribute && root.getAttribute('data-theme-profile');
-    if (typeof profileAttr === 'string' && profileAttr.trim()) {
-      return profileAttr.trim().toLowerCase();
-    }
-  }
-  const activeThemeProject = getActiveThemeProjectName(theme);
-  if (activeThemeProject) return activeThemeProject;
-  if (settings && typeof settings.getActiveProject === 'function') {
-    try {
-      const value = settings.getActiveProject();
-      if (typeof value === 'string' && value.trim()) {
-        return value.trim().toLowerCase();
-      }
-    } catch (_) {}
-  }
-  if (settings && typeof settings.activeProject === 'string' && settings.activeProject.trim()) {
-    return settings.activeProject.trim().toLowerCase();
-  }
-  return null;
-}
 
 function sanitizePaletteList(values) {
   if (!Array.isArray(values)) return [];
@@ -544,16 +482,14 @@ function getFractionSlotIndices(config) {
   return indices;
 }
 
-function resolveProjectFractionFallback(projectName) {
+function resolveFractionFallbackPalette() {
   const config = getPaletteConfig();
   const fallbacks = config && typeof config.PROJECT_FALLBACKS === 'object' ? config.PROJECT_FALLBACKS : null;
   if (!fallbacks) {
     return [];
   }
-  const normalizedProject = typeof projectName === 'string' ? projectName.trim().toLowerCase() : '';
-  const projectPalette = Array.isArray(fallbacks[normalizedProject]) ? fallbacks[normalizedProject] : null;
   const defaultPalette = Array.isArray(fallbacks.default) ? fallbacks.default : null;
-  const palette = projectPalette && projectPalette.length ? projectPalette : defaultPalette;
+  const palette = defaultPalette && defaultPalette.length ? defaultPalette : null;
   if (!palette || !palette.length) {
     return [];
   }
@@ -630,8 +566,7 @@ function tryResolvePalette(resolver) {
 
 function resolveFractionPalette(count = 2) {
   const target = Number.isFinite(count) && count > 0 ? Math.max(2, Math.trunc(count)) : 2;
-  const project = resolvePaletteProjectName();
-  const projectFallback = sanitizePaletteList(resolveProjectFractionFallback(project));
+  const projectFallback = sanitizePaletteList(resolveFractionFallbackPalette());
   const fallback =
     projectFallback.length
       ? ensurePaletteCount(projectFallback, projectFallback, target)
@@ -640,7 +575,6 @@ function resolveFractionPalette(count = 2) {
     paletteService.resolveGroupPalette({
       groupId: SHARED_GROUP_ID,
       count: target || undefined,
-      project: project || undefined,
       fallback,
       legacyPaletteId: 'fractions',
       fallbackKinds: ['figures']
@@ -653,7 +587,6 @@ function resolveFractionPalette(count = 2) {
   if (paletteApi) {
     const palette = tryResolvePalette(() =>
       paletteApi.getGroupPalette(SHARED_GROUP_ID, {
-        project: project || undefined,
         count: target || undefined
       })
     );
@@ -665,18 +598,11 @@ function resolveFractionPalette(count = 2) {
   if (settings && typeof settings.getGroupPalette === 'function') {
     let palette = tryResolvePalette(() =>
       settings.getGroupPalette(SHARED_GROUP_ID, {
-        project: project || undefined,
         count: target || undefined
       })
     );
     if ((!palette || palette.length < target) && settings.getGroupPalette.length >= 3) {
-      palette = tryResolvePalette(() =>
-        settings.getGroupPalette(
-          SHARED_GROUP_ID,
-          target || undefined,
-          project ? { project } : undefined
-        )
-      );
+      palette = tryResolvePalette(() => settings.getGroupPalette(SHARED_GROUP_ID, target || undefined));
     }
     if (palette && palette.length) {
       return ensurePaletteCount(palette, fallback, target);
@@ -686,18 +612,11 @@ function resolveFractionPalette(count = 2) {
   if (theme && typeof theme.getGroupPalette === 'function') {
     let palette = tryResolvePalette(() =>
       theme.getGroupPalette(SHARED_GROUP_ID, {
-        project: project || undefined,
         count: target || undefined
       })
     );
     if ((!palette || palette.length < target) && theme.getGroupPalette.length >= 3) {
-      palette = tryResolvePalette(() =>
-        theme.getGroupPalette(
-          SHARED_GROUP_ID,
-          target || undefined,
-          project ? { project } : undefined
-        )
-      );
+      palette = tryResolvePalette(() => theme.getGroupPalette(SHARED_GROUP_ID, target || undefined));
     }
     if (palette && palette.length) {
       return ensurePaletteCount(palette, fallback, target);
@@ -706,8 +625,7 @@ function resolveFractionPalette(count = 2) {
   if (theme && typeof theme.getPalette === 'function') {
     const palette = tryResolvePalette(() =>
       theme.getPalette('fractions', target || fallback.length, {
-        fallbackKinds: ['figures'],
-        project: project || undefined
+        fallbackKinds: ['figures']
       })
     );
     if (palette && palette.length) {
@@ -3782,6 +3700,6 @@ function getExportSvg() {
 if (typeof module !== 'undefined' && module && module.exports) {
   module.exports.resolveFractionPalette = resolveFractionPalette;
   module.exports.__tenkeblokker = {
-    resolveProjectFractionFallback
+    resolveFractionFallbackPalette
   };
 }

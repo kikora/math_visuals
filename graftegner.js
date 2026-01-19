@@ -328,21 +328,6 @@ function getThemeApi() {
 function getPaletteApi() {
   return (typeof window !== 'undefined' && window.MathVisualsPalette) || null;
 }
-function getActiveProjectName() {
-  const theme = getThemeApi();
-  if (theme && typeof theme.getActiveProfileName === 'function') {
-    try {
-      const val = theme.getActiveProfileName();
-      if (val) return val.trim().toLowerCase();
-    } catch (_) {}
-  }
-  if (typeof document !== 'undefined' && document.documentElement) {
-    const attr = document.documentElement.getAttribute('data-mv-active-project') ||
-      document.documentElement.getAttribute('data-theme-profile');
-    if (attr) return attr.trim().toLowerCase();
-  }
-  return null;
-}
 
 function getThemeColor(token, fallback) {
   const theme = getThemeApi();
@@ -377,7 +362,6 @@ function getReadableTextColor(color) {
 }
 
 function refreshGraftegnerTheme(options = {}) {
-  const project = getActiveProjectName();
   const paletteApi = getPaletteApi();
   const theme = getThemeApi();
   const requestedCount = Number.isFinite(options.count) && options.count > 0 ? Math.trunc(options.count) : null;
@@ -387,7 +371,7 @@ function refreshGraftegnerTheme(options = {}) {
     6
   );
 
-  const request = { count, project };
+  const request = { count };
   let groupPalette = [];
 
   if (paletteApi && typeof paletteApi.getGroupPalette === 'function') {
@@ -506,33 +490,6 @@ function sanitizePaletteList(values) {
   return sanitized;
 }
 
-function resolvePaletteProjectName() {
-  const doc = typeof document !== 'undefined' ? document : null;
-  if (doc && doc.documentElement) {
-    const root = doc.documentElement;
-    const activeAttr = root.getAttribute('data-mv-active-project');
-    if (typeof activeAttr === 'string' && activeAttr.trim()) {
-      return activeAttr.trim().toLowerCase();
-    }
-    const themeAttr = root.getAttribute('data-theme-profile');
-    if (typeof themeAttr === 'string' && themeAttr.trim()) {
-      return themeAttr.trim().toLowerCase();
-    }
-  }
-  const themeProject = getActiveProjectName();
-  if (themeProject) return themeProject;
-  const api = getSettingsApi();
-  if (api && typeof api.getActiveProject === 'function') {
-    try {
-      const value = api.getActiveProject();
-      if (typeof value === 'string' && value.trim()) {
-        return value.trim().toLowerCase();
-      }
-    } catch (_) {}
-  }
-  return null;
-}
-
 function tryResolveGroupPalette(resolver) {
   try {
     const result = resolver();
@@ -542,20 +499,16 @@ function tryResolveGroupPalette(resolver) {
   }
 }
 
-function fetchGraftegnerAxisColor(provider, project) {
+function fetchGraftegnerAxisColor(provider) {
   if (!provider || typeof provider.getGroupPalette !== 'function') return '';
-  const options = project ? { project, count: 2 } : { count: 2 };
+  const options = { count: 2 };
   let palette = null;
   try {
     palette = provider.getGroupPalette(GRAFTEGNER_GROUP_ID, options);
   } catch (_) {}
   if ((!Array.isArray(palette) || palette.length < 2) && provider.getGroupPalette.length >= 3) {
     try {
-      palette = provider.getGroupPalette(
-        GRAFTEGNER_GROUP_ID,
-        2,
-        project ? { project } : undefined
-      );
+      palette = provider.getGroupPalette(GRAFTEGNER_GROUP_ID, 2);
     } catch (_) {}
   }
   if (!Array.isArray(palette) || palette.length < 2) return '';
@@ -565,64 +518,43 @@ function fetchGraftegnerAxisColor(provider, project) {
 
 function fetchGraftegnerPalette(count) {
   const targetCount = Number.isFinite(count) && count > 0 ? Math.trunc(count) : undefined;
-  const project = resolvePaletteProjectName();
   const theme = getThemeApi();
   const settings = getSettingsApi();
   if (settings && typeof settings.getGroupPalette === 'function') {
-    let palette = tryResolveGroupPalette(() => settings.getGroupPalette(GRAFTEGNER_GROUP_ID, { project, count: targetCount }));
+    let palette = tryResolveGroupPalette(() => settings.getGroupPalette(GRAFTEGNER_GROUP_ID, { count: targetCount }));
     if (
       (!Array.isArray(palette) || (targetCount && palette.length < targetCount)) &&
       settings.getGroupPalette.length >= 3
     ) {
-      palette = tryResolveGroupPalette(() =>
-        settings.getGroupPalette(
-          GRAFTEGNER_GROUP_ID,
-          targetCount || undefined,
-          project ? { project } : undefined
-        )
-      );
+      palette = tryResolveGroupPalette(() => settings.getGroupPalette(GRAFTEGNER_GROUP_ID, targetCount || undefined));
     }
     if (palette) return palette;
   }
   if (theme && typeof theme.getGroupPalette === 'function') {
-    let palette = tryResolveGroupPalette(() => theme.getGroupPalette(GRAFTEGNER_GROUP_ID, { project, count: targetCount }));
+    let palette = tryResolveGroupPalette(() => theme.getGroupPalette(GRAFTEGNER_GROUP_ID, { count: targetCount }));
     if (
       (!Array.isArray(palette) || (targetCount && palette.length < targetCount)) &&
       theme.getGroupPalette.length >= 3
     ) {
-      palette = tryResolveGroupPalette(() =>
-        theme.getGroupPalette(
-          GRAFTEGNER_GROUP_ID,
-          targetCount || undefined,
-          project ? { project } : undefined
-        )
-      );
+      palette = tryResolveGroupPalette(() => theme.getGroupPalette(GRAFTEGNER_GROUP_ID, targetCount || undefined));
     }
     if (palette) return palette;
   }
   const helper = getPaletteHelper();
   if (helper && typeof helper.getGroupPalette === 'function') {
-    const palette = tryResolveGroupPalette(() => helper.getGroupPalette(GRAFTEGNER_GROUP_ID, { project, count: targetCount }));
+    const palette = tryResolveGroupPalette(() => helper.getGroupPalette(GRAFTEGNER_GROUP_ID, { count: targetCount }));
     if (palette) return palette;
   }
   if (theme && typeof theme.getPalette === 'function') {
-    const palette = tryResolveGroupPalette(() => theme.getPalette('figures', targetCount || DEFAULT_FUNCTION_COLORS.fallback.length, {
-      fallbackKinds: ['fractions'],
-      project
-    }));
+    const palette = tryResolveGroupPalette(() =>
+      theme.getPalette('figures', targetCount || DEFAULT_FUNCTION_COLORS.fallback.length, {
+        fallbackKinds: ['fractions']
+      })
+    );
     if (palette) return palette;
   }
   const stored = resolveSettingsSnapshot();
   if (stored && typeof stored === 'object') {
-    if (project && stored.projects && typeof stored.projects === 'object') {
-      const projectSettings = stored.projects[project];
-      if (projectSettings && Array.isArray(projectSettings.defaultColors)) {
-        const sanitized = sanitizePaletteList(projectSettings.defaultColors);
-        if (sanitized.length) {
-          return sanitized;
-        }
-      }
-    }
     if (Array.isArray(stored.defaultColors)) {
       const sanitized = sanitizePaletteList(stored.defaultColors);
       if (sanitized.length) {
@@ -1398,16 +1330,16 @@ if (STORAGE_STATE_V2) {
 }
 
 if (typeof MutationObserver !== "undefined" && typeof document !== "undefined") {
-  const observer = new MutationObserver((mutations) => {
+  const observer = new MutationObserver(mutations => {
     for (const m of mutations) {
-      if (m.type === 'attributes' && (m.attributeName === 'data-mv-active-project' || m.attributeName === 'data-theme-profile')) {
+      if (m.type === 'attributes' && m.attributeName === 'data-theme-profile') {
         scheduleThemeRefresh();
         break;
       }
     }
   });
   if (document.documentElement) {
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-mv-active-project', 'data-theme-profile'] });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme-profile'] });
   }
 }
 

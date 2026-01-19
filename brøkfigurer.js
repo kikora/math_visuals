@@ -321,30 +321,6 @@ function isValidColor(value) {
     return theme && typeof theme === 'object' ? theme : null;
   }
 
-  function getPaletteProjectResolver() {
-    const scopes = [
-      typeof window !== 'undefined' ? window : null,
-      typeof globalThis !== 'undefined' ? globalThis : null,
-      typeof global !== 'undefined' ? global : null
-    ];
-    for (const scope of scopes) {
-      if (!scope || typeof scope !== 'object') continue;
-      const resolver = scope.MathVisualsPaletteProjectResolver;
-      if (resolver && typeof resolver.resolvePaletteProject === 'function') {
-        return resolver;
-      }
-    }
-    if (typeof require === 'function') {
-      try {
-        const mod = require('./palette/resolve-palette-project.js');
-        if (mod && typeof mod.resolvePaletteProject === 'function') {
-          return mod;
-        }
-      } catch (_) {}
-    }
-    return null;
-  }
-
   function getPaletteApi() {
     const scope = typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : null;
     if (!scope || typeof scope !== 'object') return null;
@@ -387,19 +363,6 @@ function isValidColor(value) {
     return paletteConfigCache;
   }
 
-  function getProjectFallbackPaletteBase(projectName, basePalette) {
-    const config = getPaletteConfig();
-    const sanitizedBase = sanitizePalette(basePalette);
-    if (!config || !config.PROJECT_FALLBACKS) {
-      return sanitizedBase;
-    }
-    const normalized = typeof projectName === 'string' ? projectName.trim().toLowerCase() : '';
-    const fallbacks = config.PROJECT_FALLBACKS;
-    const palette = (normalized && fallbacks[normalized]) || fallbacks.default || sanitizedBase;
-    const sanitized = sanitizePalette(palette);
-    return sanitized.length ? sanitized : sanitizedBase;
-  }
-
   function getGroupSlotIndices(config, groupId) {
     if (!config) return [];
     const normalizedGroupId = typeof groupId === 'string' ? groupId.trim().toLowerCase() : '';
@@ -431,8 +394,13 @@ function isValidColor(value) {
     return [];
   }
 
-  function getProjectGroupFallbackPalette(projectName, groupId, basePalette) {
-    const baseCandidate = getProjectFallbackPaletteBase(projectName, basePalette);
+  function getSettingsApi() {
+    if (typeof window === 'undefined') return null;
+    const api = window.MathVisualsSettings;
+    return api && typeof api === 'object' ? api : null;
+  }
+  function getGroupFallbackPalette(groupId, basePalette) {
+    const baseCandidate = sanitizePalette(basePalette);
     if (!baseCandidate.length) {
       return [];
     }
@@ -460,74 +428,6 @@ function isValidColor(value) {
       }
     });
     return result.length ? result : baseCandidate.slice();
-  }
-
-  function getSettingsApi() {
-    if (typeof window === 'undefined') return null;
-    const api = window.MathVisualsSettings;
-    return api && typeof api === 'object' ? api : null;
-  }
-  function getActiveThemeProjectName(theme = getThemeApi()) {
-    if (!theme || typeof theme.getActiveProfileName !== 'function') return null;
-    try {
-      const value = theme.getActiveProfileName();
-      if (typeof value === 'string' && value.trim()) {
-        return value.trim().toLowerCase();
-      }
-    } catch (_) {}
-    return null;
-  }
-
-  function resolvePaletteProjectName() {
-    const resolver = getPaletteProjectResolver();
-    const doc = typeof document !== 'undefined' ? document : null;
-    const theme = getThemeApi();
-    const settings = getSettingsApi();
-    if (resolver && typeof resolver.resolvePaletteProject === 'function') {
-      try {
-        const resolved = resolver.resolvePaletteProject({
-          document: doc || undefined,
-          root: doc && doc.documentElement ? doc.documentElement : undefined,
-          theme: theme || undefined,
-          settings: settings || undefined,
-          location: typeof window !== 'undefined' ? window.location : undefined
-        });
-        if (typeof resolved === 'string' && resolved) {
-          return resolved;
-        }
-      } catch (_) {}
-    }
-    if (doc && doc.documentElement) {
-      const root = doc.documentElement;
-      const direct =
-        (typeof root.getAttribute === 'function' && root.getAttribute('data-project')) ||
-        (root.dataset && root.dataset.project);
-      if (typeof direct === 'string' && direct.trim()) {
-        return direct.trim().toLowerCase();
-      }
-      const activeAttr = root.getAttribute && root.getAttribute('data-mv-active-project');
-      if (typeof activeAttr === 'string' && activeAttr.trim()) {
-        return activeAttr.trim().toLowerCase();
-      }
-      const profileAttr = root.getAttribute && root.getAttribute('data-theme-profile');
-      if (typeof profileAttr === 'string' && profileAttr.trim()) {
-        return profileAttr.trim().toLowerCase();
-      }
-    }
-    const activeThemeProject = getActiveThemeProjectName(theme);
-    if (activeThemeProject) return activeThemeProject;
-    if (settings && typeof settings.getActiveProject === 'function') {
-      try {
-        const value = settings.getActiveProject();
-        if (typeof value === 'string' && value.trim()) {
-          return value.trim().toLowerCase();
-        }
-      } catch (_) {}
-    }
-    if (settings && typeof settings.activeProject === 'string' && settings.activeProject.trim()) {
-      return settings.activeProject.trim().toLowerCase();
-    }
-    return null;
   }
   function applyThemeToDocument() {
     const theme = getThemeApi();
@@ -652,16 +552,14 @@ function isValidColor(value) {
     const paletteApi = getPaletteApi();
     const settings = getSettingsApi();
     const theme = getThemeApi();
-    const project = resolvePaletteProjectName();
     const legacyFallback = sanitizePalette(LEGACY_COLOR_PALETTE);
-    const projectFallback = getProjectGroupFallbackPalette(project, SHARED_GROUP_ID, LEGACY_COLOR_PALETTE);
-    const fallback = projectFallback.length ? projectFallback : legacyFallback;
+    const groupFallback = getGroupFallbackPalette(SHARED_GROUP_ID, LEGACY_COLOR_PALETTE);
+    const fallback = groupFallback.length ? groupFallback : legacyFallback;
     const target = Number.isFinite(count) && count > 0 ? Math.trunc(count) : fallback.length || legacyFallback.length;
 
     if (paletteApi) {
       const palette = tryResolvePalette(() =>
         paletteApi.getGroupPalette(SHARED_GROUP_ID, {
-          project: project || undefined,
           count: target || undefined
         })
       );
@@ -673,18 +571,11 @@ function isValidColor(value) {
     if (settings && typeof settings.getGroupPalette === 'function') {
       let palette = tryResolvePalette(() =>
         settings.getGroupPalette(SHARED_GROUP_ID, {
-          project: project || undefined,
           count: target || undefined
         })
       );
       if ((!palette || palette.length < target) && settings.getGroupPalette.length >= 3) {
-        palette = tryResolvePalette(() =>
-          settings.getGroupPalette(
-            SHARED_GROUP_ID,
-            target || undefined,
-            project ? { project } : undefined
-          )
-        );
+        palette = tryResolvePalette(() => settings.getGroupPalette(SHARED_GROUP_ID, target || undefined));
       }
       if (palette && palette.length) {
         return ensurePaletteSize(palette, fallback, target);
@@ -695,7 +586,6 @@ function isValidColor(value) {
       paletteService.resolveGroupPalette({
         groupId: SHARED_GROUP_ID,
         count: target || undefined,
-        project: project || undefined,
         fallback,
         legacyPaletteId: 'fractions',
         fallbackKinds: ['figures']
@@ -708,18 +598,11 @@ function isValidColor(value) {
     if (theme && typeof theme.getGroupPalette === 'function') {
       let palette = tryResolvePalette(() =>
         theme.getGroupPalette(SHARED_GROUP_ID, {
-          project: project || undefined,
           count: target || undefined
         })
       );
       if ((!palette || palette.length < target) && theme.getGroupPalette.length >= 3) {
-        palette = tryResolvePalette(() =>
-          theme.getGroupPalette(
-            SHARED_GROUP_ID,
-            target || undefined,
-            project ? { project } : undefined
-          )
-        );
+        palette = tryResolvePalette(() => theme.getGroupPalette(SHARED_GROUP_ID, target || undefined));
       }
       if (palette && palette.length) {
         return ensurePaletteSize(palette, fallback, target);
@@ -729,8 +612,7 @@ function isValidColor(value) {
     if (theme && typeof theme.getPalette === 'function') {
       const palette = tryResolvePalette(() =>
         theme.getPalette('fractions', target || fallback.length, {
-          fallbackKinds: ['figures'],
-          project: project || undefined
+          fallbackKinds: ['figures']
         })
       );
       if (palette && palette.length) {
