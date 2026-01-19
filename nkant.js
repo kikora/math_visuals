@@ -1222,6 +1222,13 @@ function sanitizeColorSetIndex(value) {
   return Math.min(numeric, NKANT_COLOR_SET_COUNT);
 }
 
+function remapLegacyColorSetIndex(value) {
+  const numeric = Number.parseInt(value, 10);
+  if (!Number.isFinite(numeric) || numeric < 1) return value;
+  if (numeric <= NKANT_COLOR_SET_COUNT) return numeric;
+  return ((numeric - 1) % NKANT_COLOR_SET_COUNT) + 1;
+}
+
 function ensurePalette(base, count, fallback) {
   const sanitizeList = values => {
     if (!Array.isArray(values)) return [];
@@ -5385,7 +5392,7 @@ function loadCleanNKantState(rawState) {
       nextState.rotateText = opt.rotateText;
     }
     if (opt.colorSet != null) {
-      nextState.colorSetIndex = sanitizeColorSetIndex(opt.colorSet);
+      nextState.colorSetIndex = sanitizeColorSetIndex(remapLegacyColorSetIndex(opt.colorSet));
     }
     if (opt.defaults && typeof opt.defaults === "object") {
       nextState.defaults = {
@@ -5412,7 +5419,7 @@ function loadCleanNKantState(rawState) {
         fig.color = entry.color.trim();
       }
       if (entry && entry.colorSet != null) {
-        fig.colorSetIndex = sanitizeColorSetIndex(entry.colorSet);
+        fig.colorSetIndex = sanitizeColorSetIndex(remapLegacyColorSetIndex(entry.colorSet));
       }
 
       const labels = entry && entry.labels && typeof entry.labels === "object" ? entry.labels : null;
