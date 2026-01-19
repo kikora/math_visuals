@@ -132,13 +132,13 @@
   const DEFAULT_PALETTE_GROUPS = Array.isArray(paletteConfig.DEFAULT_GROUP_ORDER)
     ? paletteConfig.DEFAULT_GROUP_ORDER.slice()
     : ['graftegner', 'nkant', 'arealmodell', 'extra'];
-  const campusPaletteColors = Array.isArray(paletteConfig.PROJECT_FALLBACKS.campus)
-    ? paletteConfig.PROJECT_FALLBACKS.campus.slice()
+  const fallbackPaletteColors = Array.isArray(paletteConfig.PROJECT_FALLBACKS && paletteConfig.PROJECT_FALLBACKS.default)
+    ? paletteConfig.PROJECT_FALLBACKS.default.slice()
     : [];
   const campusProfileBase = {
     palettes: {
-      fractions: campusPaletteColors.slice(),
-      figures: campusPaletteColors.slice()
+      fractions: fallbackPaletteColors.slice(),
+      figures: fallbackPaletteColors.slice()
     },
     colors: {
       ui: {
@@ -179,13 +179,10 @@
     palettes: deepClone(campusProfileBase.palettes),
     colors: deepClone(campusProfileBase.colors)
   };
-  const annetPaletteColors = Array.isArray(paletteConfig.PROJECT_FALLBACKS.annet)
-    ? paletteConfig.PROJECT_FALLBACKS.annet.slice()
-    : [];
   const annetProfileBase = {
     palettes: {
-      fractions: annetPaletteColors.slice(),
-      figures: annetPaletteColors.slice()
+      fractions: fallbackPaletteColors.slice(),
+      figures: fallbackPaletteColors.slice()
     },
     colors: {
       ui: {
@@ -365,35 +362,21 @@
     }
     return result;
   }
-  function resolveUserPalette(count, projectName) {
+  function resolveUserPalette(count) {
     const api = getSettingsApi();
-    const project = typeof projectName === 'string' && projectName.trim()
-      ? projectName.trim().toLowerCase()
-      : null;
     if (api && typeof api.getDefaultColors === 'function') {
       try {
-        const palette = api.getDefaultColors(count, project ? { project } : undefined);
+        const palette = api.getDefaultColors(count);
         if (Array.isArray(palette) && palette.length) {
           return ensurePalette(palette, count);
         }
       } catch (_) {}
     }
     const stored = readStoredSettings();
-    if (stored && typeof stored === 'object') {
-      if (project && stored.projects && typeof stored.projects === 'object') {
-        const projectSettings = stored.projects[project];
-        if (projectSettings && projectSettings.defaultColors != null) {
-          const sanitized = flattenStoredPalette(projectSettings.defaultColors);
-          if (sanitized.length) {
-            return ensurePalette(sanitized, count);
-          }
-        }
-      }
-      if (!project && stored.defaultColors != null) {
-        const sanitized = flattenStoredPalette(stored.defaultColors);
-        if (sanitized.length) {
-          return ensurePalette(sanitized, count);
-        }
+    if (stored && typeof stored === 'object' && stored.defaultColors != null) {
+      const sanitized = flattenStoredPalette(stored.defaultColors);
+      if (sanitized.length) {
+        return ensurePalette(sanitized, count);
       }
     }
     return null;
@@ -435,22 +418,17 @@
   function listProfiles() {
     return Object.keys(PROFILES);
   }
-  function resolveProjectContext(projectValue) {
-    const overrideCandidate = typeof projectValue === 'string' ? projectValue.trim().toLowerCase() : '';
-    const projectOverride = overrideCandidate || null;
+  function resolvePaletteContext() {
     const activeProfile = getActiveProfile();
-    const fallbackName = activeProfile && activeProfile.id ? activeProfile.id : activeProfileName;
-    const projectName = projectOverride || fallbackName;
-    const profile = projectOverride ? getProfile(projectName) : activeProfile;
-    return { projectOverride, projectName, profile };
+    return { profile: activeProfile };
   }
 
-  function resolveGraftegnerAxisColor(projectName) {
+  function resolveGraftegnerAxisColor() {
     if (!paletteHelper || typeof paletteHelper.getGroupPalette !== 'function') {
       return null;
     }
     try {
-      const palette = paletteHelper.getGroupPalette('graftegner', { project: projectName, count: 2 });
+      const palette = paletteHelper.getGroupPalette('graftegner', { count: 2 });
       if (Array.isArray(palette) && palette.length > 1) {
         const color = sanitizeUserColor(palette[1]);
         if (color) {
@@ -462,8 +440,8 @@
   }
 
   function buildPalette(kind, count, opts) {
-    const { projectName, profile } = resolveProjectContext(opts && opts.project);
-    const userPalette = resolveUserPalette(count, projectName);
+    const { profile } = resolvePaletteContext();
+    const userPalette = resolveUserPalette(count);
     if (userPalette && userPalette.length) {
       return ensurePalette(userPalette, count);
     }
@@ -486,15 +464,11 @@
   function normalizeGroupPaletteOptions(countOrOptions, maybeOpts) {
     const result = {
       count: undefined,
-      project: undefined,
       fallbackKinds: []
     };
     if (countOrOptions && typeof countOrOptions === 'object' && !Array.isArray(countOrOptions)) {
       if (Number.isFinite(countOrOptions.count) && countOrOptions.count > 0) {
         result.count = Math.trunc(countOrOptions.count);
-      }
-      if (typeof countOrOptions.project === 'string' && countOrOptions.project) {
-        result.project = countOrOptions.project.trim().toLowerCase();
       }
       if (Array.isArray(countOrOptions.fallbackKinds)) {
         result.fallbackKinds = countOrOptions.fallbackKinds.filter(item => typeof item === 'string');
@@ -505,9 +479,6 @@
       result.count = Math.trunc(countOrOptions);
     }
     if (maybeOpts && typeof maybeOpts === 'object') {
-      if (typeof maybeOpts.project === 'string' && maybeOpts.project) {
-        result.project = maybeOpts.project.trim().toLowerCase();
-      }
       if (Array.isArray(maybeOpts.fallbackKinds)) {
         result.fallbackKinds = maybeOpts.fallbackKinds.filter(item => typeof item === 'string');
       }
@@ -517,7 +488,6 @@
 
   function buildGroupPalette(groupId, count, opts) {
     const normalizedId = typeof groupId === 'string' ? groupId.trim().toLowerCase() : '';
-    const { projectName } = resolveProjectContext(opts && opts.project);
     const settingsApi = getSettingsApi();
     if (settingsApi && typeof settingsApi.getGroupPalette === 'function') {
       try {
@@ -525,7 +495,7 @@
           const palette = settingsApi.getGroupPalette(
             normalizedId || 'default',
             count,
-            projectName ? { project: projectName } : undefined
+            { count }
           );
           if (Array.isArray(palette) && palette.length) {
             return ensurePalette(palette, count);
@@ -534,8 +504,7 @@
         const directPalette = settingsApi.getGroupPalette(
           normalizedId || 'default',
           {
-            count,
-            project: projectName || undefined
+            count
           }
         );
         if (Array.isArray(directPalette) && directPalette.length) {
@@ -551,12 +520,11 @@
         ...fallbackList
       ])
     );
-    return buildPalette(normalizedId || 'fractions', count, { ...opts, project: projectName, fallbackKinds: dedupedFallbacks });
+    return buildPalette(normalizedId || 'fractions', count, { ...opts, fallbackKinds: dedupedFallbacks });
   }
   function getColor(token, fallback) {
     if (token === 'graphs.axis') {
-      const { projectName } = resolveProjectContext();
-      const axisOverride = resolveGraftegnerAxisColor(projectName);
+      const axisOverride = resolveGraftegnerAxisColor();
       if (axisOverride) {
         return axisOverride;
       }
@@ -621,11 +589,10 @@
       return buildPalette(kind, size, opts);
     },
     getGroupPalette(groupId, countOrOptions, maybeOpts) {
-      const { count, project, fallbackKinds } = normalizeGroupPaletteOptions(countOrOptions, maybeOpts);
+      const { count, fallbackKinds } = normalizeGroupPaletteOptions(countOrOptions, maybeOpts);
       if (paletteHelper && typeof paletteHelper.getGroupPalette === 'function') {
         try {
           const palette = paletteHelper.getGroupPalette(groupId, {
-            project,
             count
           });
           if (Array.isArray(palette) && palette.length) {
@@ -637,7 +604,7 @@
           }
         }
       }
-      return buildGroupPalette(groupId, count, { project, fallbackKinds });
+      return buildGroupPalette(groupId, count, { fallbackKinds });
     },
     getColor,
     applyToDocument
