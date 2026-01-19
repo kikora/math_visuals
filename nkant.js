@@ -1127,6 +1127,7 @@ function applyNkantColorSetToStyle(colorSetIndex, palette) {
     constructionStroke: constructionColor,
     angFill: withAlphaColor(angleColor, 0.25, 'rgba(0,0,0,0.1)')
   });
+  applyUserTextScaleToStyle();
 }
 
 function applyNkantPaletteSelection(palette, options = {}) {
