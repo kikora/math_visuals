@@ -230,14 +230,12 @@ function buildLegacyGroupPalette() {
     }
     const count = Number.isFinite(opts.count) && opts.count > 0 ? Math.trunc(opts.count) : undefined;
     const fallback = Array.isArray(opts.fallback) ? opts.fallback : [];
-    const project = typeof opts.project === 'string' && opts.project ? opts.project : undefined;
     const paletteApi = getPaletteApi();
     let palette = null;
     if (paletteApi) {
       try {
         palette = paletteApi.getGroupPalette(groupId, {
           count,
-          project,
           settings: opts.settings
         });
       } catch (_) {
@@ -248,7 +246,7 @@ function buildLegacyGroupPalette() {
       const theme = getThemeApi();
       if (theme && typeof theme.getGroupPalette === 'function') {
         try {
-          palette = theme.getGroupPalette(groupId, count, project ? { project } : undefined);
+          palette = theme.getGroupPalette(groupId, count);
         } catch (_) {
           palette = null;
         }
@@ -259,8 +257,7 @@ function buildLegacyGroupPalette() {
       if (theme && typeof theme.getPalette === 'function') {
         try {
           palette = theme.getPalette(opts.legacyPaletteId, count, {
-            fallbackKinds: Array.isArray(opts.fallbackKinds) ? opts.fallbackKinds : undefined,
-            project
+            fallbackKinds: Array.isArray(opts.fallbackKinds) ? opts.fallbackKinds : undefined
           });
         } catch (_) {
           palette = null;

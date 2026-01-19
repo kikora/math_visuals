@@ -34,10 +34,9 @@
   }
 
   const MAX_COLORS = paletteConfig.MAX_COLORS;
-  const DEFAULT_PROJECT = typeof paletteConfig.DEFAULT_PROJECT === 'string'
-    ? paletteConfig.DEFAULT_PROJECT
-    : 'campus';
-  const PROJECT_FALLBACKS = paletteConfig.PROJECT_FALLBACKS;
+  const FALLBACK_COLORS = Array.isArray(paletteConfig.PROJECT_FALLBACKS && paletteConfig.PROJECT_FALLBACKS.default)
+    ? paletteConfig.PROJECT_FALLBACKS.default
+    : [];
   const GROUP_SLOT_INDICES = paletteConfig.GROUP_SLOT_INDICES;
   const MIN_COLOR_SLOTS = Number.isInteger(paletteConfig.MIN_COLOR_SLOTS)
     ? paletteConfig.MIN_COLOR_SLOTS
@@ -54,12 +53,6 @@
     ? paletteConfig.DEFAULT_GROUP_ORDER.map(value => (typeof value === 'string' ? value.trim().toLowerCase() : '')).filter(Boolean)
     : COLOR_GROUP_IDS.slice();
   const missingGroupWarnings = new Set();
-
-  function normalizeProjectName(name) {
-    if (typeof name !== 'string') return '';
-    const trimmed = name.trim().toLowerCase();
-    return trimmed || '';
-  }
 
   function normalizeGroupId(value) {
     if (typeof value !== 'string') return '';
@@ -132,15 +125,13 @@
     return result;
   }
 
-  const PROJECT_FALLBACK_GROUP_CACHE = new Map();
+  let fallbackGroupCache = null;
 
-  function getProjectFallbackGroupPalettes(projectName) {
-    const normalized = normalizeProjectName(projectName) || 'default';
-    if (PROJECT_FALLBACK_GROUP_CACHE.has(normalized)) {
-      return cloneGroupPalettes(PROJECT_FALLBACK_GROUP_CACHE.get(normalized));
+  function getFallbackGroupPalettes() {
+    if (fallbackGroupCache) {
+      return cloneGroupPalettes(fallbackGroupCache);
     }
-    const fallbackPalette = getProjectFallbackPalette(normalized);
-    const fallbackColors = fallbackPalette.length ? fallbackPalette : getGlobalFallbackPalette();
+    const fallbackColors = getFallbackPalette();
     const groups = {};
     let cursor = 0;
     COLOR_GROUP_IDS.forEach(groupId => {
@@ -164,7 +155,7 @@
       }
       groups[groupId] = colors;
     });
-    PROJECT_FALLBACK_GROUP_CACHE.set(normalized, cloneGroupPalettes(groups));
+    fallbackGroupCache = cloneGroupPalettes(groups);
     return cloneGroupPalettes(groups);
   }
 
@@ -214,8 +205,8 @@
     return groups;
   }
 
-  function normalizeProjectGroupPalettes(projectName, palette) {
-    const base = getProjectFallbackGroupPalettes(projectName);
+  function normalizeGroupPalettes(palette) {
+    const base = getFallbackGroupPalettes();
     if (Array.isArray(palette)) {
       applyGroupPaletteOverlay(base, distributeFlatPaletteToGroups(palette));
       return base;
@@ -257,14 +248,8 @@
     return flattened;
   }
 
-  function getProjectFallbackPalette(projectName) {
-    const key = normalizeProjectName(projectName);
-    const fallback = PROJECT_FALLBACKS[key] || PROJECT_FALLBACKS.default;
-    return fallback.slice(0, MAX_COLORS);
-  }
-
-  function getGlobalFallbackPalette() {
-    return PROJECT_FALLBACKS.default.slice(0, MAX_COLORS);
+  function getFallbackPalette() {
+    return FALLBACK_COLORS.slice(0, MAX_COLORS);
   }
 
   function resolveSettingsSource(source) {
@@ -285,54 +270,19 @@
     return null;
   }
 
-  function resolveProjectName(source, hint) {
-    const normalizedHint = normalizeProjectName(hint);
-    if (normalizedHint) return normalizedHint;
-    if (source && typeof source.getActiveProject === 'function') {
-      try {
-        const active = normalizeProjectName(source.getActiveProject());
-        if (active) return active;
-      } catch (_) {}
-    }
-    if (source && typeof source.activeProject === 'string') {
-      const active = normalizeProjectName(source.activeProject);
-      if (active) return active;
-    }
-    if (source && source.projects && typeof source.projects === 'object') {
-      const keys = Object.keys(source.projects)
-        .map(normalizeProjectName)
-        .filter(Boolean);
-      if (keys.length) return keys[0];
-    }
-    return DEFAULT_PROJECT;
-  }
-
-  function readProjectGroupPalettesFromApi(api, projectName) {
+  function readGroupPalettesFromApi(api) {
     if (!api || typeof api !== 'object') return null;
-    if (typeof api.getProjectGroupPalettes === 'function') {
+    if (typeof api.getGroupPalettes === 'function') {
       try {
-        const groups = api.getProjectGroupPalettes(projectName);
+        const groups = api.getGroupPalettes();
         if (groups && typeof groups === 'object') {
           return groups;
         }
       } catch (_) {}
     }
-    if (typeof api.getProjectSettings === 'function') {
+    if (typeof api.getPalette === 'function') {
       try {
-        const settings = api.getProjectSettings(projectName);
-        if (settings && typeof settings === 'object') {
-          if (settings.groupPalettes && typeof settings.groupPalettes === 'object') {
-            return settings.groupPalettes;
-          }
-          if (Array.isArray(settings.defaultColors) && settings.defaultColors.length) {
-            return distributeFlatPaletteToGroups(settings.defaultColors.slice(0, MAX_COLORS));
-          }
-        }
-      } catch (_) {}
-    }
-    if (typeof api.getProjectPalette === 'function') {
-      try {
-        const palette = api.getProjectPalette(projectName);
+        const palette = api.getPalette();
         if (Array.isArray(palette) && palette.length) {
           return distributeFlatPaletteToGroups(palette.slice(0, MAX_COLORS));
         }
@@ -343,11 +293,14 @@
     }
     if (typeof api.getDefaultColors === 'function') {
       try {
-        const palette = api.getDefaultColors(MAX_COLORS, { project: projectName });
+        const palette = api.getDefaultColors(MAX_COLORS);
         if (Array.isArray(palette) && palette.length) {
           return distributeFlatPaletteToGroups(palette.slice(0, MAX_COLORS));
         }
       } catch (_) {}
+    }
+    if (api.groupPalettes && typeof api.groupPalettes === 'object') {
+      return api.groupPalettes;
     }
     if (Array.isArray(api.defaultColors) && api.defaultColors.length) {
       return distributeFlatPaletteToGroups(api.defaultColors.slice(0, MAX_COLORS));
@@ -355,22 +308,10 @@
     return null;
   }
 
-  function readProjectGroupPalettesFromSettingsObject(settings, projectName) {
+  function readGroupPalettesFromSettingsObject(settings) {
     if (!settings || typeof settings !== 'object') return null;
-    const projects = settings.projects && typeof settings.projects === 'object' ? settings.projects : null;
-    if (projects) {
-      const resolved = normalizeProjectName(projectName);
-      if (projects[resolved]) {
-        const entry = projects[resolved];
-        if (entry && typeof entry === 'object') {
-          if (entry.groupPalettes && typeof entry.groupPalettes === 'object') {
-            return entry.groupPalettes;
-          }
-          if (Array.isArray(entry.defaultColors) && entry.defaultColors.length) {
-            return distributeFlatPaletteToGroups(entry.defaultColors.slice(0, MAX_COLORS));
-          }
-        }
-      }
+    if (settings.groupPalettes && typeof settings.groupPalettes === 'object') {
+      return settings.groupPalettes;
     }
     if (Array.isArray(settings.defaultColors) && settings.defaultColors.length) {
       return distributeFlatPaletteToGroups(settings.defaultColors.slice(0, MAX_COLORS));
@@ -378,26 +319,24 @@
     return null;
   }
 
-  function resolveProjectGroupPalettes(source, projectName) {
-    const resolvedProject = normalizeProjectName(projectName);
-    const paletteFromApi = readProjectGroupPalettesFromApi(source, resolvedProject);
+  function resolveGroupPalettes(source) {
+    const paletteFromApi = readGroupPalettesFromApi(source);
     if (paletteFromApi && typeof paletteFromApi === 'object') {
-      return normalizeProjectGroupPalettes(resolvedProject, { groupPalettes: paletteFromApi });
+      return normalizeGroupPalettes({ groupPalettes: paletteFromApi });
     }
-    const paletteFromSettings = readProjectGroupPalettesFromSettingsObject(source, resolvedProject);
+    const paletteFromSettings = readGroupPalettesFromSettingsObject(source);
     if (paletteFromSettings && typeof paletteFromSettings === 'object') {
-      return normalizeProjectGroupPalettes(resolvedProject, { groupPalettes: paletteFromSettings });
+      return normalizeGroupPalettes({ groupPalettes: paletteFromSettings });
     }
-    return normalizeProjectGroupPalettes(resolvedProject, null);
+    return normalizeGroupPalettes(null);
   }
 
-  function buildProjectPalette(source, projectName, precomputedGroupPalettes) {
+  function buildPalette(source, precomputedGroupPalettes) {
     const groupPalettes =
       precomputedGroupPalettes && typeof precomputedGroupPalettes === 'object'
         ? precomputedGroupPalettes
-        : resolveProjectGroupPalettes(source, projectName);
-    const fallback = getProjectFallbackPalette(projectName);
-    const globalFallback = getGlobalFallbackPalette();
+        : resolveGroupPalettes(source);
+    const fallback = getFallbackPalette();
     const flattened = flattenGroupPalettes(groupPalettes);
     const sanitized = sanitizeColorList(flattened);
     const result = [];
@@ -411,15 +350,14 @@
         result.push(fallback[index % fallback.length]);
         continue;
       }
-      result.push(globalFallback[index % globalFallback.length]);
     }
     if (!result.length) {
-      result.push(globalFallback[0]);
+      result.push(fallback[0]);
     }
     return result;
   }
 
-  function readGroupPaletteOverrides(settings, projectName, groupId) {
+  function readGroupPaletteOverrides(settings, groupId) {
     const settingsObject = settings && typeof settings === 'object' ? settings : null;
     if (!settingsObject) return [];
 
@@ -430,22 +368,6 @@
         if (Array.isArray(entry.colors)) return entry.colors;
         if (Array.isArray(entry.palette)) return entry.palette;
         if (Array.isArray(entry.values)) return entry.values;
-        if (projectName) {
-          const projectKey = normalizeProjectName(projectName);
-          const projectEntries = entry.project || entry.projects || entry.byProject;
-          if (projectEntries && typeof projectEntries === 'object') {
-            const projectPalette = extractPalette(projectEntries[projectKey]);
-            if (projectPalette && projectPalette.length) {
-              return projectPalette;
-            }
-          }
-          if (entry[projectKey] != null) {
-            const projectPalette = extractPalette(entry[projectKey]);
-            if (projectPalette && projectPalette.length) {
-              return projectPalette;
-            }
-          }
-        }
         if (entry.default != null) {
           const defaultPalette = extractPalette(entry.default);
           if (defaultPalette && defaultPalette.length) {
@@ -460,21 +382,6 @@
         }
       }
       return null;
-    }
-
-    const projectKey = normalizeProjectName(projectName);
-    const projects = settingsObject.projects && typeof settingsObject.projects === 'object' ? settingsObject.projects : null;
-    if (projectKey && projects && projects[projectKey]) {
-      const projectEntry = projects[projectKey];
-      const projectGroups =
-        projectEntry.groupPalettes || projectEntry.groups || projectEntry.palettes || projectEntry.group || null;
-      if (projectGroups && typeof projectGroups === 'object') {
-        const groupEntry = projectGroups[groupId] || projectGroups.default || null;
-        const palette = extractPalette(groupEntry);
-        if (palette && palette.length) {
-          return sanitizeColorList(palette);
-        }
-      }
     }
 
     const rootGroups =
@@ -493,10 +400,9 @@
     return [];
   }
 
-  function warnMissingGroupConfiguration(groupId, projectName) {
-    const projectLabel = normalizeProjectName(projectName) || 'ukjent';
+  function warnMissingGroupConfiguration(groupId) {
     const normalizedGroup = typeof groupId === 'string' ? groupId.trim().toLowerCase() : '';
-    const cacheKey = `${projectLabel}::${normalizedGroup || '(none)'}`;
+    const cacheKey = normalizedGroup || '(none)';
     if (missingGroupWarnings.has(cacheKey)) {
       return;
     }
@@ -506,25 +412,24 @@
         console.warn('[MathVisualsPalette] Forespurt fargegruppe mangler identifikator. Bruker globale tilbakefallsfarger.');
       } else {
         console.warn(
-          `[MathVisualsPalette] Fant ingen fargekonfigurasjon for gruppen "${normalizedGroup}" i prosjekt "${projectLabel}". ` +
-            'Bruker tilbakefallsfarger.'
+          `[MathVisualsPalette] Fant ingen fargekonfigurasjon for gruppen "${normalizedGroup}". Bruker tilbakefallsfarger.`
         );
       }
     }
   }
 
-  function collectGroupIndices(groupId, projectName, availableLength) {
+  function collectGroupIndices(groupId) {
     const base = GROUP_SLOT_INDICES[groupId];
     if (Array.isArray(base)) {
       return base.slice();
     }
-    warnMissingGroupConfiguration(groupId, projectName);
+    warnMissingGroupConfiguration(groupId);
     return [];
   }
 
   function ensurePaletteSize(colors, count, fallbackPalette) {
     const palette = colors.filter(color => typeof color === 'string' && color);
-    const fallback = fallbackPalette && fallbackPalette.length ? fallbackPalette : getGlobalFallbackPalette();
+    const fallback = fallbackPalette && fallbackPalette.length ? fallbackPalette : getFallbackPalette();
     if (!palette.length) {
       palette.push(fallback[0]);
     }
@@ -544,24 +449,23 @@
     const groupKey = typeof groupId === 'string' ? groupId.trim().toLowerCase() : '';
     const opts = options && typeof options === 'object' ? options : {};
     const source = resolveSettingsSource(opts.settings);
-    const project = resolveProjectName(source, opts.project);
     const count = Number.isFinite(opts.count) && opts.count > 0 ? Math.trunc(opts.count) : undefined;
-    const fallbackPalette = getProjectFallbackPalette(project);
+    const fallbackPalette = getFallbackPalette();
 
     if (!groupKey) {
-      warnMissingGroupConfiguration(groupKey, project);
+      warnMissingGroupConfiguration(groupKey);
       return ensurePaletteSize([], count || 0, fallbackPalette);
     }
 
-    const overridePalette = readGroupPaletteOverrides(source, project, groupKey);
+    const overridePalette = readGroupPaletteOverrides(source, groupKey);
     if (overridePalette.length) {
       return ensurePaletteSize(overridePalette, count || overridePalette.length, fallbackPalette);
     }
 
-    const projectGroupPalettes = resolveProjectGroupPalettes(source, project);
-    const baseGroupPalette = Array.isArray(projectGroupPalettes[groupKey])
+    const groupPalettes = resolveGroupPalettes(source);
+    const baseGroupPalette = Array.isArray(groupPalettes[groupKey])
       ? sanitizeGroupPalette(
-          projectGroupPalettes[groupKey],
+          groupPalettes[groupKey],
           GROUP_SLOT_COUNTS[groupKey] || MAX_COLORS
         )
       : [];
@@ -569,24 +473,23 @@
       return ensurePaletteSize(baseGroupPalette, count || baseGroupPalette.length, fallbackPalette);
     }
 
-    const projectPalette = buildProjectPalette(source, project, projectGroupPalettes);
-    const groupIndices = collectGroupIndices(groupKey, project, projectPalette.length);
+    const palette = buildPalette(source, groupPalettes);
+    const groupIndices = collectGroupIndices(groupKey);
     const colors = [];
     if (groupIndices.length) {
       groupIndices.forEach(index => {
-        const color = projectPalette[index];
+        const color = palette[index];
         if (typeof color === 'string' && color) {
           colors.push(color);
         } else {
           const fallback = fallbackPalette[index % fallbackPalette.length];
-          const globalFallback = getGlobalFallbackPalette();
-          colors.push(fallback || globalFallback[index % globalFallback.length]);
+          colors.push(fallback);
         }
       });
     }
 
     if (!colors.length) {
-      warnMissingGroupConfiguration(groupKey, project);
+      warnMissingGroupConfiguration(groupKey);
     }
 
     const targetCount = count || (colors.length ? colors.length : groupIndices.length || 1);
@@ -596,17 +499,15 @@
   function getProjectGroupPalettes(projectName, options) {
     const opts = options && typeof options === 'object' ? options : {};
     const source = resolveSettingsSource(opts.settings);
-    const project = resolveProjectName(source, opts.project || projectName);
-    const groupPalettes = resolveProjectGroupPalettes(source, project);
+    const groupPalettes = resolveGroupPalettes(source);
     return cloneGroupPalettes(groupPalettes);
   }
 
   function getProjectPalette(projectName, options) {
     const opts = options && typeof options === 'object' ? options : {};
     const source = resolveSettingsSource(opts.settings);
-    const project = resolveProjectName(source, opts.project || projectName);
-    const groupPalettes = resolveProjectGroupPalettes(source, project);
-    return buildProjectPalette(source, project, groupPalettes);
+    const groupPalettes = resolveGroupPalettes(source);
+    return buildPalette(source, groupPalettes);
   }
 
   const api = {

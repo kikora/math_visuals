@@ -199,47 +199,6 @@
   }
 
   function resolvePaletteProject(context) {
-    const direct = normalizeProjectName(context && context.project);
-    if (direct) return direct;
-
-    const documentRef = getGlobalDocument(context);
-    const explicitElements = [];
-    if (context && context.element && typeof context.element.getAttribute === 'function') {
-      explicitElements.push(context.element);
-    }
-    const root = getDocumentRoot(documentRef, context);
-    if (root && !explicitElements.includes(root)) {
-      explicitElements.push(root);
-    }
-    if (documentRef && documentRef.body && typeof documentRef.body.getAttribute === 'function') {
-      const body = documentRef.body;
-      if (!explicitElements.includes(body)) {
-        explicitElements.push(body);
-      }
-    }
-
-    for (const element of explicitElements) {
-      const candidate = readProjectFromElement(element);
-      if (candidate) return candidate;
-    }
-
-    const locationLike = context && context.location ? context.location : (typeof window !== 'undefined' ? window.location : null);
-    const fromUrl = readProjectFromLocation(locationLike);
-    if (fromUrl) return fromUrl;
-
-    const theme = getTheme(context);
-    const fromTheme = readThemeProject(theme);
-    if (fromTheme) return fromTheme;
-
-    const settings = getSettings(context) || null;
-    const fromSettings = readSettingsProject(settings);
-    if (fromSettings) return fromSettings;
-
-    if (settings && typeof settings.activeProject === 'string') {
-      const active = normalizeProjectName(settings.activeProject);
-      if (active) return active;
-    }
-
     return null;
   }
 
