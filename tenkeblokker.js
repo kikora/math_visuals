@@ -276,8 +276,11 @@ function applyPairSwatch(element, fillColors, lineColors, index) {
     });
     return;
   }
-  element.style.backgroundColor = fillColor;
-  element.style.borderColor = lineColor;
+  if (element.classList) {
+    element.classList.add('color-swatch--pair');
+  }
+  element.style.setProperty('--swatch-fill', fillColor);
+  element.style.setProperty('--swatch-line', lineColor);
 }
 function getFillPalette() {
   return getLineFillPalettes().fillColors.slice(0, FILL_COLOR_COUNT);
@@ -373,7 +376,7 @@ function renderBlockFillPickerOptions(block, paletteOverride, linePaletteOverrid
   palette.forEach((color, index) => {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'color-option-btn';
+    btn.className = 'color-option-btn color-swatch--pair';
     btn.dataset.colorIndex = String(index + 1);
     btn.dataset.colorValue = color;
     applyPairSwatch(btn, palette, linePalette, index + 1);
@@ -402,7 +405,7 @@ function createBlockFillPicker(block, fieldset) {
   picker.className = 'color-picker';
   const activeBtn = document.createElement('button');
   activeBtn.type = 'button';
-  activeBtn.className = 'color-swatch color-swatch--active';
+  activeBtn.className = 'color-swatch color-swatch--active color-swatch--pair';
   activeBtn.setAttribute('aria-label', 'Velg fyllfarge');
   const optionsPanel = document.createElement('div');
   optionsPanel.className = 'color-options';

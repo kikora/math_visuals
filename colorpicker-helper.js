@@ -37,12 +37,13 @@
 
   function applyColorPairSwatch(element, fillColor, lineColor) {
     if (!element) return;
+    if (element.classList) {
+      element.classList.add('color-swatch--pair');
+    }
     if (typeof fillColor === 'string' && fillColor) {
-      element.style.backgroundColor = fillColor;
       element.style.setProperty('--swatch-fill', fillColor);
     }
     if (typeof lineColor === 'string' && lineColor) {
-      element.style.borderColor = lineColor;
       element.style.setProperty('--swatch-line', lineColor);
     }
   }

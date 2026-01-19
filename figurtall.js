@@ -202,8 +202,11 @@ function isValidColor(value) {
     if (colorPickerHelper && typeof colorPickerHelper.applyColorPairSwatch === 'function') {
       colorPickerHelper.applyColorPairSwatch(activeButton, activeColor, activeColor);
     } else {
-      activeButton.style.backgroundColor = activeColor;
-      activeButton.style.borderColor = activeColor;
+      if (activeButton.classList) {
+        activeButton.classList.add('color-swatch--pair');
+      }
+      activeButton.style.setProperty('--swatch-fill', activeColor);
+      activeButton.style.setProperty('--swatch-line', activeColor);
     }
     optionsPanel.querySelectorAll('.color-option-btn').forEach(btn => {
       const btnIndex = sanitizeFillIndex(btn.dataset.colorIndex, colors.length);
@@ -220,14 +223,14 @@ function isValidColor(value) {
     colors.forEach((color, index) => {
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'color-option-btn';
+      btn.className = 'color-option-btn color-swatch--pair';
       btn.dataset.colorIndex = String(index + 1);
       btn.dataset.colorValue = color;
       if (colorPickerHelper && typeof colorPickerHelper.applyColorPairSwatch === 'function') {
         colorPickerHelper.applyColorPairSwatch(btn, color, color);
       } else {
-        btn.style.backgroundColor = color;
-        btn.style.borderColor = color;
+        btn.style.setProperty('--swatch-fill', color);
+        btn.style.setProperty('--swatch-line', color);
       }
       btn.setAttribute('aria-label', `Velg farge ${index + 1}`);
       btn.addEventListener('click', event => {

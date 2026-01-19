@@ -1394,8 +1394,11 @@
       });
       return;
     }
-    element.style.backgroundColor = fillColor;
-    element.style.borderColor = lineColor;
+    if (element.classList) {
+      element.classList.add('color-swatch--pair');
+    }
+    element.style.setProperty('--swatch-fill', fillColor);
+    element.style.setProperty('--swatch-line', lineColor);
   }
   function updateFillColorPickerActive() {
     if (!fillColorPicker) return;
@@ -1421,7 +1424,7 @@
     palette.forEach((color, index) => {
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'color-option-btn';
+      btn.className = 'color-option-btn color-swatch--pair';
       applyPairSwatch(btn, palette, linePalette, index + 1);
       btn.dataset.color = color;
       btn.setAttribute('aria-label', `Velg farge ${index + 1}`);

@@ -4205,7 +4205,11 @@ function updateCurveColorsFromTheme() {
         if (picker) {
           const activeBtn = picker.querySelector('.color-swatch--active');
           if (activeBtn && appliedColor) {
-            activeBtn.style.backgroundColor = appliedColor;
+            if (activeBtn.classList) {
+              activeBtn.classList.add('color-swatch--pair');
+            }
+            activeBtn.style.setProperty('--swatch-fill', appliedColor);
+            activeBtn.style.setProperty('--swatch-line', appliedColor);
           }
 
           const options = picker.querySelectorAll('.color-option-btn');
@@ -8081,12 +8085,23 @@ function setupSettingsForm() {
         const picker = input.closest('[data-color-picker]');
         const activeSwatch = picker ? picker.querySelector('.color-swatch--active') : null;
         if (activeSwatch) {
-          activeSwatch.style.backgroundColor = nextColor;
+          if (activeSwatch.classList) {
+            activeSwatch.classList.add('color-swatch--pair');
+          }
+          activeSwatch.style.setProperty('--swatch-fill', nextColor);
+          activeSwatch.style.setProperty('--swatch-line', nextColor);
         }
         const optionButtons = picker ? picker.querySelectorAll('.color-option-btn') : null;
         if (optionButtons) {
           optionButtons.forEach(btn => {
             const optionColor = normalizeColorValue(btn.dataset.colorValue);
+            if (optionColor) {
+              btn.style.setProperty('--swatch-fill', optionColor);
+              btn.style.setProperty('--swatch-line', optionColor);
+              if (btn.classList) {
+                btn.classList.add('color-swatch--pair');
+              }
+            }
             btn.classList.toggle('is-selected', optionColor === nextColor);
           });
         }
@@ -9823,8 +9838,8 @@ function setupSettingsForm() {
     let colorControlMarkup = `
     <div class="func-color-compact" data-color-picker>
       <button type="button"
-              class="color-swatch color-swatch--active"
-              style="background-color: ${activeColor};"
+              class="color-swatch color-swatch--active color-swatch--pair"
+              style="--swatch-fill: ${activeColor}; --swatch-line: ${activeColor};"
               aria-label="Endre farge"
               aria-haspopup="true"
               aria-expanded="false"></button>
@@ -9834,8 +9849,8 @@ function setupSettingsForm() {
     palette.slice(0, FUNCTION_COLOR_OPTION_COUNT).forEach((color, idx) => {
       const isSelected = normalizeColorValue(color) === activeColor;
       colorControlMarkup += `
-      <button type="button" class="color-option-btn ${isSelected ? 'is-selected' : ''}" 
-              style="background-color: ${color};" 
+      <button type="button" class="color-option-btn color-swatch--pair ${isSelected ? 'is-selected' : ''}" 
+              style="--swatch-fill: ${color}; --swatch-line: ${color};" 
               data-color-value="${color}" 
               aria-label="Velg farge ${idx + 1}"></button>
     `;
@@ -10227,7 +10242,11 @@ function setupSettingsForm() {
 
             const newColor = btn.dataset.colorValue;
 
-            activeBtn.style.backgroundColor = newColor;
+            if (activeBtn.classList) {
+              activeBtn.classList.add('color-swatch--pair');
+            }
+            activeBtn.style.setProperty('--swatch-fill', newColor);
+            activeBtn.style.setProperty('--swatch-line', newColor);
             hiddenInput.value = newColor;
             optionsPanel.hidden = true;
             activeBtn.setAttribute('aria-expanded', 'false');
