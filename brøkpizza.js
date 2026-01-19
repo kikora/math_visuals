@@ -111,10 +111,10 @@ const LEGACY_PIZZA_COLORS = {
 };
 const SHARED_GROUP_ID = 'graftegner';
 const FILL_COLOR_COUNT = 6;
-const fillColorPickers =
-  typeof document !== 'undefined'
-    ? Array.from(document.querySelectorAll('[data-fill-color-picker]'))
-    : [];
+function getFillColorPickers() {
+  if (typeof document === 'undefined') return [];
+  return Array.from(document.querySelectorAll('[data-fill-color-picker]'));
+}
 const LEGACY_PIZZA_PALETTE = [
   LEGACY_PIZZA_COLORS.fill,
   LEGACY_PIZZA_COLORS.rim,
@@ -579,9 +579,10 @@ function updateFillPickerSelection(picker, palette) {
 }
 
 function renderFillColorPickers() {
-  if (!fillColorPickers.length) return;
+  const pickers = getFillColorPickers();
+  if (!pickers.length) return;
   const colors = getFillPalette();
-  fillColorPickers.forEach(picker => {
+  pickers.forEach(picker => {
     const activeButton = picker.querySelector('.color-swatch--active');
     const optionsPanel = picker.querySelector('.color-options');
     if (!activeButton || !optionsPanel) return;
@@ -2433,6 +2434,7 @@ function initFromHtml() {
   }
   SIMPLE.visibleCount = visibleCount || 1;
   applyPizzaColors();
+  renderFillColorPickers();
   refreshAltText('config');
 }
 window.addEventListener("load", () => {
