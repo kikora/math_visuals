@@ -1,5 +1,6 @@
 :root {
   color-scheme: light;
+  --archive-card-min: 220px;
 }
 
 body {
@@ -93,6 +94,38 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.svg-archive__size-control {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  background: #fff;
+}
+
+.svg-archive__size-control legend {
+  padding: 0;
+  margin: 0;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #1e293b;
+}
+
+.svg-archive__size-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.svg-archive__size-option input {
+  accent-color: #2563eb;
 }
 
 .svg-archive__toolbar {
@@ -379,7 +412,7 @@ body {
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(var(--archive-card-min, 220px), 1fr));
   gap: clamp(16px, 2.6vw, 28px);
 }
 

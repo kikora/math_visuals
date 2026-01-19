@@ -18,7 +18,9 @@
   const headerToggle = document.querySelector('[data-header-toggle]');
   const headerInfo = document.querySelector('[data-header-info]');
   const compactToggle = document.querySelector('[data-compact-toggle]');
+  const sizeOptions = Array.from(document.querySelectorAll('[data-size-option]'));
   const pageBody = document.querySelector('.svg-archive-page');
+  const rootElement = document.documentElement;
 
   if (!grid || !statusElement) {
     return;
@@ -65,6 +67,13 @@
   const TRASH_QUEUE_STORAGE_KEY = 'mathvis:examples:trashQueue:v1';
   const ARCHIVE_CACHE_STORAGE_KEY = 'mathvis:svgArchive:cache:v1';
   const COMPACT_STORAGE_KEY = 'mathvis:svgArchive:compactMode:v1';
+  const ARCHIVE_SIZE_STORAGE_KEY = 'mathvis:svgArchive:cardSize:v1';
+  const ARCHIVE_SIZE_CLASS_PREFIX = 'svg-archive-size--';
+  const ARCHIVE_SIZE_PRESETS = {
+    small: '180px',
+    medium: '220px',
+    large: '260px'
+  };
   const ARCHIVE_CACHE_MAX_AGE_MS = 5 * 60 * 1000;
   let manualTrashReplayInFlight = false;
   const entryDetailsCache = new Map();
@@ -118,6 +127,46 @@
     }
   }
 
+  function readArchiveSizePreference() {
+    if (typeof window === 'undefined') {
+      return 'medium';
+    }
+    try {
+      const stored = window.localStorage.getItem(ARCHIVE_SIZE_STORAGE_KEY);
+      if (stored && ARCHIVE_SIZE_PRESETS[stored]) {
+        return stored;
+      }
+    } catch (error) {
+      return 'medium';
+    }
+    return 'medium';
+  }
+
+  function writeArchiveSizePreference(size) {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    try {
+      window.localStorage.setItem(ARCHIVE_SIZE_STORAGE_KEY, size);
+    } catch (error) {}
+  }
+
+  function applyArchiveSize(size) {
+    const resolvedSize = ARCHIVE_SIZE_PRESETS[size] ? size : 'medium';
+    const minWidth = ARCHIVE_SIZE_PRESETS[resolvedSize];
+    if (rootElement) {
+      const classesToRemove = Object.keys(ARCHIVE_SIZE_PRESETS).map(
+        (preset) => `${ARCHIVE_SIZE_CLASS_PREFIX}${preset}`
+      );
+      rootElement.classList.remove(...classesToRemove);
+      rootElement.classList.add(`${ARCHIVE_SIZE_CLASS_PREFIX}${resolvedSize}`);
+      rootElement.style.setProperty('--archive-card-min', minWidth);
+    }
+    sizeOptions.forEach((option) => {
+      option.checked = option.value === resolvedSize;
+    });
+  }
+
   function getGlobalTrashQueue() {
     const globalObject = typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : null;
     if (!globalObject) {
@@ -151,6 +200,20 @@
       const enabled = compactToggle.checked;
       applyCompactMode(enabled);
       writeCompactPreference(enabled);
+    });
+  }
+
+  if (sizeOptions.length) {
+    applyArchiveSize(readArchiveSizePreference());
+    sizeOptions.forEach((option) => {
+      option.addEventListener('change', () => {
+        if (!option.checked) {
+          return;
+        }
+        const value = option.value;
+        applyArchiveSize(value);
+        writeArchiveSizePreference(value);
+      });
     });
   }
 
