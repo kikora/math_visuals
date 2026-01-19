@@ -30,53 +30,9 @@ body {
   padding: clamp(18px, 2.8vw, 48px) clamp(20px, 3.5vw, 60px) clamp(56px, 8vw, 88px);
 }
 
-.svg-archive__header {
-  display: grid;
-  gap: 12px;
-  margin-bottom: clamp(20px, 4vw, 32px);
-}
-
-.svg-archive__header-top {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.svg-archive__header h1 {
+.svg-archive__title {
   font-size: clamp(1.9rem, 4vw, 2.6rem);
-  margin: 0;
-}
-
-.svg-archive__header-toggle {
-  border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.5);
-  background: #fff;
-  color: #1f2937;
-  font-weight: 600;
-  padding: 8px 16px;
-  cursor: pointer;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
-}
-
-.svg-archive__header-toggle:hover,
-.svg-archive__header-toggle:focus-visible {
-  transform: translateY(-1px);
-  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.12);
-  border-color: rgba(37, 99, 235, 0.45);
-  outline: none;
-}
-
-.svg-archive__header-toggle:focus-visible {
-  outline: 3px solid rgba(59, 130, 246, 0.45);
-  outline-offset: 3px;
-}
-
-.svg-archive__header p {
-  margin: 0;
-  color: #475569;
-  max-width: 65ch;
+  margin: 0 0 clamp(16px, 3vw, 24px);
 }
 
 .svg-archive__note {
@@ -98,34 +54,10 @@ body {
 
 .svg-archive__size-control {
   display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  margin: 0;
-  padding: 6px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.5);
-  background: #fff;
-}
-
-.svg-archive__size-control legend {
-  padding: 0;
-  margin: 0;
-  font-weight: 600;
-  font-size: 0.9rem;
-  color: #1e293b;
-}
-
-.svg-archive__size-option {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-weight: 600;
-  color: #1e293b;
-}
-
-.svg-archive__size-option input {
-  accent-color: #2563eb;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.95rem;
+  color: #1f2937;
 }
 
 .svg-archive__toolbar {
@@ -330,19 +262,6 @@ body {
   }
 }
 
-.svg-archive__compact-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 600;
-  color: #1f2937;
-}
-
-.svg-archive__compact-toggle input {
-  width: 18px;
-  height: 18px;
-}
-
 .svg-archive__filter {
   display: inline-flex;
   flex-direction: column;
@@ -392,7 +311,9 @@ body {
   color: #1e40af;
 }
 
-.svg-archive__filter select {
+.svg-archive__filter select,
+.svg-archive__size-control select,
+.svg-archive__sort select {
   min-width: 220px;
   padding: 8px 12px;
   border-radius: 8px;
@@ -575,7 +496,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
+  padding: clamp(6px, 1.2vw, 12px);
   background: transparent;
   aspect-ratio: 4 / 3;
   width: 100%;
@@ -1113,19 +1034,14 @@ dialog.svg-archive__dialog::backdrop {
   padding: clamp(14px, 2vw, 28px) clamp(16px, 2.8vw, 36px) clamp(40px, 6vw, 64px);
 }
 
-.svg-archive-page--compact .svg-archive__header {
-  gap: 8px;
-  margin-bottom: clamp(16px, 3vw, 24px);
-}
-
-.svg-archive-page--compact .svg-archive__header h1 {
-  font-size: clamp(1.6rem, 3.2vw, 2.2rem);
-}
-
-.svg-archive-page--compact .svg-archive__header p,
 .svg-archive-page--compact .svg-archive__selection-count,
 .svg-archive-page--compact .svg-archive__note {
   line-height: 1.4;
+}
+
+.svg-archive-page--compact .svg-archive__title {
+  font-size: clamp(1.6rem, 3.2vw, 2.2rem);
+  margin-bottom: clamp(12px, 2.4vw, 18px);
 }
 
 .svg-archive-page--compact .svg-archive__toolbar {
@@ -1138,6 +1054,7 @@ dialog.svg-archive__dialog::backdrop {
 }
 
 .svg-archive-page--compact .svg-archive__filter,
+.svg-archive-page--compact .svg-archive__size-control,
 .svg-archive-page--compact .svg-archive__sort,
 .svg-archive-page--compact .svg-archive__search {
   font-size: 0.88rem;
@@ -1145,12 +1062,13 @@ dialog.svg-archive__dialog::backdrop {
 
 .svg-archive-page--compact .svg-archive__filter span,
 .svg-archive-page--compact .svg-archive__sort span,
-.svg-archive-page--compact .svg-archive__compact-toggle span,
+.svg-archive-page--compact .svg-archive__size-control span,
 .svg-archive-page--compact .svg-archive__search span {
   white-space: nowrap;
 }
 
 .svg-archive-page--compact .svg-archive__filter select,
+.svg-archive-page--compact .svg-archive__size-control select,
 .svg-archive-page--compact .svg-archive__sort select,
 .svg-archive-page--compact .svg-archive__search input {
   min-width: 200px;
@@ -1172,14 +1090,15 @@ dialog.svg-archive__dialog::backdrop {
   }
 
   .svg-archive-page--compact .svg-archive__filter,
+  .svg-archive-page--compact .svg-archive__size-control,
   .svg-archive-page--compact .svg-archive__sort,
-  .svg-archive-page--compact .svg-archive__compact-toggle,
   .svg-archive-page--compact .svg-archive__search {
     width: 100%;
     align-items: flex-start;
   }
 
   .svg-archive-page--compact .svg-archive__filter select,
+  .svg-archive-page--compact .svg-archive__size-control select,
   .svg-archive-page--compact .svg-archive__sort select,
   .svg-archive-page--compact .svg-archive__search input {
     width: 100%;

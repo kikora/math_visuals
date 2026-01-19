@@ -7,33 +7,11 @@
   <link rel="stylesheet" href="/base.css" />
   <link rel="stylesheet" href="/svg-arkiv.css" />
 </head>
-<body class="svg-archive-page">
+<body class="svg-archive-page svg-archive-page--compact">
   <main id="main-content" role="main" class="wrap">
     <div class="grid">
       <main class="svg-archive" aria-labelledby="page-title">
-        <header class="svg-archive__header">
-          <div class="svg-archive__header-top">
-            <h1 id="page-title">Eksempelarkiv</h1>
-            <button
-              type="button"
-              class="svg-archive__header-toggle"
-              data-header-toggle
-              data-label-expanded="Skjul info"
-              data-label-collapsed="Vis info"
-              aria-expanded="true"
-              aria-controls="archive-header-info"
-            >
-              Skjul info
-            </button>
-          </div>
-          <div class="svg-archive__header-info" id="archive-header-info" data-header-info>
-            <p>
-              Utforsk lagrede SVG-er fra verktøyene. Bruk filteret for å finne filer fra et bestemt verktøy.
-            </p>
-            <p class="svg-archive__note" data-storage-note hidden></p>
-          </div>
-        </header>
-
+        <h1 id="page-title" class="svg-archive__title">Eksempelarkiv</h1>
         <section class="svg-archive__toolbar" data-selection-bar aria-label="Filtrering og valg">
           <section class="svg-archive__controls" aria-label="Filtrering og alternativer">
             <label class="svg-archive__search">
@@ -60,24 +38,13 @@
                 <option value="size">Størrelse</option>
               </select>
             </label>
-            <fieldset class="svg-archive__size-control" data-size-control>
-              <legend>Størrelse</legend>
-              <label class="svg-archive__size-option">
-                <input type="radio" name="archive-card-size" value="small" data-size-option>
-                <span>Liten</span>
-              </label>
-              <label class="svg-archive__size-option">
-                <input type="radio" name="archive-card-size" value="medium" data-size-option checked>
-                <span>Middels</span>
-              </label>
-              <label class="svg-archive__size-option">
-                <input type="radio" name="archive-card-size" value="large" data-size-option>
-                <span>Stor</span>
-              </label>
-            </fieldset>
-            <label class="svg-archive__compact-toggle">
-              <input type="checkbox" data-compact-toggle aria-label="Kompakt visning">
-              <span>Kompakt visning</span>
+            <label class="svg-archive__size-control" data-size-control>
+              <span>Størrelse</span>
+              <select data-size-select>
+                <option value="small">Liten</option>
+                <option value="medium">Middels</option>
+                <option value="large">Stor</option>
+              </select>
             </label>
             <button
               type="button"
@@ -94,6 +61,7 @@
 
           <section class="svg-archive__actions" aria-label="Valg for figurer">
             <p class="svg-archive__selection-count" data-selection-count aria-live="polite" hidden></p>
+            <p class="svg-archive__note" data-storage-note hidden></p>
           </section>
         </section>
 
