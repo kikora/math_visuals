@@ -4220,8 +4220,13 @@ function updateCurveColorsFromTheme() {
         if (picker) {
           const hiddenInput = picker.querySelector('input[data-color]');
           if (hiddenInput && appliedColor) {
-            hiddenInput.value = normalizeFunctionColorChoice(appliedColor) || appliedColor;
-            updateFunctionColorPicker(picker, hiddenInput, appliedColor, getFunctionColorOptions());
+            const normalizedColor = typeof normalizeFunctionColorChoice === 'function'
+              ? normalizeFunctionColorChoice(appliedColor)
+              : null;
+            hiddenInput.value = normalizedColor || appliedColor;
+            if (typeof updateFunctionColorPicker === 'function' && typeof getFunctionColorOptions === 'function') {
+              updateFunctionColorPicker(picker, hiddenInput, appliedColor, getFunctionColorOptions());
+            }
           }
         }
       }
