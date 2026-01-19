@@ -30,6 +30,8 @@
     taskPanelPreview: null,
     taskPanelUpdateButton: null,
     taskDescriptionSyncInitialized: false,
+    lastTaskPanelRenderToken: 0,
+    lastRenderedTaskPanelValue: null,
     config: {
       getAppMode: null,
       setAppMode: null,
@@ -720,6 +722,91 @@
     }
   }
 
+  function renderTaskPanelPreviewFromValue(value, options) {
+    const preview = state.taskPanelPreview;
+    if (!preview) return null;
+    preview.classList.add('math-vis-description-rendered');
+    const opts = options && typeof options === 'object' ? options : {};
+    const force = opts.force === true;
+    const stringValue = typeof value === 'string' ? value : '';
+    if (!force && stringValue === state.lastRenderedTaskPanelValue) {
+      return preview.dataset.placeholder !== 'true';
+    }
+    state.lastRenderedTaskPanelValue = stringValue;
+    const trimmedValue = stringValue.trim();
+    const placeholderLabel = opts.placeholder || 'Oppgave';
+
+    const applyPlaceholder = () => {
+      preview.dataset.placeholder = 'true';
+      clearChildren(preview);
+      preview.textContent = placeholderLabel;
+      preview.removeAttribute('hidden');
+      preview.setAttribute('aria-hidden', 'false');
+      return false;
+    };
+
+    const renderPlainText = () => {
+      const fragment = buildDescriptionPreview(stringValue);
+      clearChildren(preview);
+      if (fragment && fragment.childNodes && fragment.childNodes.length > 0) {
+        preview.appendChild(fragment);
+      } else {
+        preview.textContent = stringValue;
+      }
+      preview.dataset.placeholder = 'false';
+      preview.removeAttribute('hidden');
+      preview.setAttribute('aria-hidden', 'false');
+      return true;
+    };
+
+    if (!trimmedValue) {
+      return applyPlaceholder();
+    }
+
+    const token = ++state.lastTaskPanelRenderToken;
+    const renderWith = renderer => {
+      if (!renderer || token !== state.lastTaskPanelRenderToken) return;
+      try {
+        clearChildren(preview);
+        const hasContent = !!renderer.renderInto(preview, stringValue);
+        if (!hasContent) {
+          renderPlainText();
+        } else {
+          preview.dataset.placeholder = 'false';
+          preview.removeAttribute('hidden');
+          preview.setAttribute('aria-hidden', 'false');
+        }
+      } catch (_) {
+        renderPlainText();
+      }
+    };
+
+    if (window.MathVisDescriptionRenderer && typeof window.MathVisDescriptionRenderer.renderInto === 'function') {
+      renderWith(window.MathVisDescriptionRenderer);
+      return null;
+    }
+
+    const loader = loadDescriptionRenderer();
+    if (!loader || typeof loader.then !== 'function') {
+      renderPlainText();
+      return null;
+    }
+    renderPlainText();
+    loader
+      .then(renderer => {
+        if (token !== state.lastTaskPanelRenderToken) return;
+        if (renderer && typeof renderer.renderInto === 'function') {
+          renderWith(renderer);
+        }
+      })
+      .catch(() => {
+        if (token === state.lastTaskPanelRenderToken) {
+          renderPlainText();
+        }
+      });
+    return null;
+  }
+
   function hasDescriptionFormatting(value) {
     if (typeof value !== 'string') return false;
     const trimmed = value.trim();
@@ -1143,10 +1230,42 @@
     input.hidden = false;
     input.removeAttribute('hidden');
     input.removeAttribute('aria-hidden');
+
+    const taskInput = document.getElementById('taskModeDescription');
+    if (taskInput) {
+      ensureTaskPanelUi(taskInput);
+      const showEditor = isTaskMode && isEditing;
+      const showPreview = isTaskMode && !isEditing;
+      taskInput.hidden = !showEditor;
+      taskInput.setAttribute('aria-hidden', showEditor ? 'false' : 'true');
+      if (state.taskPanelPreview) {
+        state.taskPanelPreview.hidden = !showPreview;
+        state.taskPanelPreview.setAttribute('aria-hidden', showPreview ? 'false' : 'true');
+        if (showPreview) {
+          renderTaskPanelPreviewFromValue(taskInput.value, { force: true });
+        }
+      }
+    }
   }
 
   function focusDescriptionInput(options) {
     const input = getDescriptionInput();
+    if (!input) return;
+    const opts = options && typeof options === 'object' ? options : {};
+    const preventScroll = opts.preventScroll !== false;
+    if (typeof input.focus === 'function') {
+      try {
+        input.focus({ preventScroll });
+      } catch (_) {
+        try {
+          input.focus();
+        } catch (_) {}
+      }
+    }
+  }
+
+  function focusTaskPanelInput(options) {
+    const input = document.getElementById('taskModeDescription');
     if (!input) return;
     const opts = options && typeof options === 'object' ? options : {};
     const preventScroll = opts.preventScroll !== false;
@@ -1490,7 +1609,8 @@
     const hasContent = !!stringValue.trim();
     state.taskPanelPreview.dataset.placeholder = hasContent ? 'false' : 'true';
     if (opts.skipTextUpdate) return;
-    state.taskPanelPreview.textContent = hasContent ? stringValue : 'Oppgave';
+    if (state.taskModeDescriptionEditing && opts.forceRender !== true) return;
+    renderTaskPanelPreviewFromValue(stringValue, { force: opts.force === true, placeholder: opts.placeholder });
   }
 
   function readTaskPreviewValue() {
@@ -1524,13 +1644,25 @@
     if (!state.taskPanelPreview) {
       state.taskPanelPreview = document.createElement('div');
       state.taskPanelPreview.className = 'task-panel__preview';
-      state.taskPanelPreview.contentEditable = 'true';
-      state.taskPanelPreview.setAttribute('role', 'textbox');
+      state.taskPanelPreview.setAttribute('role', 'button');
       state.taskPanelPreview.tabIndex = 0;
       state.taskPanelPreview.spellcheck = true;
       state.taskPanelPreview.setAttribute('aria-label', 'Oppgavetekst');
       state.taskPanelPreview.dataset.placeholder = 'true';
       body.appendChild(state.taskPanelPreview);
+      const activateEdit = event => {
+        if (event && event.type === 'keydown') {
+          const key = event.key;
+          if (key !== 'Enter' && key !== ' ') return;
+        }
+        if (event && typeof event.preventDefault === 'function') {
+          event.preventDefault();
+        }
+        setTaskModeDescriptionEditing(true, { focus: false });
+        focusTaskPanelInput({ preventScroll: true });
+      };
+      state.taskPanelPreview.addEventListener('click', activateEdit);
+      state.taskPanelPreview.addEventListener('keydown', activateEdit);
     }
     let actions = taskPanel.querySelector('.task-panel__actions');
     if (!actions) {
@@ -1580,20 +1712,14 @@
       applyTaskPreviewValue(taskInput.value);
       persistTaskText(taskInput.value);
     };
-    const syncFromPreview = event => {
-      const value = readTaskPreviewValue();
-      taskInput.value = value;
-      taskInput.dispatchEvent(new Event('input'));
-      applyTaskPreviewValue(value, { skipTextUpdate: event && event.type === 'input' });
-      persistTaskText(value);
-    };
 
     sidebarInput.addEventListener('input', syncFromSidebar);
     taskInput.addEventListener('input', syncFromTask);
-    if (state.taskPanelPreview) {
-      state.taskPanelPreview.addEventListener('input', syncFromPreview);
-      state.taskPanelPreview.addEventListener('blur', syncFromPreview);
-    }
+    taskInput.addEventListener('blur', () => {
+      if (!document.body || document.body.dataset.appMode !== 'task') return;
+      setTaskModeDescriptionEditing(false, { force: true, focus: false });
+      renderTaskPanelPreviewFromValue(taskInput.value, { force: true });
+    });
 
     if (state.taskPanelUpdateButton) {
       state.taskPanelUpdateButton.addEventListener('click', () => {
@@ -1606,7 +1732,7 @@
 
     syncFromSidebar();
     if (state.taskPanelPreview) {
-      state.taskPanelPreview.textContent = sidebarInput.value || 'Oppgave';
+      renderTaskPanelPreviewFromValue(sidebarInput.value, { force: true });
       applyTaskPreviewValue(sidebarInput.value, { skipTextUpdate: true });
     }
 
