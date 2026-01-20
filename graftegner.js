@@ -4182,6 +4182,70 @@ function pointColorForCurve(i) {
   const lineColor = lineColorForCurve(i);
   return pointColorFromLineColor(lineColor) || lineColor || DEFAULT_POINT_COLORS.fallbackMarkerStroke;
 }
+function applyGraphColorUpdate(g, idx, options = {}) {
+  if (!g) return;
+  const normalizedColor = normalizeColorValue(options.color) || normalizeColorValue(g.color);
+  const normalizedLineColor = normalizeColorValue(options.lineColor)
+    || normalizeColorValue(g.lineColor)
+    || normalizedColor
+    || lineColorForCurve(idx);
+  if (normalizedColor) {
+    g.color = normalizedColor;
+  }
+  if (normalizedLineColor) {
+    g.lineColor = normalizedLineColor;
+  }
+  if (typeof options.manual === 'boolean') {
+    g.manualColor = options.manual;
+  }
+  const appliedColor = normalizedColor || normalizedLineColor;
+  if (Array.isArray(g.segs)) {
+    g.segs.forEach(seg => {
+      if (seg && typeof seg.setAttribute === 'function') {
+        seg.setAttribute({ strokeColor: appliedColor });
+      }
+    });
+  }
+  if (Array.isArray(g.gliders) && g.gliders.length) {
+    const appliedPointColor = pointColorFromLineColor(normalizedLineColor)
+      || normalizedLineColor
+      || appliedColor
+      || DEFAULT_POINT_COLORS.fallbackMarkerStroke;
+    g.gliders.forEach(point => {
+      if (point && typeof point.setAttribute === 'function') {
+        point.setAttribute({ strokeColor: appliedPointColor, fillColor: appliedPointColor });
+      }
+    });
+  }
+  if (Array.isArray(g.guideArrows) && g.guideArrows.length) {
+    g.guideArrows.forEach(arrow => {
+      if (arrow && typeof arrow.setAttribute === 'function') {
+        arrow.setAttribute({ strokeColor: normalizedLineColor || appliedColor });
+      }
+    });
+  }
+  if (g.labelElement && typeof g.labelElement.setAttribute === 'function' && appliedColor) {
+    g.labelElement.setAttribute({
+      color: appliedColor,
+      fillColor: appliedColor,
+      cssStyle: `user-select:none;cursor:move;touch-action:none;color:${appliedColor};display:inline-block;`
+    });
+    const node = g.labelElement.rendNode;
+    if (node && node.style) {
+      node.style.color = appliedColor;
+    }
+  }
+  if (g._br && typeof g._br === 'object') {
+    Object.values(g._br).forEach(list => {
+      if (!Array.isArray(list)) return;
+      list.forEach(seg => {
+        if (seg && typeof seg.setAttribute === 'function') {
+          seg.setAttribute({ strokeColor: appliedColor });
+        }
+      });
+    });
+  }
+}
 function updateCurveColorsFromTheme() {
   if (!Array.isArray(appState.graphs) || appState.graphs.length === 0) return;
   const palette = resolveCurvePalette(appState.graphs.length);
@@ -4197,51 +4261,15 @@ function updateCurveColorsFromTheme() {
     }
     const appliedColor = typeof g.color === 'string' && g.color ? g.color : paletteColor;
     if (!appliedColor) return;
-    g.lineColor = lineColorForCurve(idx);
-    if (Array.isArray(g.segs)) {
-      g.segs.forEach(seg => {
-        if (seg && typeof seg.setAttribute === 'function') {
-          seg.setAttribute({ strokeColor: appliedColor });
-        }
-      });
-    }
-    if (Array.isArray(g.gliders) && g.gliders.length) {
-      const appliedPointColor = pointColorForCurve(idx);
-      g.gliders.forEach(point => {
-        if (point && typeof point.setAttribute === 'function') {
-          point.setAttribute({ strokeColor: appliedPointColor, fillColor: appliedPointColor });
-        }
-      });
-    }
-    if (Array.isArray(g.guideArrows) && g.guideArrows.length) {
-      const appliedLineColor = lineColorForCurve(idx);
-      g.guideArrows.forEach(arrow => {
-        if (arrow && typeof arrow.setAttribute === 'function') {
-          arrow.setAttribute({ strokeColor: appliedLineColor });
-        }
-      });
-    }
-    if (g.labelElement && typeof g.labelElement.setAttribute === 'function') {
-      g.labelElement.setAttribute({
-        color: appliedColor,
-        fillColor: appliedColor,
-        cssStyle: `user-select:none;cursor:move;touch-action:none;color:${appliedColor};display:inline-block;`
-      });
-      const node = g.labelElement.rendNode;
-      if (node && node.style) {
-        node.style.color = appliedColor;
-      }
-    }
-    if (g._br && typeof g._br === 'object') {
-      Object.values(g._br).forEach(list => {
-        if (!Array.isArray(list)) return;
-        list.forEach(seg => {
-          if (seg && typeof seg.setAttribute === 'function') {
-            seg.setAttribute({ strokeColor: appliedColor });
-          }
-        });
-      });
-    }
+    const hasLineColor = typeof g.lineColor === 'string' && g.lineColor;
+    const appliedLineColor = manual
+      ? appliedColor
+      : (hasLineColor ? lineColorForCurve(idx) : appliedColor);
+    applyGraphColorUpdate(g, idx, {
+      color: appliedColor,
+      lineColor: appliedLineColor,
+      manual
+    });
 
     if (typeof funcRows !== 'undefined') {
       const row = funcRows ? funcRows.querySelector(`.func-group:nth-child(${idx + 1})`) : null;
@@ -8272,6 +8300,25 @@ function setupSettingsForm() {
       }
       syncFunctionColorSwatches(control.inputs, control.value);
       applyColorManualClass(row, control.manual);
+      if (Array.isArray(appState.graphs) && appState.graphs.length) {
+        const graphIndex = getRowIndex(row) - 1;
+        const graph = appState.graphs[graphIndex];
+        if (graph) {
+          const appliedColor = normalizeColorValue(control.value) || control.defaultColor || DEFAULT_COLOR_FALLBACK;
+          const hasLineColor = typeof graph.lineColor === 'string' && graph.lineColor;
+          const appliedLineColor = control.manual || !hasLineColor
+            ? appliedColor
+            : lineColorForCurve(graphIndex);
+          applyGraphColorUpdate(graph, graphIndex, {
+            color: appliedColor,
+            lineColor: appliedLineColor,
+            manual: control.manual
+          });
+          if (appState.board && typeof appState.board.update === 'function') {
+            appState.board.update();
+          }
+        }
+      }
       if (event && event.type === 'change') {
         flushSimpleFormChange();
       } else {
