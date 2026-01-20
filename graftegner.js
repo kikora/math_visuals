@@ -9050,6 +9050,18 @@ function setupSettingsForm() {
   const parseStartXValues = value => {
     if (!value) return [];
     const text = String(value);
+    const assignmentValues = [];
+    const assignmentRegex = /x\s*=\s*(-?\d+(?:[.,]\d+)?)/gi;
+    let assignmentMatch;
+    while ((assignmentMatch = assignmentRegex.exec(text)) !== null) {
+      const num = Number.parseFloat(assignmentMatch[1].replace(',', '.'));
+      if (Number.isFinite(num)) {
+        assignmentValues.push(num);
+      }
+    }
+    if (assignmentValues.length) {
+      return assignmentValues;
+    }
     const entries = [];
     const pairRegex = /\(\s*-?\d+(?:[.,]\d+)?(?:\s*,\s*-?\d+(?:[.,]\d+)?)?\s*\)/g;
     let match;
