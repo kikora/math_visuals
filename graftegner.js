@@ -109,7 +109,7 @@ function whenJXGReady(callback) {
 }
 const SETTINGS_STORAGE_KEY = 'mathVisuals:settings';
 const GRAFTEGNER_GROUP_ID = 'graftegner';
-const GRAFTEGNER_FALLBACK_PALETTE = ['#2563eb', '#f97316', '#0ea5e9', '#10b981', '#ef4444', '#f59e0b'];
+const GRAFTEGNER_FALLBACK_PALETTE = ['#c14f30', '#155eef', '#027a48', '#b8325d', '#b8325d', '#674d96'];
 const DEFAULT_LINE_THICKNESS = 3;
 const AUTO_SPAN_SAFETY_MULTIPLIER = 200;
 const AUTO_SPAN_RECENTER_FACTOR = 1.25;
@@ -176,9 +176,12 @@ function resolveSettingsSnapshot() {
 }
 function getBaseCurveColors(count) {
   const targetCount = Number.isFinite(count) && count > 0 ? Math.trunc(count) : undefined;
-  const base = Array.isArray(DEFAULT_FUNCTION_COLORS.palette) && DEFAULT_FUNCTION_COLORS.palette.length
+  const basePalette = Array.isArray(DEFAULT_FUNCTION_COLORS.palette) && DEFAULT_FUNCTION_COLORS.palette.length
     ? DEFAULT_FUNCTION_COLORS.palette
     : DEFAULT_FUNCTION_COLORS.fallback;
+  const derivedLinePalette =
+    basePalette.length > DEFAULT_FUNCTION_COLORS.fallback.length ? selectGraftegnerLineColors(basePalette) : basePalette.slice();
+  const base = derivedLinePalette.length ? derivedLinePalette : basePalette.slice();
   if (!targetCount) {
     return base.slice();
   }
@@ -358,14 +361,6 @@ function getColorPickerModule() {
   return null;
 }
 
-const DEFAULT_GRAFTEGNER_COLOR_ROLES = [
-  { fillIndex: 0, lineIndex: 1 },
-  { fillIndex: 2, lineIndex: 3 },
-  { fillIndex: 4, lineIndex: 5 },
-  { fillIndex: 6, lineIndex: 7 },
-  { fillIndex: 8, lineIndex: 9 },
-  { fillIndex: 10, lineIndex: 11 }
-];
 const colorPickerHelper = getColorPickerHelper();
 const colorPickerModule = getColorPickerModule();
 const functionColorPickerInstances = new WeakMap();
@@ -557,7 +552,7 @@ function sanitizePaletteList(values) {
 }
 
 let graftegnerFillSlotPositions = null;
-function resolveGraftegnerFillSlotPositions() {
+function resolveGraftegnerLineSlotPositions() {
   if (Array.isArray(graftegnerFillSlotPositions)) {
     return graftegnerFillSlotPositions.slice();
   }
@@ -567,23 +562,25 @@ function resolveGraftegnerFillSlotPositions() {
       const id = entry && typeof entry.groupId === 'string' ? entry.groupId.trim().toLowerCase() : '';
       return id === GRAFTEGNER_GROUP_ID;
     });
-    if (group && colorPickerHelper && typeof colorPickerHelper.resolveRoleSlotPairs === 'function') {
-      const pairs = colorPickerHelper.resolveRoleSlotPairs(config, GRAFTEGNER_GROUP_ID, DEFAULT_GRAFTEGNER_COLOR_ROLES);
-      if (pairs.length) {
-        graftegnerFillSlotPositions = pairs.map(pair => pair.fillSlotIndex);
-        return graftegnerFillSlotPositions.slice();
-      }
-    }
     if (group && Array.isArray(group.slots)) {
-      const positions = group.slots
+      const labeled = group.slots
         .map((slot, index) => {
           const label = slot && typeof slot.label === 'string' ? slot.label.trim().toLowerCase() : '';
-          return label.includes('fyll') ? index : null;
+          return label.includes('linje') ? index : null;
         })
         .filter(value => Number.isFinite(value));
-      if (positions.length) {
-        graftegnerFillSlotPositions = positions;
-        return positions.slice();
+      if (labeled.length) {
+        graftegnerFillSlotPositions = labeled;
+        return graftegnerFillSlotPositions.slice();
+      }
+      if (group.slots.length >= 3) {
+        const tripletPositions = group.slots
+          .map((_, index) => (index % 3 === 2 ? index : null))
+          .filter(value => Number.isFinite(value));
+        if (tripletPositions.length) {
+          graftegnerFillSlotPositions = tripletPositions;
+          return graftegnerFillSlotPositions.slice();
+        }
       }
     }
   }
@@ -591,23 +588,28 @@ function resolveGraftegnerFillSlotPositions() {
   return [];
 }
 
-function selectGraftegnerFillColors(palette) {
+function selectGraftegnerLineColors(palette) {
   const sanitized = sanitizePaletteList(palette);
   if (!sanitized.length) return [];
-  const positions = resolveGraftegnerFillSlotPositions();
-  let fillColors = [];
+  const positions = resolveGraftegnerLineSlotPositions();
+  let lineColors = [];
   if (positions.length) {
     positions.forEach(position => {
       const color = sanitized[position];
       if (color) {
-        fillColors.push(color);
+        lineColors.push(color);
       }
     });
   }
-  if (!fillColors.length) {
-    fillColors = sanitized.filter((_, index) => index % 2 === 0);
+  if (!lineColors.length) {
+    if (sanitized.length >= 3 && sanitized.length % 3 === 0) {
+      lineColors = sanitized.filter((_, index) => index % 3 === 2);
+    }
   }
-  return fillColors;
+  if (!lineColors.length) {
+    lineColors = sanitized.filter((_, index) => index % 2 === 0);
+  }
+  return lineColors;
 }
 
 function tryResolveGroupPalette(resolver) {
@@ -693,10 +695,14 @@ function applyGraftegnerPalette(palette, options = {}) {
     : Math.max(source.length, DEFAULT_FUNCTION_COLORS.fallback.length);
   const resolved = ensureColorCount(source, DEFAULT_FUNCTION_COLORS.fallback, requestedCount);
   DEFAULT_FUNCTION_COLORS.palette = resolved.slice();
+  const linePalette = resolved.length > DEFAULT_FUNCTION_COLORS.fallback.length
+    ? selectGraftegnerLineColors(resolved)
+    : resolved.slice();
+  const effectiveLinePalette = linePalette.length ? linePalette : resolved.slice();
   const simpleCount = DEFAULT_GRAFTEGNER_SIMPLE.expressions.length;
   const trigCount = DEFAULT_GRAFTEGNER_TRIG_SIMPLE.expressions.length;
-  const simplePalette = ensureColorCount(resolved, DEFAULT_FUNCTION_COLORS.fallback, simpleCount);
-  const trigPalette = ensureColorCount(resolved, DEFAULT_FUNCTION_COLORS.fallback, trigCount);
+  const simplePalette = ensureColorCount(effectiveLinePalette, DEFAULT_FUNCTION_COLORS.fallback, simpleCount);
+  const trigPalette = ensureColorCount(effectiveLinePalette, DEFAULT_FUNCTION_COLORS.fallback, trigCount);
   DEFAULT_FUNCTION_COLORS.simple = simplePalette.slice();
   DEFAULT_FUNCTION_COLORS.trig = trigPalette.slice();
   DEFAULT_GRAFTEGNER_SIMPLE.expressions.forEach((expr, idx) => {
@@ -707,9 +713,9 @@ function applyGraftegnerPalette(palette, options = {}) {
     if (!expr || typeof expr !== 'object') return;
     expr.color = trigPalette[idx] || DEFAULT_FUNCTION_COLORS.fallback[idx % DEFAULT_FUNCTION_COLORS.fallback.length];
   });
-  const primary = resolved[0] || DEFAULT_FUNCTION_COLORS.fallback[0];
-  const secondary = resolved[1] || resolved[0] || DEFAULT_POINT_COLORS.fallbackDomain;
-  const tertiary = resolved[2] || secondary || DEFAULT_POINT_COLORS.fallbackGuide;
+  const primary = effectiveLinePalette[0] || DEFAULT_FUNCTION_COLORS.fallback[0];
+  const secondary = effectiveLinePalette[1] || effectiveLinePalette[0] || DEFAULT_POINT_COLORS.fallbackDomain;
+  const tertiary = effectiveLinePalette[2] || secondary || DEFAULT_POINT_COLORS.fallbackGuide;
   DEFAULT_POINT_COLORS.line = secondary || primary || DEFAULT_POINT_COLORS.fallbackMarkerStroke;
   DEFAULT_POINT_COLORS.markerStroke = DEFAULT_POINT_COLORS.line || DEFAULT_POINT_COLORS.fallbackMarkerStroke;
   DEFAULT_POINT_COLORS.markerFill = DEFAULT_POINT_COLORS.markerStroke || DEFAULT_POINT_COLORS.fallbackMarkerFill;
@@ -4168,14 +4174,13 @@ function colorFor(i) {
 }
 function lineColorForCurve(i) {
   const index = Number.isFinite(i) && i >= 0 ? Math.trunc(i) : 0;
-  ensurePaletteCapacity((index + 1) * 2);
-  const palette = resolveCurvePalette((index + 1) * 2);
-  const pairIndex = index * 2 + 1;
+  ensurePaletteCapacity(index + 1);
+  const palette = resolveCurvePalette(index + 1);
   const fallback = DEFAULT_FUNCTION_COLORS.fallback.length ? DEFAULT_FUNCTION_COLORS.fallback : GRAFTEGNER_FALLBACK_PALETTE;
-  const lineColor = normalizeColorValue(palette[pairIndex]) || normalizeColorValue(palette[index]);
+  const lineColor = normalizeColorValue(palette[index % palette.length]) || normalizeColorValue(palette[index]);
   return lineColor
     || normalizeColorValue(DEFAULT_POINT_COLORS.line)
-    || normalizeColorValue(fallback[pairIndex % fallback.length] || fallback[index % fallback.length])
+    || normalizeColorValue(fallback[index % fallback.length])
     || DEFAULT_POINT_COLORS.fallbackMarkerStroke;
 }
 function pointColorForCurve(i) {
@@ -8118,8 +8123,8 @@ function setupSettingsForm() {
   let functionColorOptions = [];
   const resolveFunctionColorOptions = () => {
     const palette = resolveCurvePalette(FUNCTION_COLOR_OPTION_COUNT * 2);
-    const fillPalette = selectGraftegnerFillColors(palette);
-    const filled = ensureColorCount(fillPalette, DEFAULT_FUNCTION_COLORS.fallback, FUNCTION_COLOR_OPTION_COUNT);
+    const linePalette = selectGraftegnerLineColors(palette);
+    const filled = ensureColorCount(linePalette, DEFAULT_FUNCTION_COLORS.fallback, FUNCTION_COLOR_OPTION_COUNT);
     return filled.slice(0, FUNCTION_COLOR_OPTION_COUNT);
   };
   const getFunctionColorOptions = () => {
