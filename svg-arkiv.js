@@ -4486,7 +4486,25 @@
       }
       const response = await fetch(apiUrl, { headers: { Accept: 'application/json' } });
       if (!response.ok) {
-        throw new Error(`Uventet svar: ${response.status}`);
+        let responseDetails = '';
+        try {
+          const contentType = response.headers.get('content-type') || '';
+          if (contentType.includes('application/json')) {
+            const payload = await response.json();
+            if (payload && typeof payload.error === 'string') {
+              responseDetails = payload.error.trim();
+            }
+          } else {
+            const text = await response.text();
+            if (text) {
+              responseDetails = text.trim();
+            }
+          }
+        } catch (error) {
+          responseDetails = '';
+        }
+        const detailSuffix = responseDetails ? ` (${responseDetails})` : '';
+        throw new Error(`Uventet svar: ${response.status}${detailSuffix}`);
       }
       const payload = await response.json();
       const metadata = extractArchiveMetadata(payload);
@@ -4498,7 +4516,9 @@
       if (hasCachedEntries) {
         setStatus('Viser hurtigbufret arkiv. Klarte ikke å oppdatere akkurat nå.', 'warning');
       } else {
-        setStatus('Klarte ikke å hente arkivet akkurat nå. Prøv igjen senere.', 'error');
+        const errorMessage = error && typeof error.message === 'string' ? error.message.trim() : '';
+        const detailSuffix = errorMessage ? ` (${errorMessage})` : '';
+        setStatus(`Klarte ikke å hente arkivet akkurat nå. Prøv igjen senere.${detailSuffix}`, 'error');
         grid.innerHTML = '';
         visibleEntries = [];
         if (selectedSlugs.size) {
