@@ -84,6 +84,24 @@ Rules:
         AssertDescription: CloudFrontAcmCertificateArn must be set when CloudFrontAliases are provided.
 
 Resources:
+  NoCacheStaticAssetsHeadersPolicy:
+    Type: AWS::CloudFront::ResponseHeadersPolicy
+    Properties:
+      ResponseHeadersPolicyConfig:
+        Name: !Sub '${AWS::StackName}-no-cache-static'
+        Comment: Force browsers to revalidate static assets.
+        CustomHeadersConfig:
+          Items:
+            - Header: Cache-Control
+              Value: max-age=0, must-revalidate
+              Override: true
+            - Header: Pragma
+              Value: no-cache
+              Override: true
+            - Header: Expires
+              Value: '0'
+              Override: true
+
   SiteBucket:
     Type: AWS::S3::Bucket
     Condition: CreateSiteBucketCondition
@@ -310,6 +328,7 @@ Resources:
             - GET
             - HEAD
           Compress: true
+          ResponseHeadersPolicyId: !Ref NoCacheStaticAssetsHeadersPolicy
           FunctionAssociations:
             - EventType: viewer-request
               FunctionARN: !GetAtt ViewerRequestRouterFunction.FunctionARN
@@ -388,6 +407,7 @@ Resources:
               - GET
               - HEAD
             Compress: true
+            ResponseHeadersPolicyId: !Ref NoCacheStaticAssetsHeadersPolicy
             ForwardedValues:
               QueryString: false
               Cookies:
@@ -420,6 +440,7 @@ Resources:
               - GET
               - HEAD
             Compress: true
+            ResponseHeadersPolicyId: !Ref NoCacheStaticAssetsHeadersPolicy
             FunctionAssociations:
               - EventType: viewer-request
                 FunctionARN: !GetAtt ViewerRequestRouterFunction.FunctionARN
@@ -438,6 +459,7 @@ Resources:
               - GET
               - HEAD
             Compress: true
+            ResponseHeadersPolicyId: !Ref NoCacheStaticAssetsHeadersPolicy
             FunctionAssociations:
               - EventType: viewer-request
                 FunctionARN: !GetAtt ViewerRequestRouterFunction.FunctionARN
