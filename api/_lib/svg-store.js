@@ -531,7 +531,10 @@ async function readFromKv(slug) {
       try {
         return JSON.parse(value);
       } catch (error) {
-        throw new KvOperationError('Failed to parse SVG entry from KV', { cause: error });
+        throw new KvOperationError('Failed to parse SVG entry from KV', {
+          cause: error,
+          code: 'KV_BAD_PAYLOAD'
+        });
       }
     }
     if (typeof value === 'object') {
@@ -621,12 +624,33 @@ async function listSvgs() {
     for (const value of slugs) {
       const normalized = normalizeEntrySlug(value);
       if (!normalized) continue;
-      const stored = await readFromKv(normalized);
+      let stored;
+      try {
+        stored = await readFromKv(normalized);
+      } catch (error) {
+        if (error instanceof KvOperationError) {
+          if (error.code === 'KV_BAD_PAYLOAD' || error.code === 'KV_UNSUPPORTED_VALUE_TYPE') {
+            console.warn('Skipping corrupt SVG entry from KV.', {
+              slug: normalized,
+              error: error.message
+            });
+            continue;
+          }
+        }
+        throw error;
+      }
       if (!stored) continue;
-      const entry = buildSvgEntry(normalized, stored, stored);
-      applyStorageMetadata(entry, 'kv');
-      writeToMemory(normalized, entry);
-      entries.push(clone(entry));
+      try {
+        const entry = buildSvgEntry(normalized, stored, stored);
+        applyStorageMetadata(entry, 'kv');
+        writeToMemory(normalized, entry);
+        entries.push(clone(entry));
+      } catch (error) {
+        console.warn('Skipping invalid SVG entry during list.', {
+          slug: normalized,
+          error: error && error.message ? error.message : String(error)
+        });
+      }
     }
     return entries;
   }
