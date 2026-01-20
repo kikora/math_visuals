@@ -480,17 +480,22 @@
     return `${label}: ${evaluation.display} ${evaluation.passes ? '✅' : '❌'}`;
   }
 
-  function buildGraftegnerContrastMessage(fillIndex, lineIndex) {
+  function buildGraftegnerContrastMessage(fillIndex, lineIndex, textIndex) {
     const fillColor = resolveContrastColor(fillIndex);
     const lineColor = resolveContrastColor(lineIndex);
+    const textColor = Number.isInteger(textIndex) ? resolveContrastColor(textIndex) : null;
     const between = evaluateContrastBetweenColors(fillColor, lineColor);
     const fillOnWhite = evaluateContrastBetweenColors(fillColor, '#ffffff');
     const lineOnWhite = evaluateContrastBetweenColors(lineColor, '#ffffff');
     const parts = [
       formatContrastStatusText('fyll/linje', between),
-      formatContrastStatusText('fyll mot hvit', fillOnWhite),
-      formatContrastStatusText('linje mot hvit', lineOnWhite)
+      formatContrastStatusText('fyll mot hvit', fillOnWhite)
     ];
+    if (textColor) {
+      const textOnWhite = evaluateContrastBetweenColors(textColor, '#ffffff');
+      parts.push(formatContrastStatusText('tekst mot hvit', textOnWhite));
+    }
+    parts.push(formatContrastStatusText('linje mot hvit', lineOnWhite));
     return `Kontrast ${parts.join(' · ')}`;
   }
 
@@ -500,7 +505,9 @@
       if (!row) return;
       const fillIndex = Number(row.dataset.fillIndex);
       const lineIndex = Number(row.dataset.lineIndex);
-      row.textContent = buildGraftegnerContrastMessage(fillIndex, lineIndex);
+      const textIndex = Number(row.dataset.textIndex);
+      const safeTextIndex = Number.isInteger(textIndex) ? textIndex : null;
+      row.textContent = buildGraftegnerContrastMessage(fillIndex, lineIndex, safeTextIndex);
     });
   }
 
@@ -869,22 +876,46 @@
     return item;
   }
 
-  function createGraftegnerContrastField(fillIndex, lineIndex) {
+  function createGraftegnerContrastField(fillIndex, lineIndex, textIndex) {
     const field = document.createElement('div');
     field.className = 'color-contrast-field';
     field.dataset.fillIndex = String(fillIndex);
     field.dataset.lineIndex = String(lineIndex);
-    field.textContent = buildGraftegnerContrastMessage(fillIndex, lineIndex);
+    if (Number.isInteger(textIndex)) {
+      field.dataset.textIndex = String(textIndex);
+    }
+    field.textContent = buildGraftegnerContrastMessage(fillIndex, lineIndex, textIndex);
     graftegnerContrastRows.push(field);
     return field;
   }
 
-  function createGraftegnerPairRow(fillSlot, lineSlot) {
+  function createGraftegnerPairRow(fillSlot, textSlot, lineSlot) {
     const row = document.createElement('div');
     row.className = 'color-pair-row';
     row.appendChild(createColorSlotElement(fillSlot));
+    if (textSlot) {
+      row.appendChild(createColorSlotElement(textSlot));
+    } else {
+      const placeholder = document.createElement('div');
+      placeholder.className = 'color-slot color-slot--placeholder';
+      placeholder.textContent = 'Tekstfarge';
+      row.appendChild(placeholder);
+    }
     row.appendChild(createColorSlotElement(lineSlot));
-    row.appendChild(createGraftegnerContrastField(fillSlot.index, lineSlot.index));
+    row.appendChild(createGraftegnerContrastField(fillSlot.index, lineSlot.index, textSlot && textSlot.index));
+    return row;
+  }
+
+  function createGraftegnerHeaderRow() {
+    const row = document.createElement('div');
+    row.className = 'color-pair-row color-pair-row--header';
+    const headers = ['Fyllfarger', 'Tekstfarger', 'Kantfarger', 'Kontrastinfo'];
+    headers.forEach(text => {
+      const cell = document.createElement('div');
+      cell.className = 'color-pair-row__heading';
+      cell.textContent = text;
+      row.appendChild(cell);
+    });
     return row;
   }
 
@@ -903,8 +934,9 @@
         if (!role || typeof role !== 'object') return;
         const fillSlot = slotsByIndex.get(role.fillIndex);
         const lineSlot = slotsByIndex.get(role.lineIndex);
+        const textSlot = slotsByIndex.get(role.textIndex);
         if (fillSlot && lineSlot) {
-          pairs.push({ fillSlot, lineSlot });
+          pairs.push({ fillSlot, lineSlot, textSlot });
         }
       });
     }
@@ -915,7 +947,7 @@
       const fillSlot = group.slots[slotIndex];
       const lineSlot = group.slots[slotIndex + 1];
       if (fillSlot && lineSlot) {
-        pairs.push({ fillSlot, lineSlot });
+        pairs.push({ fillSlot, lineSlot, textSlot: null });
       }
     }
     return pairs;
@@ -977,8 +1009,9 @@
         graftegnerContrastRows.length = 0;
         const pairs = resolveGraftegnerRolePairs(group);
         if (pairs.length) {
+          appendSlotToTable(table, createGraftegnerHeaderRow());
           pairs.forEach(pair => {
-            appendSlotToTable(table, createGraftegnerPairRow(pair.fillSlot, pair.lineSlot));
+            appendSlotToTable(table, createGraftegnerPairRow(pair.fillSlot, pair.textSlot, pair.lineSlot));
           });
         } else {
           group.slots.forEach(slot => {

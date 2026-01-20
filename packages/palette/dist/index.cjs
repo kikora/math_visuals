@@ -1,51 +1,9 @@
 'use strict';
 
 const MAX_COLORS = 49;
-const DEFAULT_PROJECT = 'campus';
+const DEFAULT_PROJECT = 'default';
 
 const PROJECT_FALLBACKS = deepFreeze({
-  campus: [
-    '#DC6A4B',
-    '#6B1F0B',
-    '#528BFF',
-    '#002266',
-    '#4F9566',
-    '#000000',
-    '#13A2B6',
-    '#04343A',
-    '#DC5D85',
-    '#400115',
-    '#9780C0',
-    '#190A35'
-  ],
-  annet: [
-    '#DC6A4B',
-    '#6B1F0B',
-    '#528BFF',
-    '#002266',
-    '#4F9566',
-    '#000000',
-    '#13A2B6',
-    '#04343A',
-    '#DC5D85',
-    '#400115',
-    '#9780C0',
-    '#190A35'
-  ],
-  kikora: [
-    '#DC6A4B',
-    '#6B1F0B',
-    '#528BFF',
-    '#002266',
-    '#4F9566',
-    '#000000',
-    '#13A2B6',
-    '#04343A',
-    '#DC5D85',
-    '#400115',
-    '#9780C0',
-    '#190A35'
-  ],
   default: [
     '#DC6A4B',
     '#6B1F0B',
@@ -58,7 +16,13 @@ const PROJECT_FALLBACKS = deepFreeze({
     '#DC5D85',
     '#400115',
     '#9780C0',
-    '#190A35'
+    '#190A35',
+    '#C14F30',
+    '#155EEF',
+    '#027A48',
+    '#B8325D',
+    '#B8325D',
+    '#674D96'
   ]
 });
 
@@ -68,6 +32,14 @@ const RAW_COLOR_SLOT_GROUPS = [
     title: 'Felles farger',
     description:
       'Farger som brukes av graftegner, diagram, brøksirkler, brøkfigurer, tallfigurer, kvikkbilder, tenkeblokker, brøkvegg og 3D-figurer.',
+    colorRoles: [
+      { fillIndex: 0, textIndex: 12, lineIndex: 1 },
+      { fillIndex: 2, textIndex: 13, lineIndex: 3 },
+      { fillIndex: 4, textIndex: 14, lineIndex: 5 },
+      { fillIndex: 6, textIndex: 15, lineIndex: 7 },
+      { fillIndex: 8, textIndex: 16, lineIndex: 9 },
+      { fillIndex: 10, textIndex: 17, lineIndex: 11 }
+    ],
     slots: [
       { index: 0, label: 'Fyll 1', description: 'Fyllfarge til linje 1.' },
       { index: 1, label: 'Linje 1', description: 'Linjefarge til fyll 1.' },
@@ -80,7 +52,13 @@ const RAW_COLOR_SLOT_GROUPS = [
       { index: 8, label: 'Fyll 5', description: 'Fyllfarge til linje 5.' },
       { index: 9, label: 'Linje 5', description: 'Linjefarge til fyll 5.' },
       { index: 10, label: 'Fyll 6', description: 'Fyllfarge til linje 6.' },
-      { index: 11, label: 'Linje 6', description: 'Linjefarge til fyll 6.' }
+      { index: 11, label: 'Linje 6', description: 'Linjefarge til fyll 6.' },
+      { index: 12, label: 'Tekst 1', description: 'Tekstfarge til fyll/linje 1 (brukes mot hvit).' },
+      { index: 13, label: 'Tekst 2', description: 'Tekstfarge til fyll/linje 2 (brukes mot hvit).' },
+      { index: 14, label: 'Tekst 3', description: 'Tekstfarge til fyll/linje 3 (brukes mot hvit).' },
+      { index: 15, label: 'Tekst 4', description: 'Tekstfarge til fyll/linje 4 (brukes mot hvit).' },
+      { index: 16, label: 'Tekst 5', description: 'Tekstfarge til fyll/linje 5 (brukes mot hvit).' },
+      { index: 17, label: 'Tekst 6', description: 'Tekstfarge til fyll/linje 6 (brukes mot hvit).' }
     ]
   },
   {
@@ -164,7 +142,7 @@ COLOR_SLOT_GROUPS.forEach(group => {
 });
 const MIN_COLOR_SLOTS = COLOR_SLOT_GROUPS.reduce((total, group) => total + group.slots.length, 0);
 const DEFAULT_GROUP_ORDER = deepFreeze(COLOR_GROUP_IDS.slice());
-const DEFAULT_PROJECT_ORDER = deepFreeze(['campus', 'kikora', 'annet']);
+const DEFAULT_PROJECT_ORDER = deepFreeze(['default']);
 
 const PALETTE_CONFIG = deepFreeze({
   MAX_COLORS,
