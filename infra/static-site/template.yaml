@@ -91,6 +91,7 @@ Resources:
         Name: !Sub '${AWS::StackName}-no-cache-static'
         Comment: Force browsers to revalidate static assets.
         CustomHeadersConfig:
+          Quantity: 3
           Items:
             - Header: Cache-Control
               Value: max-age=0, must-revalidate
