@@ -3014,38 +3014,104 @@ const fillColorPickerInstances = new WeakMap();
     }
   }
   const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-  async function downloadAllFigures(type) {
+  function buildCompositeExportSvg() {
+    if (typeof document === 'undefined') return null;
+    const grid = gridEl || boardEl;
+    if (!grid) return null;
+    const gridRect = grid.getBoundingClientRect();
+    if (!gridRect || !gridRect.width || !gridRect.height) return null;
+    const ids = getActiveFigureIds();
+    const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
+    const items = [];
+    ids.forEach(id => {
+      const fig = figures[id];
+      if (!fig || typeof fig.getSvgElement !== 'function') return;
+      const svg = fig.getSvgElement();
+      if (!svg) return;
+      const rect = svg.getBoundingClientRect();
+      if (!rect || !rect.width || !rect.height) return;
+      const x = rect.left - gridRect.left;
+      const y = rect.top - gridRect.top;
+      items.push({
+        svg,
+        x,
+        y,
+        width: rect.width,
+        height: rect.height
+      });
+    });
+    if (!items.length) return null;
+    const maxX = Math.max(...items.map(item => item.x + item.width));
+    const maxY = Math.max(...items.map(item => item.y + item.height));
+    const width = Math.max(1, Math.round(Math.max(gridRect.width, maxX)));
+    const height = Math.max(1, Math.round(Math.max(gridRect.height, maxY)));
+    const exportSvg = document.createElementNS(SVG_NS, 'svg');
+    exportSvg.setAttribute('width', String(width));
+    exportSvg.setAttribute('height', String(height));
+    exportSvg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    exportSvg.setAttribute('xmlns', SVG_NS);
+    exportSvg.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+    items.forEach(item => {
+      const clone = helper && typeof helper.cloneSvgForExport === 'function' ? helper.cloneSvgForExport(item.svg) : item.svg.cloneNode(true);
+      if (!clone) return;
+      clone.setAttribute('x', String(item.x));
+      clone.setAttribute('y', String(item.y));
+      clone.setAttribute('width', String(item.width));
+      clone.setAttribute('height', String(item.height));
+      exportSvg.appendChild(clone);
+    });
+    return {
+      svg: exportSvg,
+      htmlTarget: grid,
+      width,
+      height
+    };
+  }
+  async function downloadAllFigures() {
     var _window$render, _window;
     (_window$render = (_window = window).render) === null || _window$render === void 0 || _window$render.call(_window);
-    const ids = getActiveFigureIds();
-    const jobs = ids.map(id => {
-      const fig = figures[id];
-      if (!fig || typeof fig.getSvgElement !== 'function') return null;
-      const svg = fig.getSvgElement();
-      if (!svg) return null;
-      const baseName = `brok${id}`;
-      if (type === 'svg') {
-        return () => downloadSVG(svg, baseName + '.svg');
-      }
-      if (type === 'png') {
-        return () => downloadPNG(svg, baseName + '.png', 2);
-      }
-      return null;
-    }).filter(Boolean);
-    for (const run of jobs) {
+    const composite = buildCompositeExportSvg();
+    if (!composite) return;
+    const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
+    const meta = buildBrokfigurerExportMeta();
+    const svgString = svgToString(composite.svg);
+    if (helper && typeof helper.exportGraphicWithArchiveWithFallback === 'function') {
       try {
-        await run();
+        await helper.exportGraphicWithArchiveWithFallback({
+          svgElement: composite.svg,
+          htmlTarget: composite.htmlTarget || composite.svg,
+          suggestedName: `${meta.defaultBaseName || 'brokfigurer'}.svg`,
+          toolId: 'brokfigurer',
+          svgString,
+          description: meta.description,
+          slug: meta.slug,
+          defaultBaseName: meta.defaultBaseName,
+          summary: meta.summary,
+          backgroundColor: '#fff'
+        });
+        return;
       } catch (error) {
-        console.error('Kunne ikke eksportere figur', error);
+        console.error('Kunne ikke eksportere figurer samlet', error);
       }
-      await delay(50);
     }
+    if (helper && typeof helper.exportSvgWithArchive === 'function') {
+      await helper.exportSvgWithArchive(composite.svg, `${meta.defaultBaseName || 'brokfigurer'}.svg`, 'brokfigurer', {
+        svgString,
+        description: meta.description,
+        slug: meta.slug,
+        defaultBaseName: meta.defaultBaseName,
+        summary: meta.summary
+      });
+      return;
+    }
+    await downloadSVG(composite.svg, `${meta.defaultBaseName || 'brokfigurer'}.svg`);
+    await downloadPNG(composite.svg, `${meta.defaultBaseName || 'brokfigurer'}.png`, 2);
   }
   exportSvgBtn === null || exportSvgBtn === void 0 || exportSvgBtn.addEventListener('click', () => {
-    void downloadAllFigures('svg');
+    void downloadAllFigures();
   });
   exportPngBtn === null || exportPngBtn === void 0 || exportPngBtn.addEventListener('click', () => {
-    void downloadAllFigures('png');
+    void downloadAllFigures();
   });
   addRowBtn === null || addRowBtn === void 0 || addRowBtn.addEventListener('click', () => {
     if (rows >= MAX_ROWS) return;
@@ -3102,16 +3168,24 @@ const fillColorPickerInstances = new WeakMap();
       fig.setFilled(new Map());
     }
     (_window$render3 = (_window3 = window).render) === null || _window$render3 === void 0 ? void 0 : _window$render3.call(_window3);
-    const svgString = serializeDocument();
-    if (typeof svgString === 'string' && svgString.trim()) {
-      detail.svgOverride = svgString;
+    try {
+      const serializer = typeof serializeDocument === 'function'
+        ? serializeDocument
+        : typeof window !== 'undefined' && typeof window.serializeDocument === 'function'
+          ? window.serializeDocument
+          : null;
+      const svgString = serializer ? serializer() : null;
+      if (typeof svgString === 'string' && svgString.trim()) {
+        detail.svgOverride = svgString;
+      }
+    } finally {
+      restore.forEach(fn => {
+        try {
+          fn();
+        } catch (_) {}
+      });
+      (_window$render4 = (_window4 = window).render) === null || _window$render4 === void 0 ? void 0 : _window$render4.call(_window4);
     }
-    restore.forEach(fn => {
-      try {
-        fn();
-      } catch (_) {}
-    });
-    (_window$render4 = (_window4 = window).render) === null || _window$render4 === void 0 ? void 0 : _window$render4.call(_window4);
   };
   if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
     window.addEventListener('examples:collect', handleExamplesCollect);
