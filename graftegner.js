@@ -5262,16 +5262,16 @@ function makeSmartCurveLabel(g, idx, content) {
       ny /= L2;
       const rx = (xmax - xmin) / appState.board.canvasWidth,
         ry = (ymax - ymin) / appState.board.canvasHeight;
-      const off = ADV.curveName.gapPx;
-      let X = x + nx * off * rx,
-        Y = y + ny * off * ry;
+      let X = x,
+        Y = y;
       const xCl = Math.min(xmax - (xmax - xmin) * ADV.curveName.marginFracX, Math.max(xmin + (xmax - xmin) * ADV.curveName.marginFracX, X));
       const yCl = Math.min(ymax - (ymax - ymin) * ADV.curveName.marginFracY, Math.max(ymin + (ymax - ymin) * ADV.curveName.marginFracY, Y));
       const pen = Math.abs(xCl - X) / rx + Math.abs(yCl - Y) / ry;
       if (!best || pen < best.pen) best = {
         pen,
         pos: [xCl, yCl],
-        slope: m
+        slope: m,
+        normal: [nx, ny]
       };
     }
     if (!best && prevPos) {
@@ -5284,9 +5284,12 @@ function makeSmartCurveLabel(g, idx, content) {
     if (!best) {
       return;
     }
+    const anchorX = best.normal && best.normal[0] >= 0 ? 'left' : 'right';
+    const anchorY = best.normal && best.normal[1] >= 0 ? 'bottom' : 'top';
     label.moveTo(best.pos);
     label.setAttribute({
-      anchorX: best.slope >= 0 ? 'left' : 'right'
+      anchorX,
+      anchorY
     });
     label._lastSlope = best.slope;
     clampLabelToView(label);
