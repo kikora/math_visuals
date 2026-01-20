@@ -61,7 +61,6 @@ function bucket_exists() {
   aws s3api head-bucket --bucket "$bucket_name" >/dev/null 2>&1
 }
 
-# Allow SITE_BUCKET_NAME to fall back to STATIC_SITE_BUCKET_NAME when provided.
 SITE_BUCKET_NAME=${SITE_BUCKET_NAME:-${STATIC_SITE_BUCKET_NAME:-}}
 API_GATEWAY_DOMAIN=${API_GATEWAY_DOMAIN:-}
 API_GATEWAY_ORIGIN_PATH=${API_GATEWAY_ORIGIN_PATH:-}
