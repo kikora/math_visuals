@@ -487,22 +487,20 @@
     return `${label}: ${evaluation.display} ${evaluation.passes ? '✅' : '❌'}`;
   }
 
-  function buildGraftegnerContrastMessage(fillIndex, lineIndex, textIndex) {
+  function buildGraftegnerContrastMessage(fillIndex, edgeIndex, lineIndex) {
     const fillColor = resolveContrastColor(fillIndex);
+    const edgeColor = resolveContrastColor(edgeIndex);
     const lineColor = resolveContrastColor(lineIndex);
-    const textColor = Number.isInteger(textIndex) ? resolveContrastColor(textIndex) : null;
-    const between = evaluateContrastBetweenColors(fillColor, lineColor);
+    const between = evaluateContrastBetweenColors(fillColor, edgeColor);
     const fillOnWhite = evaluateContrastBetweenColors(fillColor, '#ffffff');
+    const edgeOnWhite = evaluateContrastBetweenColors(edgeColor, '#ffffff');
     const lineOnWhite = evaluateContrastBetweenColors(lineColor, '#ffffff');
     const parts = [
-      formatContrastStatusText('fyll/linje', between),
-      formatContrastStatusText('fyll mot hvit', fillOnWhite)
+      formatContrastStatusText('fyll/kant', between),
+      formatContrastStatusText('fyll mot hvit', fillOnWhite),
+      formatContrastStatusText('kant mot hvit', edgeOnWhite),
+      formatContrastStatusText('linje mot hvit', lineOnWhite)
     ];
-    if (textColor) {
-      const textOnWhite = evaluateContrastBetweenColors(textColor, '#ffffff');
-      parts.push(formatContrastStatusText('tekst mot hvit', textOnWhite));
-    }
-    parts.push(formatContrastStatusText('linje mot hvit', lineOnWhite));
     return `Kontrast ${parts.join(' · ')}`;
   }
 
@@ -511,10 +509,9 @@
     graftegnerContrastRows.forEach(row => {
       if (!row) return;
       const fillIndex = Number(row.dataset.fillIndex);
+      const edgeIndex = Number(row.dataset.edgeIndex);
       const lineIndex = Number(row.dataset.lineIndex);
-      const textIndex = Number(row.dataset.textIndex);
-      const safeTextIndex = Number.isInteger(textIndex) ? textIndex : null;
-      row.textContent = buildGraftegnerContrastMessage(fillIndex, lineIndex, safeTextIndex);
+      row.textContent = buildGraftegnerContrastMessage(fillIndex, edgeIndex, lineIndex);
     });
   }
 
@@ -878,40 +875,31 @@
     return item;
   }
 
-  function createGraftegnerContrastField(fillIndex, lineIndex, textIndex) {
+  function createGraftegnerContrastField(fillIndex, edgeIndex, lineIndex) {
     const field = document.createElement('div');
     field.className = 'color-contrast-field';
     field.dataset.fillIndex = String(fillIndex);
+    field.dataset.edgeIndex = String(edgeIndex);
     field.dataset.lineIndex = String(lineIndex);
-    if (Number.isInteger(textIndex)) {
-      field.dataset.textIndex = String(textIndex);
-    }
-    field.textContent = buildGraftegnerContrastMessage(fillIndex, lineIndex, textIndex);
+    field.textContent = buildGraftegnerContrastMessage(fillIndex, edgeIndex, lineIndex);
     graftegnerContrastRows.push(field);
     return field;
   }
 
-  function createGraftegnerPairRow(fillSlot, textSlot, lineSlot) {
+  function createGraftegnerPairRow(fillSlot, edgeSlot, lineSlot) {
     const row = document.createElement('div');
     row.className = 'color-pair-row';
     row.appendChild(createColorSlotElement(fillSlot));
-    if (textSlot) {
-      row.appendChild(createColorSlotElement(textSlot));
-    } else {
-      const placeholder = document.createElement('div');
-      placeholder.className = 'color-slot color-slot--placeholder';
-      placeholder.textContent = 'Tekstfarge';
-      row.appendChild(placeholder);
-    }
+    row.appendChild(createColorSlotElement(edgeSlot));
     row.appendChild(createColorSlotElement(lineSlot));
-    row.appendChild(createGraftegnerContrastField(fillSlot.index, lineSlot.index, textSlot && textSlot.index));
+    row.appendChild(createGraftegnerContrastField(fillSlot.index, edgeSlot.index, lineSlot.index));
     return row;
   }
 
   function createGraftegnerHeaderRow() {
     const row = document.createElement('div');
     row.className = 'color-pair-row color-pair-row--header';
-    const headers = ['Fyllfarger', 'Tekstfarger', 'Kantfarger', 'Kontrastinfo'];
+    const headers = ['Fyllfarger', 'Kantfarger', 'Linjefarger', 'Kontrastinfo'];
     headers.forEach(text => {
       const cell = document.createElement('div');
       cell.className = 'color-pair-row__heading';
@@ -921,38 +909,18 @@
     return row;
   }
 
-  function resolveGraftegnerRolePairs(group) {
+  function resolveGraftegnerRoleTriples(group) {
     if (!group || !Array.isArray(group.slots)) return [];
-    const slotsByIndex = new Map();
-    group.slots.forEach(slot => {
-      if (!slot || typeof slot !== 'object') return;
-      if (Number.isInteger(slot.index) && slot.index >= 0) {
-        slotsByIndex.set(slot.index, slot);
-      }
-    });
-    const pairs = [];
-    if (Array.isArray(group.colorRoles) && group.colorRoles.length) {
-      group.colorRoles.forEach(role => {
-        if (!role || typeof role !== 'object') return;
-        const fillSlot = slotsByIndex.get(role.fillIndex);
-        const lineSlot = slotsByIndex.get(role.lineIndex);
-        const textSlot = slotsByIndex.get(role.textIndex);
-        if (fillSlot && lineSlot) {
-          pairs.push({ fillSlot, lineSlot, textSlot });
-        }
-      });
-    }
-    if (pairs.length) {
-      return pairs;
-    }
-    for (let slotIndex = 0; slotIndex < group.slots.length; slotIndex += 2) {
+    const triples = [];
+    for (let slotIndex = 0; slotIndex < group.slots.length; slotIndex += 3) {
       const fillSlot = group.slots[slotIndex];
-      const lineSlot = group.slots[slotIndex + 1];
-      if (fillSlot && lineSlot) {
-        pairs.push({ fillSlot, lineSlot, textSlot: null });
+      const edgeSlot = group.slots[slotIndex + 1];
+      const lineSlot = group.slots[slotIndex + 2];
+      if (fillSlot && edgeSlot && lineSlot) {
+        triples.push({ fillSlot, edgeSlot, lineSlot });
       }
     }
-    return pairs;
+    return triples;
   }
 
   function appendSlotToTable(container, slotElement) {
@@ -1009,11 +977,11 @@
       }
       if (normalizedGroupId === 'graftegner') {
         graftegnerContrastRows.length = 0;
-        const pairs = resolveGraftegnerRolePairs(group);
-        if (pairs.length) {
+        const triples = resolveGraftegnerRoleTriples(group);
+        if (triples.length) {
           appendSlotToTable(table, createGraftegnerHeaderRow());
-          pairs.forEach(pair => {
-            appendSlotToTable(table, createGraftegnerPairRow(pair.fillSlot, pair.textSlot, pair.lineSlot));
+          triples.forEach(triple => {
+            appendSlotToTable(table, createGraftegnerPairRow(triple.fillSlot, triple.edgeSlot, triple.lineSlot));
           });
         } else {
           group.slots.forEach(slot => {
