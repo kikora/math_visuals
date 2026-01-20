@@ -4206,9 +4206,9 @@ function applyGraphColorUpdate(g, idx, options = {}) {
       }
     });
   }
-  const appliedPointColor = pointColorFromLineColor(normalizedLineColor)
-    || normalizedLineColor
-    || appliedColor
+  const pointSourceColor = normalizedColor || normalizedLineColor || appliedColor;
+  const appliedPointColor = pointColorFromLineColor(pointSourceColor)
+    || pointSourceColor
     || DEFAULT_POINT_COLORS.fallbackMarkerStroke;
   const updatePointColor = point => {
     if (point && typeof point.setAttribute === 'function') {
@@ -5587,7 +5587,7 @@ function buildFunctions() {
     };
     for (let i = 0; i < n; i++) {
       const xi = sxList[i] != null ? clampToDomain(sxList[i]) : clampToDomain(sxList[0]);
-      const baseGliderColor = G.lineColor || lineColorForCurve(0);
+      const baseGliderColor = G.color || G.lineColor || lineColorForCurve(0);
       const gliderColor = pointColorFromLineColor(baseGliderColor) || baseGliderColor;
       const P = appState.board.create('glider', [xi, G.fn(xi), G.carrier], {
         name: '',
@@ -5643,8 +5643,9 @@ function buildFunctions() {
         });
       }
       if (MODE === 'functions' && ADV.points.guideArrows) {
+        const guideColor = G.color || G.lineColor || lineColorForCurve(0);
         const arrowX = appState.board.create('arrow', [() => [P.X(), P.Y()], () => [0, P.Y()]], {
-          strokeColor: G.lineColor || lineColorForCurve(0),
+          strokeColor: guideColor,
           strokeWidth: 2,
           dash: 2,
           lastArrow: true,
@@ -5654,7 +5655,7 @@ function buildFunctions() {
           highlight: false
         });
         const arrowY = appState.board.create('arrow', [() => [P.X(), P.Y()], () => [P.X(), 0]], {
-          strokeColor: G.lineColor || lineColorForCurve(0),
+          strokeColor: guideColor,
           strokeWidth: 2,
           dash: 2,
           lastArrow: true,
