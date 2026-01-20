@@ -959,8 +959,6 @@ const fillColorPickerInstances = new WeakMap();
   let cols = clampInt(STATE.cols != null ? STATE.cols : 1, MIN_DIMENSION, MAX_COLS);
   STATE.rows = rows;
   STATE.cols = cols;
-  const FIGURE_MIN_SIZE = 160;
-  const FIGURE_MAX_SIZE = 720;
   let pendingFigureSizeFrame = null;
   let pendingBoardResizeFrame = null;
   let lastFigureSize = null;
@@ -993,7 +991,7 @@ const fillColorPickerInstances = new WeakMap();
     const perFigureWidth = availableWidth / Math.max(cols, 1);
     const perFigureHeight = availableHeight / Math.max(rows, 1);
     const baseSize = Math.min(perFigureWidth, perFigureHeight);
-    const size = Math.min(FIGURE_MAX_SIZE, baseSize);
+    const size = Math.max(0, baseSize);
     const nextSize = `${size}px`;
     if (nextSize !== lastFigureSize) {
       lastFigureSize = nextSize;
@@ -2889,6 +2887,7 @@ const fillColorPickerInstances = new WeakMap();
     shapeSel === null || shapeSel === void 0 || shapeSel.addEventListener('change', () => {
       const figState = ensureFigureState(id);
       figState.shape = shapeSel.value;
+      setFilled(new Map());
       window.render();
       clearCheckStatus();
     });
