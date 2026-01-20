@@ -4206,16 +4206,20 @@ function applyGraphColorUpdate(g, idx, options = {}) {
       }
     });
   }
+  const appliedPointColor = pointColorFromLineColor(normalizedLineColor)
+    || normalizedLineColor
+    || appliedColor
+    || DEFAULT_POINT_COLORS.fallbackMarkerStroke;
+  const updatePointColor = point => {
+    if (point && typeof point.setAttribute === 'function') {
+      point.setAttribute({ strokeColor: appliedPointColor, fillColor: appliedPointColor });
+    }
+  };
   if (Array.isArray(g.gliders) && g.gliders.length) {
-    const appliedPointColor = pointColorFromLineColor(normalizedLineColor)
-      || normalizedLineColor
-      || appliedColor
-      || DEFAULT_POINT_COLORS.fallbackMarkerStroke;
-    g.gliders.forEach(point => {
-      if (point && typeof point.setAttribute === 'function') {
-        point.setAttribute({ strokeColor: appliedPointColor, fillColor: appliedPointColor });
-      }
-    });
+    g.gliders.forEach(updatePointColor);
+  }
+  if (typeof MODE !== 'undefined' && MODE === 'points' && Array.isArray(appState.points.moving)) {
+    appState.points.moving.forEach(updatePointColor);
   }
   if (Array.isArray(g.guideArrows) && g.guideArrows.length) {
     g.guideArrows.forEach(arrow => {
