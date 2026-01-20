@@ -47,6 +47,13 @@
     title: group.title,
     description: group.description,
     groupIndex: Number.isInteger(group.groupIndex) ? group.groupIndex : undefined,
+    colorRoles: Array.isArray(group.colorRoles)
+      ? group.colorRoles.map(role => ({
+          fillIndex: role.fillIndex,
+          textIndex: role.textIndex,
+          lineIndex: role.lineIndex
+        }))
+      : null,
     slots: group.slots.map(slot => ({
       index: slot.index,
       label: slot.label,
@@ -847,10 +854,6 @@
     item.className = 'color-slot';
     item.dataset.colorIndex = String(slot.index);
 
-    const label = document.createElement('span');
-    label.className = 'color-slot__label';
-    label.textContent = slot.label;
-
     const hexInput = document.createElement('input');
     hexInput.type = 'text';
     hexInput.value = '#1f4de2';
@@ -868,7 +871,6 @@
     colorInput.setAttribute('aria-label', `${slot.label} farge`);
     colorInput.setAttribute('title', slot.label);
 
-    item.appendChild(label);
     item.appendChild(hexInput);
     item.appendChild(colorInput);
 
