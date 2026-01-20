@@ -162,17 +162,34 @@ function isValidColor(value) {
     }
   }
   applyThemeToDocument();
+  function normalizePaletteToCount(palette, count, fallback = []) {
+    const target = Number.isFinite(count) && count > 0 ? Math.trunc(count) : 0;
+    const fallbackPalette = Array.isArray(fallback) ? fallback.slice() : [];
+    let base = Array.isArray(palette) && palette.length ? palette.slice() : fallbackPalette.slice();
+    if (target > 0 && base.length < target && fallbackPalette.length >= target) {
+      base = fallbackPalette.slice();
+    }
+    if (target <= 0) return base.slice();
+    if (!base.length) return [];
+    if (base.length >= target) return base.slice(0, target);
+    const result = base.slice();
+    for (let i = base.length; i < target; i++) {
+      result.push(base[i % base.length]);
+    }
+    return result;
+  }
   function getPaletteFromTheme(count) {
     const theme = getThemeApi();
+    const targetCount = Number.isFinite(count) && count > 0 ? Math.trunc(count) : undefined;
     const servicePalette = paletteService.resolveGroupPalette({
       groupId: SHARED_GROUP_ID,
-      count: Number.isFinite(count) && count > 0 ? Math.trunc(count) : undefined,
+      count: targetCount,
       fallback: LEGACY_COLOR_PALETTE,
       legacyPaletteId: 'figures',
       fallbackKinds: ['fractions']
     });
     if (Array.isArray(servicePalette) && servicePalette.length) {
-      return servicePalette.slice();
+      return normalizePaletteToCount(servicePalette, targetCount, LEGACY_COLOR_PALETTE);
     }
     let palette = null;
     if (theme && typeof theme.getGroupPalette === 'function') {
@@ -185,15 +202,7 @@ function isValidColor(value) {
     if ((!Array.isArray(palette) || !palette.length) && theme && typeof theme.getPalette === 'function') {
       palette = theme.getPalette('figures', count, { fallbackKinds: ['fractions'] });
     }
-    const target = Number.isFinite(count) && count > 0 ? Math.trunc(count) : 0;
-    const base = Array.isArray(palette) && palette.length ? palette.slice() : LEGACY_COLOR_PALETTE.slice();
-    if (target <= 0) return base.slice();
-    if (base.length >= target) return base.slice(0, target);
-    const result = base.slice();
-    for (let i = base.length; i < target; i++) {
-      result.push(base[i % base.length]);
-    }
-    return result;
+    return normalizePaletteToCount(palette, targetCount, LEGACY_COLOR_PALETTE);
   }
   function getFillPalette() {
     const palette = getPaletteFromTheme(FILL_COLOR_COUNT);
