@@ -443,8 +443,8 @@
     const clone = svgElement.cloneNode(true);
     ensureSvgNamespaces(clone);
     ensureSvgSizingAttributes(clone, svgElement);
-    ensureSvgBackground(clone);
     applyComputedStylesToClone(svgElement, clone);
+    ensureSvgBackground(clone);
     injectDocumentStylesIntoSvg(svgElement.ownerDocument || (typeof document !== 'undefined' ? document : null), clone);
     return clone;
   }
