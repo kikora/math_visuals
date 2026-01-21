@@ -2819,6 +2819,21 @@ const fillColorPickerInstances = new WeakMap();
       let clipUpdater = null;
       if (shape === 'triangle') {
         clipValue = `polygon(50% -${padStr}%, -${padStr}% ${maxStr}%, ${maxStr}% ${maxStr}%)`;
+        clipUpdater = clipPath => {
+          clipPath.setAttribute('clipPathUnits', 'objectBoundingBox');
+          while (clipPath.firstChild) clipPath.removeChild(clipPath.firstChild);
+          const polygon = document.createElementNS(SVG_NS, 'polygon');
+          const pad = CLIP_PAD_PERCENT / 100;
+          const topY = (-pad).toFixed(4);
+          const leftX = (-pad).toFixed(4);
+          const rightX = (1 + pad).toFixed(4);
+          const bottomY = (1 + pad).toFixed(4);
+          polygon.setAttribute(
+            'points',
+            `${(0.5).toFixed(4)} ${topY} ${leftX} ${bottomY} ${rightX} ${bottomY}`
+          );
+          clipPath.appendChild(polygon);
+        };
       } else if (shape === 'rectangle' || shape === 'square') {
         clipUpdater = clipPath => {
           clipPath.setAttribute('clipPathUnits', 'objectBoundingBox');
