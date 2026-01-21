@@ -224,68 +224,6 @@
     colors: deepClone(annetProfileBase.colors)
   };
   const PROFILES = {
-    kikora: {
-      id: 'kikora',
-      label: 'Under utvikling',
-      palettes: {
-        fractions: {
-          byCount: {
-            1: ['#FF5C5C'],
-            2: ['#FF5C5C', '#3A86FF'],
-            3: ['#FF5C5C', '#FF9F1C', '#3A86FF'],
-            4: ['#FF5C5C', '#FF9F1C', '#2EC4B6', '#3A86FF'],
-            5: ['#FF5C5C', '#FF9F1C', '#2EC4B6', '#3A86FF', '#8338EC'],
-            6: ['#FF5C5C', '#FF9F1C', '#2EC4B6', '#3A86FF', '#8338EC', '#FFE066']
-          },
-          default: ['#FF5C5C', '#FF9F1C', '#2EC4B6', '#3A86FF', '#8338EC', '#FFE066']
-        },
-        figures: {
-          byCount: {
-            1: ['#FF5C5C'],
-            2: ['#FF5C5C', '#3A86FF'],
-            3: ['#FF5C5C', '#FF9F1C', '#3A86FF'],
-            4: ['#FF5C5C', '#FF9F1C', '#2EC4B6', '#3A86FF'],
-            5: ['#FF5C5C', '#FF9F1C', '#2EC4B6', '#3A86FF', '#8338EC'],
-            6: ['#FF5C5C', '#FF9F1C', '#2EC4B6', '#3A86FF', '#8338EC', '#FFE066']
-          },
-          default: ['#FF5C5C', '#FF9F1C', '#2EC4B6', '#3A86FF', '#8338EC', '#FFE066']
-        }
-      },
-      colors: {
-        ui: {
-          primary: '#3A86FF',
-          secondary: '#8338EC',
-          hover: '#FF9F1C',
-          playButton: '#2EC4B6',
-          playButtonHover: '#23968A',
-          playButtonText: '#FFFFFF'
-        },
-        dots: {
-          default: '#8338EC',
-          highlight: '#FF5C5C'
-        },
-        graphs: {
-          axis: '#3A86FF'
-        },
-        beads: {
-          primary: {
-            fill: '#FF9F1C',
-            stroke: '#D77900'
-          },
-          secondary: {
-            fill: '#2EC4B6',
-            stroke: '#23968A'
-          }
-        },
-        pizza: {
-          fill: '#FFE066',
-          rim: '#3A86FF',
-          dash: '#8338EC',
-          handle: '#FF5C5C',
-          handleStroke: '#C23F3F'
-        }
-      }
-    },
     campus: {
       id: 'campus',
       label: 'Produksjon',
