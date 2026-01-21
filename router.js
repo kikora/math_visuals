@@ -374,15 +374,7 @@ const betaFeatureItems = nav ? Array.from(nav.querySelectorAll('[data-beta-featu
 const profileFilteredItems = nav ? Array.from(nav.querySelectorAll('[data-profile-filter]')) : [];
 const PROFILE_FILTER_ATTR = 'data-profile-filter';
 const SETTINGS_ENABLED_PROFILES = new Set(['annet', 'campus']);
-const CAMPUS_VISIBLE_LABELS = new Set([
-  'Bibliotek',
-  'Diagram',
-  'Eksempelarkiv',
-  'Graftegner',
-  'Brøkfigurer',
-  'Settings',
-  'nKant'
-]);
+const CAMPUS_VISIBLE_LABELS = new Set(['Graftegner', 'Brøkfigurer']);
 const SETTINGS_SCRIPT_SRC = '/settings.js';
 const SETTINGS_NORMALIZED_PATH = '/settings';
 let pendingSettingsScriptLoad = false;
