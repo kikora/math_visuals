@@ -488,12 +488,32 @@
   }
 
   function collectDocumentStyleText(doc) {
-    if (!doc || typeof doc.querySelectorAll !== 'function') return '';
-    const styleNodes = Array.from(doc.querySelectorAll('style'));
-    const chunks = styleNodes
-      .map(node => (node && typeof node.textContent === 'string' ? node.textContent.trim() : ''))
-      .filter(Boolean);
-    return chunks.join('\n');
+    if (!doc) return '';
+    const cssParts = [];
+    const styleSheets = doc.styleSheets;
+    if (styleSheets) {
+      for (let i = 0; i < styleSheets.length; i += 1) {
+        const sheet = styleSheets[i];
+        try {
+          if (sheet.cssRules) {
+            for (let j = 0; j < sheet.cssRules.length; j += 1) {
+              cssParts.push(sheet.cssRules[j].cssText);
+            }
+          }
+        } catch (error) {
+          // ignore cross-origin stylesheet errors
+        }
+      }
+    }
+    if (typeof doc.querySelectorAll === 'function') {
+      const styleNodes = Array.from(doc.querySelectorAll('style'));
+      styleNodes.forEach(node => {
+        if (node && typeof node.textContent === 'string') {
+          cssParts.push(node.textContent.trim());
+        }
+      });
+    }
+    return cssParts.filter(Boolean).join('\n');
   }
 
   function injectDocumentStylesIntoSvg(doc, svgElement) {

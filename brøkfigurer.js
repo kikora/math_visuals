@@ -120,7 +120,29 @@ function isValidColor(value) {
     const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
     const clone = helper && typeof helper.cloneSvgForExport === 'function' ? helper.cloneSvgForExport(svgEl) : svgEl.cloneNode(true);
     if (!clone) return '';
-    const css = [...document.querySelectorAll('style')].map(s => s.textContent).join('\n');
+    const doc = svgEl.ownerDocument || (typeof document !== 'undefined' ? document : null);
+    const cssParts = [];
+    if (doc && doc.styleSheets) {
+      for (const sheet of doc.styleSheets) {
+        try {
+          if (sheet.cssRules) {
+            for (const rule of sheet.cssRules) {
+              cssParts.push(rule.cssText);
+            }
+          }
+        } catch (error) {
+          // ignore cross-origin stylesheet errors
+        }
+      }
+    }
+    if (doc && typeof doc.querySelectorAll === 'function') {
+      [...doc.querySelectorAll('style')].forEach(styleNode => {
+        if (styleNode && typeof styleNode.textContent === 'string') {
+          cssParts.push(styleNode.textContent);
+        }
+      });
+    }
+    const css = cssParts.join('\n');
     const style = document.createElement('style');
     style.textContent = css;
     const firstElement = clone.firstElementChild;
