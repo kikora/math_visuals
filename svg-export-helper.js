@@ -462,6 +462,15 @@
     return cssText;
   }
 
+  function removeCssProperty(cssText, property) {
+    if (!cssText || !property) return cssText;
+    const pattern = new RegExp(`(?:^|;)\\s*${property}\\s*:[^;]*;?`, 'gi');
+    let nextText = cssText.replace(pattern, ';');
+    nextText = nextText.replace(/;;+/g, ';');
+    nextText = nextText.replace(/^\s*;\s*|\s*;\s*$/g, '');
+    return nextText.trim();
+  }
+
   function applyComputedStylesToClone(sourceSvg, targetSvg) {
     if (!sourceSvg || !targetSvg) return;
     const doc = sourceSvg.ownerDocument || (typeof document !== 'undefined' ? document : null);
@@ -477,7 +486,10 @@
       if (!targetElement || typeof targetElement.setAttribute !== 'function') continue;
       try {
         const computed = view.getComputedStyle(sourceElement);
-        const cssText = getComputedStyleText(computed);
+        let cssText = getComputedStyleText(computed);
+        if (sourceElement.getAttribute && sourceElement.getAttribute('clip-path')) {
+          cssText = removeCssProperty(cssText, 'clip-path');
+        }
         if (cssText) {
           targetElement.setAttribute('style', cssText);
         }
