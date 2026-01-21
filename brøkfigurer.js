@@ -3136,9 +3136,9 @@ const fillColorPickerInstances = new WeakMap();
     const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
     const meta = buildBrokfigurerExportMeta();
     const svgString = svgToString(composite.svg);
-    if (helper && typeof helper.exportGraphicWithArchiveWithFallback === 'function') {
+    if (helper && typeof helper.exportGraphicWithArchive === 'function') {
       try {
-        await helper.exportGraphicWithArchiveWithFallback({
+        await helper.exportGraphicWithArchive({
           svgElement: composite.svg,
           htmlTarget: composite.htmlTarget || composite.svg,
           suggestedName: `${meta.defaultBaseName || 'brokfigurer'}.svg`,
@@ -3148,7 +3148,8 @@ const fillColorPickerInstances = new WeakMap();
           slug: meta.slug,
           defaultBaseName: meta.defaultBaseName,
           summary: meta.summary,
-          backgroundColor: '#fff'
+          backgroundColor: '#fff',
+          pngFallbackOrder: 'html-first'
         });
         return;
       } catch (error) {
