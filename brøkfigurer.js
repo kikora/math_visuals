@@ -822,12 +822,12 @@ const fillColorPickerInstances = new WeakMap();
     const normalized = sanitizeFilledEntries(figState.filled);
     if (!normalized.length) return;
     const updated = normalized.map(([partIndex]) => [partIndex, safeIndex]);
+    figState.filled = updated;
     const fig = figures[id];
     if (fig && typeof fig.setFilled === 'function') {
       fig.setFilled(new Map(updated));
       return;
     }
-    figState.filled = updated;
   }
   function renderFillColorPickers() {
     const pickers = getFillColorPickers();
