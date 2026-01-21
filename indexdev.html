@@ -500,6 +500,22 @@
   <nav>
     <div class="nav-header">
       <span class="nav-title">Math Visuals</span>
+      <div class="nav-controls">
+        <div class="nav-control nav-control--profile">
+          <label for="profile-select">Prosjekt</label>
+          <select id="profile-select" name="profile" data-profile-control>
+            <option value="campus">Produksjon</option>
+            <option value="annet">Annet</option>
+          </select>
+        </div>
+        <div class="nav-control nav-control--mode">
+          <label for="mode-select">Modus</label>
+          <select id="mode-select" name="mode" data-mode-control>
+            <option value="edit">Rediger figur</option>
+            <option value="task">Oppgavevisning</option>
+          </select>
+        </div>
+      </div>
       <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="nav-list">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor" aria-hidden="true">
           <path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M4 12h16M4 17h16" />
