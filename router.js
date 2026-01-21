@@ -297,6 +297,40 @@ function normalizeProfileName(profile) {
   return Object.prototype.hasOwnProperty.call(profileVariables, normalized) ? normalized : PROFILE_DEFAULT;
 }
 
+function normalizeForcedProfileCandidate(candidate) {
+  if (typeof candidate !== 'string') return null;
+  const trimmed = candidate.trim();
+  if (!trimmed) return null;
+  return normalizeProfileName(trimmed);
+}
+
+function resolveForcedProfile() {
+  if (typeof window === 'undefined') return null;
+  const doc = window.document;
+  if (!doc) return null;
+  const candidates = [];
+  if (doc.documentElement) {
+    if (doc.documentElement.dataset) {
+      candidates.push(doc.documentElement.dataset.forceProfile);
+    }
+    candidates.push(doc.documentElement.getAttribute('data-force-profile'));
+  }
+  if (doc.body) {
+    if (doc.body.dataset) {
+      candidates.push(doc.body.dataset.forceProfile);
+    }
+    candidates.push(doc.body.getAttribute('data-force-profile'));
+  }
+  if (doc.currentScript && doc.currentScript.dataset) {
+    candidates.push(doc.currentScript.dataset.forceProfile);
+  }
+  for (const candidate of candidates) {
+    const normalized = normalizeForcedProfileCandidate(candidate);
+    if (normalized) return normalized;
+  }
+  return null;
+}
+
 let currentProfile = PROFILE_DEFAULT;
 let currentMode = MODE_DEFAULT;
 
@@ -318,8 +352,9 @@ if (typeof window !== 'undefined') {
   window.mathVisualsUpdateProfileStyles = updateProfileStyles;
 }
 const storedProfileValue = safeGetItem(PROFILE_STORAGE_KEY);
-const initialProfile = updateProfileStyles(storedProfileValue || PROFILE_DEFAULT);
-if (storedProfileValue !== initialProfile) {
+const forcedProfileValue = resolveForcedProfile();
+const initialProfile = updateProfileStyles(forcedProfileValue || storedProfileValue || PROFILE_DEFAULT);
+if (!forcedProfileValue && storedProfileValue !== initialProfile) {
   safeSetItem(PROFILE_STORAGE_KEY, initialProfile);
 }
 function normalizeModeCandidate(value) {
