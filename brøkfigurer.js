@@ -2815,10 +2815,8 @@ const fillColorPickerInstances = new WeakMap();
       const padStr = pad.toFixed(2);
       const maxStr = (100 + pad).toFixed(2);
       const clipId = `brokClip${id}`;
-      let clipValue = '';
       let clipUpdater = null;
       if (shape === 'triangle') {
-        clipValue = `polygon(50% -${padStr}%, -${padStr}% ${maxStr}%, ${maxStr}% ${maxStr}%)`;
         clipUpdater = clipPath => {
           clipPath.setAttribute('clipPathUnits', 'objectBoundingBox');
           while (clipPath.firstChild) clipPath.removeChild(clipPath.firstChild);
@@ -2854,7 +2852,6 @@ const fillColorPickerInstances = new WeakMap();
         const size = Math.max(svg.clientWidth || 0, svg.clientHeight || 0, ((_svg$viewBox = svg.viewBox) === null || _svg$viewBox === void 0 || (_svg$viewBox = _svg$viewBox.baseVal) === null || _svg$viewBox === void 0 ? void 0 : _svg$viewBox.width) || 0, ((_svg$viewBox2 = svg.viewBox) === null || _svg$viewBox2 === void 0 || (_svg$viewBox2 = _svg$viewBox2.baseVal) === null || _svg$viewBox2 === void 0 ? void 0 : _svg$viewBox2.height) || 0, 360);
         const strokePadding = OUTLINE_STROKE_WIDTH / (2 * size);
         const circleClip = Math.min(0.5, circleBase + strokePadding);
-        clipValue = `circle(${(circleClip * 100).toFixed(3)}% at 50% 50%)`;
         clipUpdater = clipPath => {
           clipPath.setAttribute('clipPathUnits', 'objectBoundingBox');
           while (clipPath.firstChild) clipPath.removeChild(clipPath.firstChild);
@@ -2865,8 +2862,6 @@ const fillColorPickerInstances = new WeakMap();
           clipPath.appendChild(circle);
         };
       }
-      svg.style.clipPath = clipValue;
-      svg.style.webkitClipPath = clipValue;
       const defsLookup = () => {
         let defs = svg.querySelector('defs');
         if (!defs && clipUpdater) {
