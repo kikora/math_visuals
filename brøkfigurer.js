@@ -131,14 +131,27 @@ function isValidColor(value) {
             }
           }
         } catch (error) {
-          // ignore cross-origin stylesheet errors
+          // ignore cross-origin errors
+        }
+      }
+    }
+    if (doc && doc.adoptedStyleSheets) {
+      for (const sheet of doc.adoptedStyleSheets) {
+        try {
+          if (sheet.cssRules) {
+            for (const rule of sheet.cssRules) {
+              cssParts.push(rule.cssText);
+            }
+          }
+        } catch (error) {
+          // ignore
         }
       }
     }
     if (doc && typeof doc.querySelectorAll === 'function') {
       [...doc.querySelectorAll('style')].forEach(styleNode => {
-        if (styleNode && typeof styleNode.textContent === 'string') {
-          cssParts.push(styleNode.textContent);
+        if (styleNode && typeof styleNode.textContent === 'string' && styleNode.textContent.trim()) {
+          cssParts.push(styleNode.textContent.trim());
         }
       });
     }
