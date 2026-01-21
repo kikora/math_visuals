@@ -2931,10 +2931,14 @@ const fillColorPickerInstances = new WeakMap();
     });
     shapeSel === null || shapeSel === void 0 || shapeSel.addEventListener('change', () => {
       const figState = ensureFigureState(id);
-      figState.shape = shapeSel.value;
-      setFilled(new Map());
-      window.render();
-      clearCheckStatus();
+      const nextShape = shapeSel.value;
+      const shapeChanged = figState.shape !== nextShape;
+      figState.shape = nextShape;
+      if (shapeChanged) {
+        setFilled(new Map());
+        window.render();
+        clearCheckStatus();
+      }
     });
     partsInp === null || partsInp === void 0 || partsInp.addEventListener('input', () => {
       const figState = ensureFigureState(id);
