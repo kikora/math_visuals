@@ -371,7 +371,7 @@ initExamples();
     : 'campus';
   const DEFAULT_PROJECT_ORDER = Array.isArray(paletteConfig.DEFAULT_PROJECT_ORDER)
     ? paletteConfig.DEFAULT_PROJECT_ORDER.slice()
-    : ['campus', 'kikora', 'annet'];
+    : ['campus', 'annet'];
   const SETTINGS_STORAGE_KEY = 'mathVisuals:settings';
 
   const listeners = new Set();

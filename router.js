@@ -255,7 +255,7 @@ function normalizeExamplePath(pathname) {
 }
 
 const PROFILE_STORAGE_KEY = 'profile';
-const PROFILE_DEFAULT = 'kikora';
+const PROFILE_DEFAULT = 'campus';
 const MODE_STORAGE_KEY = 'mode';
 const MODE_DEFAULT = 'edit';
 const MODE_VALUES = ['edit', 'task'];
@@ -287,28 +287,6 @@ const campusProfileVariables = {
 };
 
 const profileVariables = {
-  kikora: {
-    'profile-body-background': '#f7f8fb',
-    'profile-body-color': '#111827',
-    'profile-surface-background': '#ffffffee',
-    'profile-surface-border': '#e5e7eb',
-    'profile-title-color': '#0f172a',
-    'profile-accent-color': '#0f6d8f',
-    'profile-accent-contrast': '#ffffff',
-    'profile-accent-hover': '#0c5974',
-    'profile-accent-border': 'rgba(15, 109, 143, 0.15)',
-    'profile-accent-border-strong': 'rgba(15, 109, 143, 0.35)',
-    'profile-accent-surface': '#e6f4fa',
-    'profile-accent-shadow-soft': 'rgba(15, 109, 143, 0.08)',
-    'profile-accent-shadow-medium': 'rgba(15, 109, 143, 0.2)',
-    'profile-accent-shadow-strong': 'rgba(15, 109, 143, 0.25)',
-    'profile-tooltip-background': 'rgba(15, 109, 143, 0.95)',
-    'profile-tooltip-color': '#ffffff',
-    'profile-focus-outline': 'rgba(15, 109, 143, 0.35)',
-    'profile-nav-badge-background': '#f97316',
-    'profile-nav-badge-color': '#ffffff',
-    'profile-iframe-background': '#ffffff'
-  },
   campus: campusProfileVariables,
   annet: campusProfileVariables
 };
@@ -395,7 +373,7 @@ const taskStrip = nav ? nav.querySelector('[data-task-strip]') : null;
 const betaFeatureItems = nav ? Array.from(nav.querySelectorAll('[data-beta-feature]')) : [];
 const profileFilteredItems = nav ? Array.from(nav.querySelectorAll('[data-profile-filter]')) : [];
 const PROFILE_FILTER_ATTR = 'data-profile-filter';
-const SETTINGS_ENABLED_PROFILES = new Set(['annet', 'kikora', 'campus']);
+const SETTINGS_ENABLED_PROFILES = new Set(['annet', 'campus']);
 const CAMPUS_VISIBLE_LABELS = new Set([
   'Bibliotek',
   'Diagram',

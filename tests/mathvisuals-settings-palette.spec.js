@@ -398,7 +398,7 @@ test.describe('brøkpizza palette fallback', () => {
     };
     root.getAttribute = attr => {
       if (attr === 'data-mv-active-project') {
-        return 'kikora';
+        return 'campus';
       }
       return null;
     };
@@ -497,7 +497,7 @@ test.describe('brøkfigurer palette fallback', () => {
     const documentStub = createDocumentStub();
     const root = documentStub.documentElement;
     root.getAttribute = attr => {
-      if (attr === 'data-mv-active-project') return 'kikora';
+      if (attr === 'data-mv-active-project') return 'campus';
       if (attr === 'data-theme-profile') return '';
       return null;
     };
@@ -951,7 +951,7 @@ test.describe('MathVisualsSettings.getGroupPalette', () => {
   test('ignores project override with legacy signature', () => {
     const { api, paletteCalls } = loadSettingsWithPaletteSpy(() => ['#abcdef']);
 
-    const palette = api.getGroupPalette('graftegner', 4, { project: 'kikora' });
+    const palette = api.getGroupPalette('graftegner', 4, { project: 'annet' });
 
     expect(palette).toEqual(['#abcdef']);
     expect(paletteCalls).toHaveLength(1);
@@ -1021,7 +1021,7 @@ test.describe('MathVisuals palette slot handling', () => {
     const axisIndex = AXIS_SLOT ? AXIS_SLOT.index : 0;
     const projects = Array.isArray(paletteConfig.DEFAULT_PROJECT_ORDER)
       ? paletteConfig.DEFAULT_PROJECT_ORDER.slice()
-      : ['campus', 'kikora', 'annet'];
+      : ['campus', 'annet'];
     if (!projects.includes('default')) {
       projects.push('default');
     }
@@ -1044,37 +1044,37 @@ test.describe('MathVisuals palette slot handling', () => {
 });
 
 test.describe('MathVisualsTheme.getPalette', () => {
-  test('uses project override profile even when active profile differs', () => {
+  test('uses active profile palette even when project hint differs', () => {
     const theme = loadThemeModule();
 
     expect(theme).toBeTruthy();
 
-    theme.setProfile('kikora', { force: true });
-    expect(theme.getActiveProfileName()).toBe('kikora');
+    theme.setProfile('annet', { force: true });
+    expect(theme.getActiveProfileName()).toBe('annet');
 
     const palette = theme.getPalette('figures', 6, { project: 'campus' });
+    const expected = paletteConfig.PROJECT_FALLBACKS.default.slice(0, 6);
 
-    expect(palette).toEqual(['#DBE3FF', '#2C395B', '#E3B660', '#C5E5E9', '#F6E5BC', '#F1D0D9']);
+    expect(palette).toEqual(expected);
   });
 
-  test('ignores global stored default colors when project override provided', () => {
+  test('uses stored default colors even when project hint differs', () => {
     const theme = loadThemeModule();
 
     expect(theme).toBeTruthy();
 
-    const campusDefaults = ['#DBE3FF', '#2C395B', '#E3B660', '#C5E5E9', '#F6E5BC', '#F1D0D9'];
+    const storedDefaults = ['#111111', '#222222', '#333333', '#444444', '#555555', '#666666'];
     global.localStorage.setItem(
       'mathVisuals:settings',
-      JSON.stringify({ defaultColors: campusDefaults })
+      JSON.stringify({ defaultColors: storedDefaults })
     );
 
     theme.setProfile('campus', { force: true });
     expect(theme.getActiveProfileName()).toBe('campus');
 
-    const palette = theme.getPalette('figures', 6, { project: 'kikora' });
-    const expected = ['#E31C3D', '#BF4474', '#873E79', '#534477', '#6C1BA2', '#B25FE3'];
+    const palette = theme.getPalette('figures', 6, { project: 'annet' });
 
-    expect(palette.slice().sort()).toEqual(expected.slice().sort());
+    expect(palette).toEqual(storedDefaults);
   });
 });
 
