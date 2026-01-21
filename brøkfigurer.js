@@ -3048,6 +3048,7 @@ const fillColorPickerInstances = new WeakMap();
       const x = rect.left - gridRect.left;
       const y = rect.top - gridRect.top;
       items.push({
+        id,
         svg,
         x,
         y,
@@ -3069,6 +3070,7 @@ const fillColorPickerInstances = new WeakMap();
     items.forEach(item => {
       const clone = helper && typeof helper.cloneSvgForExport === 'function' ? helper.cloneSvgForExport(item.svg) : item.svg.cloneNode(true);
       if (!clone) return;
+      prefixSvgIds(clone, `brokfigurer-fig${item.id}`);
       clone.setAttribute('x', String(item.x));
       clone.setAttribute('y', String(item.y));
       clone.setAttribute('width', String(item.width));
@@ -3081,6 +3083,50 @@ const fillColorPickerInstances = new WeakMap();
       width,
       height
     };
+  }
+  function prefixSvgIds(svgElement, prefix) {
+    if (!svgElement || typeof svgElement.querySelectorAll !== 'function') return;
+    const sanitizedPrefix = typeof prefix === 'string' && prefix.trim() ? prefix.trim() : 'brokfigurer';
+    const escapeRegExp = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const idMap = new Map();
+    svgElement.querySelectorAll('[id]').forEach(node => {
+      const id = node.getAttribute('id');
+      if (!id) return;
+      const nextId = `${sanitizedPrefix}-${id}`;
+      idMap.set(id, nextId);
+      node.setAttribute('id', nextId);
+    });
+    if (!idMap.size) return;
+    const updateAttribute = (node, attr) => {
+      if (!node || typeof node.getAttribute !== 'function' || typeof node.setAttribute !== 'function') return;
+      const value = node.getAttribute(attr);
+      if (!value) return;
+      let nextValue = value;
+      idMap.forEach((nextId, oldId) => {
+        const escapedId = escapeRegExp(oldId);
+        nextValue = nextValue.replace(new RegExp(`url\\(#${escapedId}\\)`, 'g'), `url(#${nextId})`);
+        if (value === `#${oldId}`) {
+          nextValue = `#${nextId}`;
+        }
+      });
+      if (nextValue !== value) {
+        node.setAttribute(attr, nextValue);
+      }
+    };
+    const attributes = ['clip-path', 'mask', 'filter', 'fill', 'stroke', 'marker-start', 'marker-mid', 'marker-end', 'href', 'xlink:href'];
+    svgElement.querySelectorAll('*').forEach(node => {
+      attributes.forEach(attr => updateAttribute(node, attr));
+      const style = node.getAttribute && node.getAttribute('style');
+      if (!style) return;
+      let nextStyle = style;
+      idMap.forEach((nextId, oldId) => {
+        const escapedId = escapeRegExp(oldId);
+        nextStyle = nextStyle.replace(new RegExp(`url\\(#${escapedId}\\)`, 'g'), `url(#${nextId})`);
+      });
+      if (nextStyle !== style) {
+        node.setAttribute('style', nextStyle);
+      }
+    });
   }
   async function downloadAllFigures() {
     var _window$render, _window;
@@ -3163,43 +3209,18 @@ const fillColorPickerInstances = new WeakMap();
   rebuildLayout();
   initAltTextManager();
   const handleExamplesCollect = event => {
-    var _window$render3, _window3, _window$render4, _window4;
+    var _window$render3, _window3;
     const detail = event === null || event === void 0 ? void 0 : event.detail;
     if (!detail || detail.svgOverride != null) return;
-    const restore = [];
-    for (const id of getActiveFigureIds()) {
-      const fig = figures[id];
-      if (!fig || typeof fig.getFilled !== 'function' || typeof fig.setFilled !== 'function') continue;
-      let filled = fig.getFilled();
-      if (filled instanceof Map) {
-        if (filled.size === 0) continue;
-      } else if (filled && typeof filled[Symbol.iterator] === 'function') {
-        filled = new Map(filled);
-        if (filled.size === 0) continue;
-      } else {
-        continue;
-      }
-      restore.push(() => fig.setFilled(filled));
-      fig.setFilled(new Map());
-    }
     (_window$render3 = (_window3 = window).render) === null || _window$render3 === void 0 ? void 0 : _window$render3.call(_window3);
-    try {
-      const serializer = typeof serializeDocument === 'function'
-        ? serializeDocument
-        : typeof window !== 'undefined' && typeof window.serializeDocument === 'function'
-          ? window.serializeDocument
-          : null;
-      const svgString = serializer ? serializer() : null;
-      if (typeof svgString === 'string' && svgString.trim()) {
-        detail.svgOverride = svgString;
-      }
-    } finally {
-      restore.forEach(fn => {
-        try {
-          fn();
-        } catch (_) {}
-      });
-      (_window$render4 = (_window4 = window).render) === null || _window$render4 === void 0 ? void 0 : _window$render4.call(_window4);
+    const serializer = typeof serializeDocument === 'function'
+      ? serializeDocument
+      : typeof window !== 'undefined' && typeof window.serializeDocument === 'function'
+        ? window.serializeDocument
+        : null;
+    const svgString = serializer ? serializer() : null;
+    if (typeof svgString === 'string' && svgString.trim()) {
+      detail.svgOverride = svgString;
     }
   };
   if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
