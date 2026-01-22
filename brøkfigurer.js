@@ -2846,6 +2846,7 @@ const fillColorPickerInstances = new WeakMap();
       var _board;
       const svg = (_board = board) === null || _board === void 0 || (_board = _board.renderer) === null || _board === void 0 ? void 0 : _board.svgRoot;
       if (!svg) return;
+      const clipTarget = svg.querySelector('g.JXGroot') || svg;
       const pad = CLIP_PAD_PERCENT;
       const padStr = pad.toFixed(2);
       const maxStr = (100 + pad).toFixed(2);
@@ -2915,8 +2916,12 @@ const fillColorPickerInstances = new WeakMap();
           defs.appendChild(clipPath);
         }
         clipUpdater(clipPath);
-        svg.setAttribute('clip-path', `url(#${clipId})`);
+        clipTarget.setAttribute('clip-path', `url(#${clipId})`);
+        if (clipTarget !== svg) {
+          svg.removeAttribute('clip-path');
+        }
       } else {
+        clipTarget.removeAttribute('clip-path');
         svg.removeAttribute('clip-path');
         const defs = defsLookup();
         const clipPath = defs === null || defs === void 0 ? void 0 : defs.querySelector(`#${clipId}`);
