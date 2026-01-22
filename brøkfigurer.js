@@ -1812,6 +1812,25 @@ const fillColorPickerInstances = new WeakMap();
         keepaspectratio: true
       });
     }
+    let pendingClipFrame = null;
+    let pendingClipState = null;
+    function scheduleClipUpdate(shape, division) {
+      pendingClipState = {
+        shape,
+        division
+      };
+      if (pendingClipFrame != null) return;
+      pendingClipFrame = requestAnimationFrame(() => {
+        pendingClipFrame = null;
+        if (!pendingClipState) return;
+        const {
+          shape,
+          division
+        } = pendingClipState;
+        pendingClipState = null;
+        applyClip(shape, division);
+      });
+    }
     function resizeBoard() {
       if (!board || !board.containerObj || typeof board.resizeContainer !== 'function') return;
       const width = board.containerObj.clientWidth;
@@ -1829,7 +1848,7 @@ const fillColorPickerInstances = new WeakMap();
       board.update();
       updateRoundedRectFrame();
       const division = figState.division || (divSel && divSel.value) || 'horizontal';
-      applyClip(shape, division);
+      scheduleClipUpdate(shape, division);
     }
     function disableHitDetection(element) {
       if (element && typeof element.hasPoint === 'function') {
@@ -2388,7 +2407,7 @@ const fillColorPickerInstances = new WeakMap();
         return c ? fillPalette[c - 1] || '#fff' : '#fff';
       };
       if (shape === 'circle') drawCircle(n, division, allowWrong, colorFor);else if (shape === 'rectangle' || shape === 'square') drawRect(n, division, colorFor);else drawTriangle(n, division, allowWrong, colorFor);
-      applyClip(shape, division);
+      scheduleClipUpdate(shape, division);
     }
     function drawCircle(n, division, allowWrong, colorFor) {
       const r = CIRCLE_RADIUS;
@@ -2896,7 +2915,12 @@ const fillColorPickerInstances = new WeakMap();
       } else if (shape === 'circle') {
         var _svg$viewBox, _svg$viewBox2;
         const circleBase = CIRCLE_RADIUS / BOARD_SIZE;
-        const size = Math.max(svg.clientWidth || 0, svg.clientHeight || 0, ((_svg$viewBox = svg.viewBox) === null || _svg$viewBox === void 0 || (_svg$viewBox = _svg$viewBox.baseVal) === null || _svg$viewBox === void 0 ? void 0 : _svg$viewBox.width) || 0, ((_svg$viewBox2 = svg.viewBox) === null || _svg$viewBox2 === void 0 || (_svg$viewBox2 = _svg$viewBox2.baseVal) === null || _svg$viewBox2 === void 0 ? void 0 : _svg$viewBox2.height) || 0, 360);
+        const svgWidth = svg.clientWidth || 0;
+        const svgHeight = svg.clientHeight || 0;
+        const rect = typeof svg.getBoundingClientRect === 'function' ? svg.getBoundingClientRect() : null;
+        const rectSize = rect ? Math.max(rect.width || 0, rect.height || 0) : 0;
+        const viewBoxSize = Math.max(((_svg$viewBox = svg.viewBox) === null || _svg$viewBox === void 0 || (_svg$viewBox = _svg$viewBox.baseVal) === null || _svg$viewBox === void 0 ? void 0 : _svg$viewBox.width) || 0, ((_svg$viewBox2 = svg.viewBox) === null || _svg$viewBox2 === void 0 || (_svg$viewBox2 = _svg$viewBox2.baseVal) === null || _svg$viewBox2 === void 0 ? void 0 : _svg$viewBox2.height) || 0);
+        const size = Math.max(svgWidth, svgHeight, rectSize, viewBoxSize, 360);
         const strokePadding = OUTLINE_STROKE_WIDTH / (2 * size);
         const circleClip = Math.min(0.5, circleBase + strokePadding);
         clipUpdater = clipPath => {
