@@ -1824,6 +1824,7 @@ const fillColorPickerInstances = new WeakMap();
         : BOARD_BOUNDING_BOX;
       board.resizeContainer(width, height);
       if (typeof board.setBoundingBox === 'function') {
+        board.setBoundingBox(BOARD_BOUNDING_BOX, true);
         board.setBoundingBox(boundingBox, true);
       }
       board.update();
