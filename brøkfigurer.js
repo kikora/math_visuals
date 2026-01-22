@@ -996,7 +996,10 @@ const fillColorPickerInstances = new WeakMap();
   STATE.cols = cols;
   let pendingFigureSizeFrame = null;
   let pendingBoardResizeFrame = null;
+  let pendingRenderFrame = null;
   let lastFigureSize = null;
+  const observedBoxes = new Set();
+  const boxResizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(() => scheduleFigureSizeUpdate()) : null;
   function scheduleFigureBoardResize() {
     if (pendingBoardResizeFrame != null) return;
     pendingBoardResizeFrame = requestAnimationFrame(() => {
@@ -1034,10 +1037,73 @@ const fillColorPickerInstances = new WeakMap();
       scheduleFigureBoardResize();
     }
   }
+  function observeFigureBox(box) {
+    if (!boxResizeObserver || !box || observedBoxes.has(box)) return;
+    boxResizeObserver.observe(box);
+    observedBoxes.add(box);
+  }
+  function pruneObservedBoxes() {
+    if (!boxResizeObserver) return;
+    for (const box of observedBoxes) {
+      if (!box.isConnected) {
+        boxResizeObserver.unobserve(box);
+        observedBoxes.delete(box);
+      }
+    }
+  }
+  function updateFigureLayoutMetrics() {
+    let layoutReady = true;
+    for (const id of getActiveFigureIds()) {
+      const fig = figures[id];
+      const panel = figurePanels.get(id) || document.getElementById(`panel${id}`);
+      if (!panel || panel.style.display === 'none') continue;
+      const box = panel.querySelector('.box');
+      if (!box) {
+        layoutReady = false;
+        continue;
+      }
+      const rect = box.getBoundingClientRect();
+      if (fig && typeof fig.setLayoutMetrics === 'function') {
+        fig.setLayoutMetrics({
+          width: rect.width,
+          height: rect.height,
+          top: rect.top,
+          left: rect.left
+        });
+      }
+      if (!rect.width || !rect.height) {
+        layoutReady = false;
+      }
+    }
+    return layoutReady;
+  }
+  function scheduleFigureDraw() {
+    if (pendingRenderFrame != null) return;
+    pendingRenderFrame = requestAnimationFrame(() => {
+      pendingRenderFrame = null;
+      const layoutReady = updateFigureLayoutMetrics();
+      if (!layoutReady) {
+        scheduleFigureDraw();
+        return;
+      }
+      for (const id of getActiveFigureIds()) {
+        const fig = figures[id];
+        if (fig && typeof fig.draw === 'function') fig.draw();
+      }
+      scheduleFigureBoardResize();
+      scheduleFigureSizeUpdate();
+      refreshAltText('render');
+    });
+  }
   function scheduleFigureSizeUpdate() {
     if (pendingFigureSizeFrame != null) return;
     pendingFigureSizeFrame = requestAnimationFrame(() => {
       pendingFigureSizeFrame = null;
+      const layoutReady = updateFigureLayoutMetrics();
+      if (!layoutReady) {
+        scheduleFigureSizeUpdate();
+        return;
+      }
       updateFigureSize();
     });
   }
@@ -1287,13 +1353,7 @@ const fillColorPickerInstances = new WeakMap();
     }
     applyStateToControls();
     updateColorVisibility();
-    for (const id of getActiveFigureIds()) {
-      const fig = figures[id];
-      if (fig && typeof fig.draw === 'function') fig.draw();
-    }
-    scheduleFigureBoardResize();
-    scheduleFigureSizeUpdate();
-    refreshAltText('render');
+    scheduleFigureDraw();
   }
   function createFigurePanel(id) {
     const panel = document.createElement('div');
@@ -1391,6 +1451,8 @@ const fillColorPickerInstances = new WeakMap();
         }
         gridEl.appendChild(panel);
         ensureFigureState(id);
+        const box = panel.querySelector('.box');
+        if (box) observeFigureBox(box);
       }
     } else {
       for (let id = 1; id <= total; id++) {
@@ -1422,6 +1484,7 @@ const fillColorPickerInstances = new WeakMap();
         figures[id] = setupFigure(id);
       }
     }
+    pruneObservedBoxes();
     scheduleFigureBoardResize();
   }
   function joinWithOg(items) {
@@ -1706,6 +1769,19 @@ const fillColorPickerInstances = new WeakMap();
     let suppressToggle = false;
     let suppressToggleResetTimer = null;
     let detachDivisionGuard = null;
+    let layoutMetrics = null;
+    function setLayoutMetrics(metrics) {
+      if (metrics && typeof metrics === 'object') {
+        layoutMetrics = {
+          width: Number(metrics.width) || 0,
+          height: Number(metrics.height) || 0,
+          top: Number(metrics.top) || 0,
+          left: Number(metrics.left) || 0
+        };
+      } else {
+        layoutMetrics = null;
+      }
+    }
     function updateDenominatorControls(override, figStateOverride) {
       const figState = figStateOverride || ensureFigureState(id);
       let enabled;
@@ -3042,6 +3118,7 @@ const fillColorPickerInstances = new WeakMap();
       getSvgElement,
       getFilled,
       setFilled,
+      setLayoutMetrics,
       updateDenominatorControls
     };
   }
