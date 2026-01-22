@@ -1291,6 +1291,7 @@ const fillColorPickerInstances = new WeakMap();
       const fig = figures[id];
       if (fig && typeof fig.draw === 'function') fig.draw();
     }
+    scheduleFigureBoardResize();
     scheduleFigureSizeUpdate();
     refreshAltText('render');
   }
@@ -1421,6 +1422,7 @@ const fillColorPickerInstances = new WeakMap();
         figures[id] = setupFigure(id);
       }
     }
+    scheduleFigureBoardResize();
   }
   function joinWithOg(items) {
     if (!Array.isArray(items)) return '';
@@ -1815,11 +1817,17 @@ const fillColorPickerInstances = new WeakMap();
       const width = board.containerObj.clientWidth;
       const height = board.containerObj.clientHeight;
       if (!width || !height) return;
-      board.resizeContainer(width, height);
-      board.update();
-      updateRoundedRectFrame();
       const figState = ensureFigureState(id);
       const shape = figState.shape || (shapeSel && shapeSel.value) || 'rectangle';
+      const boundingBox = shape === 'rectangle'
+        ? [-BOARD_MARGIN, 1 + BOARD_MARGIN, RECTANGLE_ASPECT_RATIO + BOARD_MARGIN, -BOARD_MARGIN]
+        : BOARD_BOUNDING_BOX;
+      board.resizeContainer(width, height);
+      if (typeof board.setBoundingBox === 'function') {
+        board.setBoundingBox(boundingBox, true);
+      }
+      board.update();
+      updateRoundedRectFrame();
       const division = figState.division || (divSel && divSel.value) || 'horizontal';
       applyClip(shape, division);
     }
@@ -3393,6 +3401,7 @@ const fillColorPickerInstances = new WeakMap();
     applyStateToControls();
     updateColorVisibility();
     window.render();
+    scheduleFigureBoardResize();
     refreshAltText('state-load');
     return true;
   }
