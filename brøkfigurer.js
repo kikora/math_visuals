@@ -2622,6 +2622,9 @@ const fillColorPickerInstances = new WeakMap();
       const h = Math.sqrt(3) / 2;
       const toEq = ([x, y]) => [x + 0.5 * y, y * h];
       const toEqTri = ([x, y]) => [x, (1 - y) * h];
+      const triangleDivisionOptions = {
+        linecap: 'butt'
+      };
       if (showOutlineGlobal) {
         const framePoints = division === 'triangular' ? [toEqTri([0, 1]), toEqTri([1, 1]), toEqTri([0.5, 0])] : [toEq([0, 0]), toEq([1, 0]), toEq([0, 1])];
         board.create('polygon', framePoints, {
@@ -2716,9 +2719,9 @@ const fillColorPickerInstances = new WeakMap();
           }
         }
         for (let r = 1; r < m; r++) {
-          createDivisionSegment(rows[r][0], rows[r][r], {}, false);
-          createDivisionSegment(rows[r][0], rows[m][r], {}, false);
-          createDivisionSegment(rows[r][r], rows[m][m - r], {}, false);
+          createDivisionSegment(rows[r][0], rows[r][r], triangleDivisionOptions, false);
+          createDivisionSegment(rows[r][0], rows[m][r], triangleDivisionOptions, false);
+          createDivisionSegment(rows[r][r], rows[m][m - r], triangleDivisionOptions, false);
         }
         if (showOutlineGlobal) {
           board.create('polygon', [toEqTri([0, 1]), toEqTri([1, 1]), toEqTri([0.5, 0])], {
@@ -2797,25 +2800,25 @@ const fillColorPickerInstances = new WeakMap();
         for (let i = 1; i < n; i++) {
           const x = i / n;
           if (allowWrong) {
-            createDivisionSegment(toEq([x, 0]), toEq([x, 1 - x]), {}, false);
+            createDivisionSegment(toEq([x, 0]), toEq([x, 1 - x]), triangleDivisionOptions, false);
           } else {
-            createDivisionSegment(toEq([x, 0]), toEq([0, 1]), {}, false);
+            createDivisionSegment(toEq([x, 0]), toEq([0, 1]), triangleDivisionOptions, false);
           }
         }
       } else if (division === 'horizontal') {
         for (let i = 1; i < n; i++) {
           const y = i / n;
           if (allowWrong) {
-            createDivisionSegment(toEq([0, y]), toEq([1 - y, y]), {}, false);
+            createDivisionSegment(toEq([0, y]), toEq([1 - y, y]), triangleDivisionOptions, false);
           } else {
-            createDivisionSegment(toEq([0, y]), toEq([1, 0]), {}, false);
+            createDivisionSegment(toEq([0, y]), toEq([1, 0]), triangleDivisionOptions, false);
           }
         }
       } else {
         // diagonal
         for (let i = 1; i < n; i++) {
           const t = i / n;
-          createDivisionSegment(toEq([1 - t, t]), toEq([0, 0]), {}, false);
+          createDivisionSegment(toEq([1 - t, t]), toEq([0, 0]), triangleDivisionOptions, false);
         }
       }
       if (showOutlineGlobal) {
