@@ -3131,14 +3131,20 @@ const fillColorPickerInstances = new WeakMap();
       node.setAttribute('id', nextId);
     });
     if (!idMap.size) return;
+    const replaceUrlReferences = (value, oldId, nextId) => {
+      const escapedId = escapeRegExp(oldId);
+      let nextValue = value;
+      nextValue = nextValue.replace(new RegExp(`url\\((['"]?)#${escapedId}\\1\\)`, 'g'), (match, quote) => `url(${quote}#${nextId}${quote})`);
+      nextValue = nextValue.replace(new RegExp(`url\\((['"]?)(https?:\\/\\/[^)'"]*?)#${escapedId}\\1\\)`, 'g'), (match, quote, base) => `url(${quote}${base}#${nextId}${quote})`);
+      return nextValue;
+    };
     const updateAttribute = (node, attr) => {
       if (!node || typeof node.getAttribute !== 'function' || typeof node.setAttribute !== 'function') return;
       const value = node.getAttribute(attr);
       if (!value) return;
       let nextValue = value;
       idMap.forEach((nextId, oldId) => {
-        const escapedId = escapeRegExp(oldId);
-        nextValue = nextValue.replace(new RegExp(`url\\(#${escapedId}\\)`, 'g'), `url(#${nextId})`);
+        nextValue = replaceUrlReferences(nextValue, oldId, nextId);
         if (value === `#${oldId}`) {
           nextValue = `#${nextId}`;
         }
@@ -3154,8 +3160,7 @@ const fillColorPickerInstances = new WeakMap();
       if (!style) return;
       let nextStyle = style;
       idMap.forEach((nextId, oldId) => {
-        const escapedId = escapeRegExp(oldId);
-        nextStyle = nextStyle.replace(new RegExp(`url\\(#${escapedId}\\)`, 'g'), `url(#${nextId})`);
+        nextStyle = replaceUrlReferences(nextStyle, oldId, nextId);
       });
       if (nextStyle !== style) {
         node.setAttribute('style', nextStyle);
