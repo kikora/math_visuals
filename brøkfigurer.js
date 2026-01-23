@@ -3030,12 +3030,12 @@ const fillColorPickerInstances = new WeakMap();
         const rectSize = rect ? Math.max(rect.width || 0, rect.height || 0) : 0;
         const viewBoxSize = Math.max(((_svg$viewBox3 = svg.viewBox) === null || _svg$viewBox3 === void 0 || (_svg$viewBox3 = _svg$viewBox3.baseVal) === null || _svg$viewBox3 === void 0 ? void 0 : _svg$viewBox3.width) || 0, ((_svg$viewBox4 = svg.viewBox) === null || _svg$viewBox4 === void 0 || (_svg$viewBox4 = _svg$viewBox4.baseVal) === null || _svg$viewBox4 === void 0 ? void 0 : _svg$viewBox4.height) || 0);
         const size = Math.max(svgWidth, svgHeight, rectSize, viewBoxSize, 360);
-        const strokePadding = OUTLINE_STROKE_WIDTH / (2 * size);
+        const strokePaddingPercent = OUTLINE_STROKE_WIDTH / (2 * size) * 100;
         clipUpdater = clipPath => {
           clipPath.setAttribute('clipPathUnits', 'objectBoundingBox');
           while (clipPath.firstChild) clipPath.removeChild(clipPath.firstChild);
           const polygon = document.createElementNS(SVG_NS, 'polygon');
-          const pad = CLIP_PAD_PERCENT / 100 + strokePadding;
+          const pad = (CLIP_PAD_PERCENT + strokePaddingPercent) / 100;
           const topY = (-pad).toFixed(4);
           const leftX = (-pad).toFixed(4);
           const rightX = (1 + pad).toFixed(4);
