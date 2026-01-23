@@ -1446,8 +1446,29 @@ const fillColorPickerInstances = new WeakMap();
     if (removeColumnBtn) removeColumnBtn.style.display = cols <= MIN_DIMENSION ? 'none' : '';
     scheduleFigureSizeUpdate();
   }
+  function teardownFigure(id) {
+    const fig = figures[id];
+    if (!fig) return;
+    if (typeof fig.destroy === 'function') {
+      fig.destroy();
+    }
+    delete figures[id];
+    figureSetupCounts.delete(id);
+    figurePanels.delete(id);
+    figureFieldsets.delete(id);
+  }
+  function teardownFigures(total) {
+    const max = Math.max(0, total);
+    for (let id = figures.length - 1; id > max; id--) {
+      if (figures[id]) teardownFigure(id);
+    }
+    if (figures.length > max + 1) {
+      figures.length = max + 1;
+    }
+  }
   function rebuildLayout() {
     const total = Math.max(MIN_DIMENSION, Math.min(rows * cols, MAX_ROWS * MAX_COLS));
+    teardownFigures(total);
     pruneFigureState(total);
     const ids = [];
     if (gridEl) {
@@ -1780,6 +1801,25 @@ const fillColorPickerInstances = new WeakMap();
     let suppressToggleResetTimer = null;
     let detachDivisionGuard = null;
     let layoutMetrics = null;
+    const teardownTasks = [];
+    const eventAbortController = typeof AbortController === 'function' ? new AbortController() : null;
+    const registerListener = (target, type, handler, options) => {
+      if (!target) return;
+      let opts = options;
+      if (eventAbortController) {
+        if (opts == null) {
+          opts = { signal: eventAbortController.signal };
+        } else if (typeof opts === 'boolean') {
+          opts = { capture: opts, signal: eventAbortController.signal };
+        } else if (typeof opts === 'object') {
+          opts = Object.assign({}, opts, { signal: eventAbortController.signal });
+        }
+      }
+      target.addEventListener(type, handler, opts);
+      if (!eventAbortController) {
+        teardownTasks.push(() => target.removeEventListener(type, handler, options || false));
+      }
+    };
     function setLayoutMetrics(metrics) {
       if (metrics && typeof metrics === 'object') {
         layoutMetrics = {
@@ -2380,7 +2420,7 @@ const fillColorPickerInstances = new WeakMap();
           }
         }
         for (const type of DOM_TOGGLE_EVENTS) {
-          node.addEventListener(type, domHandler, true);
+          registerListener(node, type, domHandler, true);
         }
       }
     }
@@ -3071,13 +3111,13 @@ const fillColorPickerInstances = new WeakMap();
         if (clipPath) clipPath.remove();
       }
     }
-    allowDenominatorInp === null || allowDenominatorInp === void 0 || allowDenominatorInp.addEventListener('change', () => {
+    allowDenominatorInp === null || allowDenominatorInp === void 0 || registerListener(allowDenominatorInp, 'change', () => {
       const enabled = !!allowDenominatorInp.checked;
       updateDenominatorControls(enabled);
       window.render();
       clearCheckStatus();
     });
-    shapeSel === null || shapeSel === void 0 || shapeSel.addEventListener('change', () => {
+    shapeSel === null || shapeSel === void 0 || registerListener(shapeSel, 'change', () => {
       const figState = ensureFigureState(id);
       const nextShape = shapeSel.value;
       const shapeChanged = figState.shape !== nextShape;
@@ -3088,7 +3128,7 @@ const fillColorPickerInstances = new WeakMap();
         clearCheckStatus();
       }
     });
-    partsInp === null || partsInp === void 0 || partsInp.addEventListener('input', () => {
+    partsInp === null || partsInp === void 0 || registerListener(partsInp, 'input', () => {
       const figState = ensureFigureState(id);
       if (!figState.allowDenominatorChange) {
         const current = clampInt(figState.parts, 1);
@@ -3100,27 +3140,27 @@ const fillColorPickerInstances = new WeakMap();
       window.render();
       clearCheckStatus();
     });
-    divSel === null || divSel === void 0 || divSel.addEventListener('change', () => {
+    divSel === null || divSel === void 0 || registerListener(divSel, 'change', () => {
       const figState = ensureFigureState(id);
       figState.division = divSel.value;
       window.render();
       clearCheckStatus();
     });
-    solutionNumInp === null || solutionNumInp === void 0 || solutionNumInp.addEventListener('input', () => {
+    solutionNumInp === null || solutionNumInp === void 0 || registerListener(solutionNumInp, 'input', () => {
       syncSolutionFromInputs();
       clearCheckStatus();
     });
-    solutionDenInp === null || solutionDenInp === void 0 || solutionDenInp.addEventListener('input', () => {
+    solutionDenInp === null || solutionDenInp === void 0 || registerListener(solutionDenInp, 'input', () => {
       syncSolutionFromInputs();
       clearCheckStatus();
     });
-    minusBtn === null || minusBtn === void 0 || minusBtn.addEventListener('click', () => {
+    minusBtn === null || minusBtn === void 0 || registerListener(minusBtn, 'click', () => {
       let n = parseInt(partsInp.value, 10);
       n = isNaN(n) ? 1 : Math.max(1, n - 1);
       partsInp.value = String(n);
       partsInp.dispatchEvent(new Event('input'));
     });
-    plusBtn === null || plusBtn === void 0 || plusBtn.addEventListener('click', () => {
+    plusBtn === null || plusBtn === void 0 || registerListener(plusBtn, 'click', () => {
       let n = parseInt(partsInp.value, 10);
       n = isNaN(n) ? 1 : n + 1;
       partsInp.value = String(n);
@@ -3150,7 +3190,44 @@ const fillColorPickerInstances = new WeakMap();
       getFilled,
       setFilled,
       setLayoutMetrics,
-      updateDenominatorControls
+      updateDenominatorControls,
+      destroy: () => {
+        var _board3;
+        if (pendingClipFrame != null) {
+          cancelAnimationFrame(pendingClipFrame);
+          pendingClipFrame = null;
+        }
+        pendingClipState = null;
+        if (suppressToggleResetTimer != null) {
+          clearTimeout(suppressToggleResetTimer);
+          suppressToggleResetTimer = null;
+        }
+        if (detachDivisionGuard) {
+          detachDivisionGuard();
+          detachDivisionGuard = null;
+        }
+        if (eventAbortController) {
+          eventAbortController.abort();
+        } else {
+          teardownTasks.forEach(task => task());
+        }
+        teardownTasks.length = 0;
+        divisionSegmentIds.clear();
+        divisionSegmentNodes.clear();
+        (_board3 = board) === null || _board3 === void 0 || (_board3 = _board3.stopResizeObserver) === null || _board3 === void 0 ? void 0 : _board3.call(board);
+        if (board) {
+          JXG.JSXGraph.freeBoard(board);
+          board = null;
+        }
+        const panelNode = panel || document.getElementById(`panel${id}`);
+        const box = panelNode && panelNode.querySelector ? panelNode.querySelector('.box') : null;
+        if (boxResizeObserver && box) {
+          boxResizeObserver.unobserve(box);
+        }
+        if (box) {
+          box.innerHTML = '';
+        }
+      }
     };
   }
   function computeFigureFraction(figState) {
