@@ -1923,7 +1923,11 @@ const fillColorPickerInstances = new WeakMap();
         board.setBoundingBox(boundingBox, true);
       }
       board.update();
-      updateRoundedRectFrame();
+      if (shape === 'circle' || shape === 'triangle') {
+        clearRoundedRectFrame();
+      } else {
+        updateRoundedRectFrame();
+      }
       const division = figState.division || (divSel && divSel.value) || 'horizontal';
       scheduleClipUpdate(shape, division);
     }
@@ -2279,6 +2283,12 @@ const fillColorPickerInstances = new WeakMap();
       if (outline) outline.remove();
     }
     function updateRoundedRectFrame() {
+      const figState = ensureFigureState(id);
+      const shape = figState.shape || (shapeSel && shapeSel.value) || 'rectangle';
+      if (shape !== 'rectangle' && shape !== 'square') {
+        clearRoundedRectFrame();
+        return;
+      }
       const rectBox = getRoundedRectScreenBox();
       if (!showOutlineGlobal || !rectBox) {
         clearRoundedRectFrame();
@@ -2445,6 +2455,9 @@ const fillColorPickerInstances = new WeakMap();
       rectWidthScale = shape === 'rectangle' ? RECTANGLE_ASPECT_RATIO : 1;
       updateBoxLayout(shape);
       initBoard(shape);
+      if (shape === 'circle' || shape === 'triangle') {
+        clearRoundedRectFrame();
+      }
       divisionSegmentIds.clear();
       divisionSegmentNodes.clear();
       ensureDivisionGuard();
