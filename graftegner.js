@@ -552,9 +552,13 @@ function sanitizePaletteList(values) {
 }
 
 let graftegnerFillSlotPositions = null;
+let graftegnerUsePaletteOrder = false;
 function resolveGraftegnerLineSlotPositions() {
   if (Array.isArray(graftegnerFillSlotPositions)) {
-    return graftegnerFillSlotPositions.slice();
+    return {
+      positions: graftegnerFillSlotPositions.slice(),
+      usePaletteOrder: graftegnerUsePaletteOrder
+    };
   }
   const config = getPaletteConfig();
   if (config && Array.isArray(config.COLOR_SLOT_GROUPS)) {
@@ -571,27 +575,37 @@ function resolveGraftegnerLineSlotPositions() {
         .filter(value => Number.isFinite(value));
       if (labeled.length) {
         graftegnerFillSlotPositions = labeled;
-        return graftegnerFillSlotPositions.slice();
+        graftegnerUsePaletteOrder = false;
+        return {
+          positions: graftegnerFillSlotPositions.slice(),
+          usePaletteOrder: graftegnerUsePaletteOrder
+        };
       }
-      if (group.slots.length >= 3) {
-        const tripletPositions = group.slots
-          .map((_, index) => (index % 3 === 2 ? index : null))
-          .filter(value => Number.isFinite(value));
-        if (tripletPositions.length) {
-          graftegnerFillSlotPositions = tripletPositions;
-          return graftegnerFillSlotPositions.slice();
-        }
+      if (group.slots.length) {
+        graftegnerFillSlotPositions = [];
+        graftegnerUsePaletteOrder = true;
+        return {
+          positions: [],
+          usePaletteOrder: graftegnerUsePaletteOrder
+        };
       }
     }
   }
   graftegnerFillSlotPositions = [];
-  return [];
+  graftegnerUsePaletteOrder = false;
+  return {
+    positions: [],
+    usePaletteOrder: graftegnerUsePaletteOrder
+  };
 }
 
 function selectGraftegnerLineColors(palette) {
   const sanitized = sanitizePaletteList(palette);
   if (!sanitized.length) return [];
-  const positions = resolveGraftegnerLineSlotPositions();
+  const { positions, usePaletteOrder } = resolveGraftegnerLineSlotPositions();
+  if (usePaletteOrder) {
+    return sanitized.slice();
+  }
   let lineColors = [];
   if (positions.length) {
     positions.forEach(position => {
