@@ -478,6 +478,9 @@ function refreshGraftegnerTheme(options = {}) {
   if (typeof refreshFunctionColorDefaults === 'function') {
     refreshFunctionColorDefaults();
   }
+  if (typeof syncFunctionColorOptionsAfterPaletteUpdate === 'function') {
+    syncFunctionColorOptionsAfterPaletteUpdate();
+  }
   const shouldRequestRebuild = typeof requestRebuild === 'function' && !appState.isRebuilding;
   if (shouldRequestRebuild) {
     requestRebuild();
@@ -740,6 +743,31 @@ function applyGraftegnerPalette(palette, options = {}) {
       ADV.domainMarkers.color = DEFAULT_POINT_COLORS.domainMarker || DEFAULT_POINT_COLORS.fallbackDomain;
     }
   } catch (_) {}
+  if (typeof syncFunctionColorOptionsAfterPaletteUpdate === 'function') {
+    syncFunctionColorOptionsAfterPaletteUpdate();
+  }
+}
+
+function syncFunctionColorOptionsAfterPaletteUpdate() {
+  if (typeof resolveFunctionColorOptions === 'function') {
+    functionColorOptions = resolveFunctionColorOptions();
+  }
+  if (typeof syncFunctionColorSwatches !== 'function' || !funcRows) {
+    return;
+  }
+  const rows = Array.from(funcRows.querySelectorAll('.func-group'));
+  rows.forEach(row => {
+    const control = functionColorControls.find(entry => entry && entry.row === row);
+    const desired = control && control.manual ? control.value : computeDefaultColorForIndex(getRowIndex(row));
+    const swatches = row.querySelectorAll('input[data-color]');
+    syncFunctionColorSwatches(swatches, desired);
+    if (control) {
+      control.value = normalizeFunctionColorChoice(control.manual ? control.value : desired);
+      if (!control.manual) {
+        syncFunctionColorSwatches(control.inputs, control.value);
+      }
+    }
+  });
 }
 
 function ensurePaletteCapacity(count) {
@@ -8154,9 +8182,10 @@ function setupSettingsForm() {
     }
     return functionColorOptions.slice(0, FUNCTION_COLOR_OPTION_COUNT);
   };
-  const normalizeFunctionColorChoice = color => {
+  const normalizeFunctionColorChoice = (color, paletteOverride) => {
     const normalized = normalizeColorValue(color);
-    const options = getFunctionColorOptions();
+    const hasOverride = Array.isArray(paletteOverride) && paletteOverride.length;
+    const options = hasOverride ? paletteOverride.slice(0, FUNCTION_COLOR_OPTION_COUNT) : getFunctionColorOptions();
     if (options.includes(normalized)) return normalized;
     return options[0] || DEFAULT_COLOR_FALLBACK;
   };
@@ -8192,8 +8221,11 @@ function setupSettingsForm() {
     if (!picker || !hiddenInput || !colorPickerModule || typeof colorPickerModule.createColorPicker !== 'function') {
       return;
     }
-    const normalizedActive = normalizeFunctionColorChoice(activeColor) || normalizeFunctionColorChoice(palette[0]) || DEFAULT_COLOR_FALLBACK;
-    const slots = buildFunctionColorSlots(palette);
+    const safePalette = Array.isArray(palette) && palette.length ? palette : getFunctionColorOptions();
+    const normalizedActive = normalizeFunctionColorChoice(activeColor, safePalette)
+      || normalizeFunctionColorChoice(safePalette[0], safePalette)
+      || DEFAULT_COLOR_FALLBACK;
+    const slots = buildFunctionColorSlots(safePalette);
     const renderStyle = ({ element, slot, isActive }) => {
       const color = isActive ? normalizedActive : slot.color;
       applyFunctionSwatch(element, color);
@@ -8201,14 +8233,14 @@ function setupSettingsForm() {
     const onSelect = value => {
       const slot = slots.find(entry => entry.value === value);
       if (!slot) return;
-      const nextColor = normalizeFunctionColorChoice(slot.color) || slot.color;
+      const nextColor = normalizeFunctionColorChoice(slot.color, safePalette) || slot.color;
       hiddenInput.value = nextColor;
       hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
       hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
     };
     const getActiveValue = () => {
-      const normalized = normalizeFunctionColorChoice(normalizedActive);
-      const index = palette.findIndex(color => normalizeFunctionColorChoice(color) === normalized);
+      const normalized = normalizeFunctionColorChoice(normalizedActive, safePalette);
+      const index = safePalette.findIndex(color => normalizeFunctionColorChoice(color, safePalette) === normalized);
       return index >= 0 ? index + 1 : null;
     };
     const existing = functionColorPickerInstances.get(picker);
