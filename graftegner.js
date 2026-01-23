@@ -8164,9 +8164,8 @@ function setupSettingsForm() {
   };
   let functionColorOptions = [];
   const resolveFunctionColorOptions = () => {
-    const palette = resolveCurvePalette(FUNCTION_COLOR_OPTION_COUNT * 2);
-    const linePalette = selectGraftegnerLineColors(palette);
-    const filled = ensureColorCount(linePalette, DEFAULT_FUNCTION_COLORS.fallback, FUNCTION_COLOR_OPTION_COUNT);
+    const palette = getBaseCurveColors(FUNCTION_COLOR_OPTION_COUNT);
+    const filled = ensureColorCount(palette, DEFAULT_FUNCTION_COLORS.fallback, FUNCTION_COLOR_OPTION_COUNT);
     return filled.slice(0, FUNCTION_COLOR_OPTION_COUNT);
   };
   const getFunctionColorOptions = () => {
