@@ -1150,6 +1150,15 @@ const fillColorPickerInstances = new WeakMap();
     STATE.figures[id] = fig;
     return fig;
   }
+  function pruneFigureState(total) {
+    const max = Math.max(0, total);
+    for (const key of Object.keys(STATE.figures)) {
+      const idNum = Number.parseInt(key, 10);
+      if (!Number.isFinite(idNum) || idNum < 1 || idNum > max) {
+        delete STATE.figures[key];
+      }
+    }
+  }
   const getActiveFigureIds = () => activeFigureIds.slice();
   if (allowWrongInp) {
     allowWrongInp.addEventListener('change', () => {
@@ -1439,6 +1448,7 @@ const fillColorPickerInstances = new WeakMap();
   }
   function rebuildLayout() {
     const total = Math.max(MIN_DIMENSION, Math.min(rows * cols, MAX_ROWS * MAX_COLS));
+    pruneFigureState(total);
     const ids = [];
     if (gridEl) {
       gridEl.innerHTML = '';
@@ -3494,12 +3504,7 @@ const fillColorPickerInstances = new WeakMap();
     rebuildLayout();
     const figureEntries = Array.isArray(rawState.figures) ? rawState.figures : [];
     const total = rows * cols;
-    for (const key of Object.keys(STATE.figures)) {
-      const idNum = Number.parseInt(key, 10);
-      if (!Number.isFinite(idNum) || idNum < 1 || idNum > total) {
-        delete STATE.figures[key];
-      }
-    }
+    pruneFigureState(total);
     for (let idx = 0; idx < total; idx++) {
       const entry = figureEntries[idx] && typeof figureEntries[idx] === 'object' ? figureEntries[idx] : {};
       const id = idx + 1;
