@@ -426,10 +426,15 @@ function refreshGraftegnerTheme(options = {}) {
   const paletteApi = getPaletteApi();
   const theme = getThemeApi();
   const requestedCount = Number.isFinite(options.count) && options.count > 0 ? Math.trunc(options.count) : null;
+  const lineSlotInfo = resolveGraftegnerLineSlotPositions();
+  const lineSlotCount = lineSlotInfo.positions && lineSlotInfo.positions.length
+    ? Math.max(...lineSlotInfo.positions) + 1
+    : 0;
   const count = requestedCount || Math.max(
     DEFAULT_GRAFTEGNER_SIMPLE.expressions.length,
     DEFAULT_GRAFTEGNER_TRIG_SIMPLE.expressions.length,
-    6
+    6,
+    lineSlotCount
   );
 
   const request = { count };
@@ -450,13 +455,21 @@ function refreshGraftegnerTheme(options = {}) {
   }
 
   const finalPalette = ensureColorCount(groupPalette, GRAFTEGNER_FALLBACK_PALETTE, count);
+  const linePalette = finalPalette.length > DEFAULT_FUNCTION_COLORS.fallback.length
+    ? selectGraftegnerLineColors(finalPalette)
+    : finalPalette.slice();
+  const effectiveLinePalette = linePalette.length ? linePalette : finalPalette.slice();
+  const simpleCount = DEFAULT_GRAFTEGNER_SIMPLE.expressions.length;
+  const trigCount = DEFAULT_GRAFTEGNER_TRIG_SIMPLE.expressions.length;
+  const simplePalette = ensureColorCount(effectiveLinePalette, DEFAULT_FUNCTION_COLORS.fallback, simpleCount);
+  const trigPalette = ensureColorCount(effectiveLinePalette, DEFAULT_FUNCTION_COLORS.fallback, trigCount);
 
   DEFAULT_FUNCTION_COLORS.palette = finalPalette.slice();
-  DEFAULT_FUNCTION_COLORS.simple = finalPalette.slice(0, DEFAULT_GRAFTEGNER_SIMPLE.expressions.length);
-  DEFAULT_FUNCTION_COLORS.trig = finalPalette.slice(0, DEFAULT_GRAFTEGNER_TRIG_SIMPLE.expressions.length);
+  DEFAULT_FUNCTION_COLORS.simple = simplePalette.slice(0, simpleCount);
+  DEFAULT_FUNCTION_COLORS.trig = trigPalette.slice(0, trigCount);
 
-  const primary = finalPalette[0];
-  const secondary = finalPalette[1] || primary;
+  const primary = effectiveLinePalette[0];
+  const secondary = effectiveLinePalette[1] || primary;
 
   DEFAULT_POINT_COLORS.line = secondary || primary || DEFAULT_POINT_COLORS.fallbackMarkerStroke;
   DEFAULT_POINT_COLORS.markerStroke = pointColorFromLineColor(DEFAULT_POINT_COLORS.line) || DEFAULT_POINT_COLORS.fallbackMarkerStroke;

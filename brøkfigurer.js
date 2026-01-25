@@ -502,6 +502,21 @@ const fillColorPickerInstances = new WeakMap();
     return pairs;
   }
 
+  function getGraftegnerRoleSlotCount() {
+    const pairs = getGraftegnerRoleSlotPairs();
+    let maxIndex = -1;
+    pairs.forEach(pair => {
+      if (!pair || typeof pair !== 'object') return;
+      if (Number.isInteger(pair.fillSlotIndex)) {
+        maxIndex = Math.max(maxIndex, pair.fillSlotIndex);
+      }
+      if (Number.isInteger(pair.lineSlotIndex)) {
+        maxIndex = Math.max(maxIndex, pair.lineSlotIndex);
+      }
+    });
+    return maxIndex >= 0 ? maxIndex + 1 : PALETTE_SLOT_COUNT;
+  }
+
   function applyPairSwatch(element, fillColor, lineColor) {
     if (!element) return;
     if (colorPickerHelper && typeof colorPickerHelper.applyColorPairSwatch === 'function') {
@@ -769,7 +784,13 @@ const fillColorPickerInstances = new WeakMap();
     return LEGACY_COLOR_PALETTE[index % LEGACY_COLOR_PALETTE.length];
   }
   function getLineFillPalettes() {
-    const palette = ensurePaletteSize(getColors(), getPaletteFromTheme(PALETTE_SLOT_COUNT), PALETTE_SLOT_COUNT);
+    const slotCount = getGraftegnerRoleSlotCount();
+    const basePalette = getColors();
+    const palette = ensurePaletteSize(
+      basePalette.length >= slotCount ? basePalette : [],
+      getPaletteFromTheme(slotCount),
+      slotCount
+    );
     const lineColors = [];
     const fillColors = [];
     const roleSlots = getGraftegnerRoleSlotPairs();
