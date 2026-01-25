@@ -6,6 +6,8 @@ const STORAGE_SCHEMA_V2 = {
     options: {
       grid: true,
       axisNumbers: true,
+      showNames: true,
+      showExpression: false,
       lockAspect: true,
       axisLabels: {
         x: 'x',
@@ -54,6 +56,18 @@ function normalizeDiffOptions(adv, defaults = STORAGE_SCHEMA_V2.defaults.options
   const defaultNumbers = !!(defaults && defaults.axisNumbers);
   if (currentNumbers !== defaultNumbers) {
     diff.axisNumbers = currentNumbers;
+  }
+
+  const currentShowNames = !!(adv && adv.curveName && adv.curveName.showName);
+  const defaultShowNames = !!(defaults && defaults.showNames);
+  if (currentShowNames !== defaultShowNames) {
+    diff.showNames = currentShowNames;
+  }
+
+  const currentShowExpression = !!(adv && adv.curveName && adv.curveName.showExpression);
+  const defaultShowExpression = !!(defaults && defaults.showExpression);
+  if (currentShowExpression !== defaultShowExpression) {
+    diff.showExpression = currentShowExpression;
   }
 
   const currentLock = adv && adv.lockAspect === false ? false : true;
