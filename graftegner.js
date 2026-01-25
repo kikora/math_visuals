@@ -642,6 +642,20 @@ function selectGraftegnerLineColors(palette) {
   return lineColors;
 }
 
+function resolveGraftegnerFullPaletteForLineSlots() {
+  const { positions } = resolveGraftegnerLineSlotPositions();
+  const maxIndex = positions.length ? Math.max(...positions) : -1;
+  const lineSlotCount = maxIndex + 1;
+  const palette = fetchGraftegnerPalette(lineSlotCount);
+  const sanitized = sanitizePaletteList(palette);
+  if (sanitized.length) return sanitized;
+  if (Array.isArray(DEFAULT_FUNCTION_COLORS.palette) && DEFAULT_FUNCTION_COLORS.palette.length) {
+    const fallbackPalette = sanitizePaletteList(DEFAULT_FUNCTION_COLORS.palette);
+    if (fallbackPalette.length) return fallbackPalette;
+  }
+  return DEFAULT_FUNCTION_COLORS.fallback.slice();
+}
+
 function tryResolveGroupPalette(resolver) {
   try {
     const result = resolver();
@@ -8177,8 +8191,14 @@ function setupSettingsForm() {
   };
   let functionColorOptions = [];
   const resolveFunctionColorOptions = () => {
-    const palette = getBaseCurveColors(FUNCTION_COLOR_OPTION_COUNT);
-    const filled = ensureColorCount(palette, DEFAULT_FUNCTION_COLORS.fallback, FUNCTION_COLOR_OPTION_COUNT);
+    const fullPalette = resolveGraftegnerFullPaletteForLineSlots();
+    const linePalette = selectGraftegnerLineColors(fullPalette);
+    const trimmedLinePalette = linePalette.slice(0, FUNCTION_COLOR_OPTION_COUNT);
+    const fallbackPalette = DEFAULT_FUNCTION_COLORS.fallback.length
+      ? DEFAULT_FUNCTION_COLORS.fallback
+      : GRAFTEGNER_FALLBACK_PALETTE;
+    const effectiveLinePalette = trimmedLinePalette.length ? trimmedLinePalette : fallbackPalette.slice();
+    const filled = ensureColorCount(effectiveLinePalette, fallbackPalette, FUNCTION_COLOR_OPTION_COUNT);
     return filled.slice(0, FUNCTION_COLOR_OPTION_COUNT);
   };
   const getFunctionColorOptions = () => {
