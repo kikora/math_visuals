@@ -176,8 +176,8 @@ const exportCard = document.getElementById('exportCard');
 let altTextManager = null;
 const INLINE_IMAGE_CACHE = new Map();
 btnSvg === null || btnSvg === void 0 || btnSvg.addEventListener('click', () => {
-  downloadSVG(svg, 'perlesnor.svg').catch(error => {
-    console.error('Kunne ikke eksportere SVG:', error);
+  downloadPNG(svg, 'perlesnor.png', 2).catch(error => {
+    console.error('Kunne ikke eksportere PNG:', error);
   });
 });
 btnPng === null || btnPng === void 0 || btnPng.addEventListener('click', () => {

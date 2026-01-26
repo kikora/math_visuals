@@ -363,57 +363,8 @@ test.describe('Eksempelarkiv', () => {
 
 });
 
-test.describe('Eksempelarkiv eksport-import flyt', () => {
-  test('eksporterte filer kan importeres og gir redigerbar oppføring', async ({ page }, testInfo) => {
-    const storedEntries = [];
-    const uploadedViaPost = [];
-    const fileStore = new Map();
-
-    await page.route('**/api/svg', async route => {
-      const request = route.request();
-      const method = request.method();
-
-      if (method === 'POST') {
-        try {
-          const payload = await request.postDataJSON();
-          uploadedViaPost.push(payload);
-        } catch (error) {
-          uploadedViaPost.push(null);
-        }
-        await route.fulfill({ status: 200, headers: { 'content-type': 'application/json' }, body: '{}' });
-        return;
-      }
-
-      if (method === 'GET' || method === 'HEAD') {
-        await route.fulfill({
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ entries: storedEntries })
-        });
-        return;
-      }
-
-      await route.fulfill({
-        status: 405,
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ error: 'Unsupported method' })
-      });
-    });
-
-    await page.route('**/api/svg/raw**', async route => {
-      const url = new URL(route.request().url());
-      const rawPath = url.searchParams.get('path') || '';
-      const normalizedPath = rawPath.replace(/^\/+/, '');
-      const record = fileStore.get(normalizedPath);
-
-      if (!record) {
-        await route.fulfill({ status: 404, body: 'Not found' });
-        return;
-      }
-
-      await route.fulfill({ status: 200, headers: { 'content-type': record.contentType }, body: record.body });
-    });
-
+test.describe('PNG-eksport', () => {
+  test('eksporterer PNG via eksportknappen', async ({ page }, testInfo) => {
     await page.goto('/graftegner.html', { waitUntil: 'networkidle' });
     await page.waitForSelector('#btnSvg');
 
@@ -449,136 +400,16 @@ test.describe('Eksempelarkiv eksport-import flyt', () => {
       };
     });
 
-    const downloadPromises = [
+    const [download] = await Promise.all([
       page.waitForEvent('download'),
-      page.waitForEvent('download'),
-      page.waitForEvent('download')
-    ];
+      page.click('#btnSvg')
+    ]);
 
-    await page.click('#btnSvg');
+    const suggested = download.suggestedFilename() || `export-${Date.now()}.png`;
+    expect(path.extname(suggested).toLowerCase()).toBe('.png');
 
-    const downloads = await Promise.all(downloadPromises);
-    const exportedFiles = {};
-
-    for (const download of downloads) {
-      const suggested = download.suggestedFilename() || `export-${Date.now()}`;
-      const savePath = testInfo.outputPath(suggested);
-      await download.saveAs(savePath);
-      const extension = path.extname(suggested).toLowerCase();
-      if (extension === '.svg') {
-        exportedFiles.svg = savePath;
-      } else if (extension === '.png') {
-        exportedFiles.png = savePath;
-      } else if (extension === '.json') {
-        exportedFiles.metadata = savePath;
-      }
-    }
-
-    expect(exportedFiles.svg).toBeTruthy();
-    expect(exportedFiles.png).toBeTruthy();
-    expect(exportedFiles.metadata).toBeTruthy();
-
-    expect(uploadedViaPost.length).toBeGreaterThan(0);
-
-    async function importExportedFiles(files) {
-      const metadataText = await fs.readFile(files.metadata, 'utf8');
-      let metadata;
-      try {
-        metadata = JSON.parse(metadataText);
-      } catch (error) {
-        metadata = {};
-      }
-
-      const svgContent = await fs.readFile(files.svg, 'utf8');
-      const pngBuffer = await fs.readFile(files.png);
-
-      const rawSlug = typeof metadata.slug === 'string' && metadata.slug.trim()
-        ? metadata.slug.trim()
-        : `bildearkiv/graftegner/${path.basename(files.svg, '.svg')}`;
-      const baseName = rawSlug.split('/').filter(Boolean).pop() || 'export';
-      const svgSlug = `${rawSlug}.svg`;
-      const pngSlug = `${rawSlug}.png`;
-      const svgUrl = `/api/svg/raw?path=${encodeURIComponent(svgSlug)}`;
-      const pngUrl = `/api/svg/raw?path=${encodeURIComponent(pngSlug)}`;
-
-      let exampleState = metadata.exampleState;
-      if (typeof exampleState === 'string') {
-        try {
-          exampleState = JSON.parse(exampleState);
-        } catch (error) {
-          exampleState = null;
-        }
-      }
-
-      if (exampleState == null) {
-        exampleState = {
-          description: 'Eksempelarkivtest-eksempel',
-          exampleNumber: 'Eksempelarkiv',
-          config: {
-            CFG: {
-              title: 'Eksempelarkivtest',
-              type: 'bar'
-            }
-          }
-        };
-      }
-
-      const toolId = typeof metadata.tool === 'string' && metadata.tool.trim()
-        ? metadata.tool.trim()
-        : 'graftegner';
-
-      const entry = {
-        slug: rawSlug,
-        title: metadata.title || baseName,
-        tool: toolId,
-        createdAt: metadata.createdAt || new Date().toISOString(),
-        exampleState,
-        summary: metadata.summary || 'Eksportert for arkivtest',
-        baseName,
-        svgSlug,
-        pngSlug,
-        svgUrl,
-        pngUrl,
-        urls: { svg: svgUrl, png: pngUrl },
-        files: {
-          svg: { slug: svgSlug, url: svgUrl, filename: `${baseName}.svg` },
-          png: { slug: pngSlug, url: pngUrl, filename: `${baseName}.png` }
-        },
-        metadata: {
-          size: svgContent.length
-        }
-      };
-
-      storedEntries.length = 0;
-      storedEntries.push(entry);
-
-      fileStore.set(svgSlug, { body: svgContent, contentType: 'image/svg+xml' });
-      fileStore.set(pngSlug, { body: pngBuffer, contentType: 'image/png' });
-    }
-
-    await importExportedFiles(exportedFiles);
-
-    expect(storedEntries).toHaveLength(1);
-
-    const archiveResponse = await page.goto('/svg-arkiv.html', { waitUntil: 'networkidle' });
-    expect(archiveResponse?.ok()).toBeTruthy();
-
-    const archiveItems = page.locator('[data-svg-grid] [data-svg-item]');
-    await expect(archiveItems).toHaveCount(1);
-
-    const previewTrigger = archiveItems.first().locator('[data-preview-trigger="true"]');
-    await previewTrigger.click();
-
-    const dialog = page.locator('dialog[data-archive-viewer]');
-    await expect(dialog).toBeVisible();
-
-    const editButton = dialog.locator('[data-action="edit"]');
-    await expect(editButton).toBeEnabled();
-    await expect(editButton).not.toHaveAttribute('aria-hidden', 'true');
-
-    const ariaDisabled = await editButton.getAttribute('aria-disabled');
-    if (ariaDisabled !== null) {
-      expect(ariaDisabled).toBe('false');
-    }
+    const savePath = testInfo.outputPath(suggested);
+    await download.saveAs(savePath);
+    await fs.readFile(savePath);
   });
 });

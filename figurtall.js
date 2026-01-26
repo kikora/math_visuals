@@ -2090,7 +2090,7 @@ function isValidColor(value) {
   }
   btnSvg === null || btnSvg === void 0 || btnSvg.addEventListener('click', () => {
     const svg = buildExportSvg();
-    downloadSVG(svg, 'figurtall.svg');
+    downloadPNG(svg, 'figurtall.png', 2);
   });
   btnPng === null || btnPng === void 0 || btnPng.addEventListener('click', () => {
     const svg = buildExportSvg();
