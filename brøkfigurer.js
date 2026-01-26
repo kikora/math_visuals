@@ -2477,7 +2477,9 @@ const fillColorPickerInstances = new WeakMap();
       if (seg != null && seg.rendNodeFront && seg.rendNodeFront !== seg.rendNode) markDivisionNode(seg.rendNodeFront);
       return seg;
     }
-    const DOM_TOGGLE_EVENTS = typeof window !== 'undefined' && 'PointerEvent' in window ? ['pointerdown'] : ['mousedown', 'touchstart'];
+    const DOM_TOGGLE_EVENTS = typeof window !== 'undefined' && 'PointerEvent' in window ? ['pointerdown', 'click'] : ['mousedown', 'touchstart', 'click'];
+    let lastToggleEventTime = 0;
+    let lastToggleEventType = '';
     function attachToggleHandler(element, partIndex) {
       if (!element) return;
       const handler = evt => togglePart(partIndex, element, evt);
@@ -2503,6 +2505,17 @@ const fillColorPickerInstances = new WeakMap();
       }
     }
     function togglePart(i, element, evt) {
+      if (evt && typeof evt.type === 'string') {
+        if (evt.type === 'click') {
+          const now = Date.now();
+          if (lastToggleEventType && lastToggleEventType !== 'click' && now - lastToggleEventTime < 350) {
+            return;
+          }
+        } else {
+          lastToggleEventType = evt.type;
+          lastToggleEventTime = Date.now();
+        }
+      }
       const evtTarget = evt == null ? void 0 : evt.target;
       const targetId = typeof evtTarget === 'string' ? evtTarget : evtTarget && typeof evtTarget.id === 'string' ? evtTarget.id : null;
       if (targetId && divisionSegmentIds.has(targetId)) {
@@ -2539,6 +2552,10 @@ const fillColorPickerInstances = new WeakMap();
       syncFilledState();
       clearCheckStatus();
       refreshAltText('fill-change');
+      if (evt && typeof evt.type === 'string' && evt.type === 'click') {
+        lastToggleEventType = evt.type;
+        lastToggleEventTime = Date.now();
+      }
     }
     function gridDims(n) {
       let cols = Math.floor(Math.sqrt(n));
