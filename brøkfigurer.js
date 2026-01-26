@@ -252,11 +252,18 @@ function isValidColor(value) {
     });
   }
   function downloadPNG(svgEl, filename, scale = 2, bg = '#fff') {
-    var _svgEl$viewBox;
     return new Promise(resolve => {
-      const vb = (_svgEl$viewBox = svgEl.viewBox) === null || _svgEl$viewBox === void 0 ? void 0 : _svgEl$viewBox.baseVal;
-      const w = (vb === null || vb === void 0 ? void 0 : vb.width) || svgEl.clientWidth || 420;
-      const h = (vb === null || vb === void 0 ? void 0 : vb.height) || svgEl.clientHeight || 420;
+      const vb = svgEl && svgEl.viewBox ? svgEl.viewBox.baseVal : null;
+      const readNumericAttr = name => {
+        if (!svgEl || typeof svgEl.getAttribute !== 'function') return NaN;
+        const raw = svgEl.getAttribute(name);
+        if (!raw) return NaN;
+        const value = parseFloat(raw);
+        return Number.isFinite(value) && value > 0 ? value : NaN;
+      };
+      const fallbackSize = 420;
+      const w = (vb === null || vb === void 0 ? void 0 : vb.width) || readNumericAttr('width') || fallbackSize;
+      const h = (vb === null || vb === void 0 ? void 0 : vb.height) || readNumericAttr('height') || fallbackSize;
       const data = svgToString(svgEl);
       const blob = new Blob([data], {
         type: 'image/svg+xml;charset=utf-8'
