@@ -17,6 +17,7 @@
   const selectionCountElement = document.querySelector('[data-selection-count]');
   const renameSelectedButton = document.querySelector('[data-selection-rename]');
   const sizeSelect = document.querySelector('[data-size-select]');
+  const resetArchiveButton = document.querySelector('[data-reset-archive]');
   const pageBody = document.querySelector('.svg-archive-page');
   const rootElement = document.documentElement;
 
@@ -148,6 +149,18 @@
       applyArchiveSize(value);
       writeArchiveSizePreference(value);
     });
+  }
+
+  if (resetArchiveButton) {
+    if (isArchiveResetEnabled()) {
+      resetArchiveButton.hidden = false;
+      resetArchiveButton.addEventListener('click', event => {
+        event.preventDefault();
+        handleArchiveReset();
+      });
+    } else {
+      resetArchiveButton.hidden = true;
+    }
   }
 
   function resolveSvgApiBase() {
@@ -302,6 +315,43 @@
     try {
       storage.setItem(ARCHIVE_CACHE_STORAGE_KEY, JSON.stringify(payload));
     } catch (error) {}
+  }
+
+  function clearArchiveCacheStorage() {
+    const storage = getArchiveCacheStorage();
+    if (!storage) {
+      return;
+    }
+    try {
+      storage.removeItem(ARCHIVE_CACHE_STORAGE_KEY);
+      storage.removeItem('svg-archive-cache');
+    } catch (error) {}
+  }
+
+  function isArchiveResetEnabled() {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+    const rawValue = window.MATH_VISUALS_ENABLE_SVG_RESET;
+    if (rawValue === true) {
+      return true;
+    }
+    if (typeof rawValue === 'string') {
+      const normalized = rawValue.trim().toLowerCase();
+      return ['1', 'true', 'yes', 'on'].includes(normalized);
+    }
+    return false;
+  }
+
+  function resolveArchiveAdminToken() {
+    if (typeof window === 'undefined') {
+      return '';
+    }
+    const rawValue = window.MATH_VISUALS_SVG_ADMIN_TOKEN;
+    if (typeof rawValue !== 'string') {
+      return '';
+    }
+    return rawValue.trim();
   }
 
   function getPendingTrashQueueCount() {
@@ -4467,6 +4517,94 @@
     updateFilterOptions();
     applyStorageNote(metadata);
     render();
+  }
+
+  function resetArchiveState() {
+    allEntries = [];
+    visibleEntries = [];
+    if (selectedSlugs.size) {
+      selectedSlugs.clear();
+    }
+    entryDetailsCache.clear();
+    entryDetailsPending.clear();
+    entryAltTextCache.clear();
+    updateFilterOptions();
+    applyStorageNote(null);
+    render();
+  }
+
+  async function handleArchiveReset() {
+    if (!svgApiBase) {
+      setStatus('Fant ikke adressen til arkivtjenesten.', 'error');
+      return;
+    }
+    const confirmed = window.confirm('Er du sikker på at du vil nullstille hele SVG-arkivet? Dette kan ikke angres.');
+    if (!confirmed) {
+      return;
+    }
+
+    let token = resolveArchiveAdminToken();
+    if (!token) {
+      const prompted = window.prompt('Skriv inn admin-token for å nullstille arkivet.');
+      if (!prompted) {
+        setStatus('Nullstilling avbrutt.', 'warning');
+        return;
+      }
+      token = prompted.trim();
+      if (!token) {
+        setStatus('Admin-token mangler.', 'error');
+        return;
+      }
+    }
+
+    setBusy(true);
+    setStatus('Nullstiller arkivet …');
+
+    try {
+      const url = buildSvgApiUrl('reset');
+      if (!url) {
+        throw new Error('Fant ikke adressen til arkivtjenesten.');
+      }
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'X-Admin-Token': token
+        }
+      });
+
+      if (!response.ok) {
+        let responseDetails = '';
+        try {
+          const contentType = response.headers.get('content-type') || '';
+          if (contentType.includes('application/json')) {
+            const payload = await response.json();
+            if (payload && typeof payload.error === 'string') {
+              responseDetails = payload.error.trim();
+            }
+          } else {
+            const text = await response.text();
+            if (text) {
+              responseDetails = text.trim();
+            }
+          }
+        } catch (error) {
+          responseDetails = '';
+        }
+        const detailSuffix = responseDetails ? ` (${responseDetails})` : '';
+        throw new Error(`Nullstilling feilet${detailSuffix}`);
+      }
+
+      clearArchiveCacheStorage();
+      writeArchiveCache(null);
+      resetArchiveState();
+      setStatus('SVG-arkivet er nullstilt.');
+    } catch (error) {
+      const message = error && typeof error.message === 'string' ? error.message.trim() : '';
+      setStatus(message || 'Nullstilling feilet. Prøv igjen senere.', 'error');
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function loadEntries() {

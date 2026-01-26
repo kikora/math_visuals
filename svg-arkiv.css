@@ -219,12 +219,24 @@ body {
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
 }
 
+.svg-archive__actions-button--danger {
+  border-color: rgba(220, 38, 38, 0.4);
+  background: linear-gradient(135deg, rgba(248, 113, 113, 0.15), rgba(220, 38, 38, 0.22));
+  color: #b91c1c;
+}
+
 .svg-archive__actions-button:hover:not([disabled]),
 .svg-archive__actions-button:focus-visible {
   transform: translateY(-1px);
   box-shadow: 0 12px 24px rgba(37, 99, 235, 0.2);
   border-color: rgba(37, 99, 235, 0.55);
   outline: none;
+}
+
+.svg-archive__actions-button--danger:hover:not([disabled]),
+.svg-archive__actions-button--danger:focus-visible {
+  box-shadow: 0 12px 24px rgba(220, 38, 38, 0.2);
+  border-color: rgba(220, 38, 38, 0.6);
 }
 
 .svg-archive__actions-button:focus-visible {
