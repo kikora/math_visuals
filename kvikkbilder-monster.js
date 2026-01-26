@@ -388,7 +388,7 @@
   });
   btnSvg === null || btnSvg === void 0 || btnSvg.addEventListener('click', () => {
     const svg = patternContainer.querySelector('svg');
-    if (svg) downloadSVG(svg, 'numbervisuals.svg');
+    if (svg) downloadPNG(svg, 'numbervisuals.png', 2);
   });
   btnPng === null || btnPng === void 0 || btnPng.addEventListener('click', () => {
     const svg = patternContainer.querySelector('svg');

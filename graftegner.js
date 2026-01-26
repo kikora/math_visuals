@@ -7814,33 +7814,10 @@ if (btnSvg) {
     }
     const svgExport = buildBoardSvgExport();
     if (!svgExport || !svgExport.markup) return;
-    const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
-    const suggestedName = `${getSuggestedFilename()}.svg`;
-    const htmlTarget = document.querySelector('.figure');
-    if (helper && typeof helper.exportGraphicWithArchiveWithFallback === 'function') {
-      helper.exportGraphicWithArchiveWithFallback({
-        svgElement: svgExport.node,
-        htmlTarget,
-        suggestedName,
-        toolId: 'graftegner',
-        svgString: svgExport.markup,
-        alt: svgExport.altText,
-        description: svgExport.altText
-      });
-      return;
-    }
-    if (helper && typeof helper.exportSvgWithArchive === 'function') {
-      helper.exportSvgWithArchive(svgExport.node, suggestedName, 'graftegner', {
-        svgString: svgExport.markup,
-        alt: svgExport.altText,
-        description: svgExport.altText
-      });
-      return;
-    }
-    await downloadBoardSvg(svgExport, suggestedName);
-    const html2CanvasDidDownload = await downloadBoardPngWithHtml2Canvas(`${getSuggestedFilename()}.png`);
+    const pngName = `${getSuggestedFilename()}.png`;
+    const html2CanvasDidDownload = await downloadBoardPngWithHtml2Canvas(pngName);
     if (!html2CanvasDidDownload) {
-      await downloadBoardPNG(svgExport, `${getSuggestedFilename()}.png`);
+      await downloadBoardPNG(svgExport, pngName);
     }
   });
 }

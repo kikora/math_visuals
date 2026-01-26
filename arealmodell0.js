@@ -761,7 +761,7 @@ function createBoard() {
   const btnReset = document.getElementById("btnReset");
   if (btnReset) btnReset.onclick = doReset;
   const btnSvg = document.getElementById("btnSvg");
-  if (btnSvg) btnSvg.onclick = downloadSvg;
+  if (btnSvg) btnSvg.onclick = downloadPng;
   const btnPng = document.getElementById("btnPng");
   if (btnPng) btnPng.onclick = downloadPng;
   const btnSvgInt = document.getElementById("btnSvgInteractive");
@@ -771,7 +771,7 @@ function createBoard() {
   if (CFG.ADV.keyboardShortcuts) {
     window.addEventListener("keydown", e => {
       if (e.key.toLowerCase() === "r") doReset();
-      if (e.key.toLowerCase() === "s") downloadSvg();
+      if (e.key.toLowerCase() === "s") downloadPng();
     });
   }
 }
