@@ -7,6 +7,7 @@ const {
   getSvg,
   setSvg,
   deleteSvg,
+  clearAllSvgs,
   listSvgs,
   updateSvgMetadata,
   KvOperationError,
@@ -124,6 +125,19 @@ function sendJson(res, statusCode, payload) {
   res.end(JSON.stringify(payload));
 }
 
+function isAdminAuthorized(req) {
+  const expectedToken = process.env.SVG_ADMIN_TOKEN;
+  if (!expectedToken) {
+    return false;
+  }
+  const headerValue = req.headers['x-admin-token'];
+  const token = Array.isArray(headerValue) ? headerValue[0] : headerValue;
+  if (typeof token !== 'string') {
+    return false;
+  }
+  return token === expectedToken;
+}
+
 function buildOrigin(req) {
   const protocol = req.headers['x-forwarded-proto'] || 'http';
   const host = req.headers.host || 'localhost';
@@ -186,7 +200,7 @@ function normalizePngPayload(body) {
 module.exports = async function handler(req, res) {
   const corsOrigin = resolveCorsOrigin(req);
   res.setHeader('Access-Control-Allow-Origin', corsOrigin);
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Admin-Token');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
   if (corsOrigin !== '*') {
     res.setHeader('Vary', 'Origin');
@@ -212,9 +226,29 @@ module.exports = async function handler(req, res) {
     return;
   }
 
+  const normalizedPath = url.pathname.replace(/\/+$/, '');
+  const isResetPath = normalizedPath.endsWith('/svg/reset');
+  const wantsResetAll = req.method === 'DELETE' && url.searchParams.get('all') === 'true';
   const querySlug = normalizeSlug(url.searchParams.get('slug'));
 
   try {
+    if (isResetPath && req.method !== 'POST') {
+      res.setHeader('Allow', 'POST,OPTIONS');
+      sendJson(res, 405, { error: 'Method Not Allowed' });
+      return;
+    }
+
+    if (wantsResetAll || (isResetPath && req.method === 'POST')) {
+      if (!isAdminAuthorized(req)) {
+        sendJson(res, 403, { error: 'Forbidden' });
+        return;
+      }
+      const result = await clearAllSvgs();
+      applyModeHeaders(res, currentMode);
+      sendJson(res, 200, { ok: true, cleared: result && typeof result.cleared === 'number' ? result.cleared : 0 });
+      return;
+    }
+
     if (req.method === 'GET') {
       if (querySlug) {
         const entry = await getSvg(querySlug);

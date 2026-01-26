@@ -609,6 +609,51 @@ async function deleteSvg(slug) {
   return true;
 }
 
+async function clearAllSvgs() {
+  const clearedSlugs = new Set();
+  memoryIndex.forEach(slug => {
+    const normalized = normalizeEntrySlug(slug);
+    if (normalized) {
+      clearedSlugs.add(normalized);
+    }
+  });
+  memoryStore.clear();
+  memoryIndex.clear();
+
+  if (!isKvConfigured()) {
+    return { cleared: clearedSlugs.size };
+  }
+
+  const kv = await loadKvClient();
+  let slugs = [];
+  try {
+    const raw = await kv.smembers(INDEX_KEY);
+    if (Array.isArray(raw)) slugs = raw;
+  } catch (error) {
+    throw new KvOperationError('Failed to read SVG index from KV', { cause: error });
+  }
+
+  for (const value of slugs) {
+    const normalized = normalizeEntrySlug(value);
+    if (!normalized) continue;
+    const key = makeKey(normalized);
+    try {
+      await kv.del(key);
+    } catch (error) {
+      throw new KvOperationError(`Failed to delete SVG entry for slug ${normalized}`, { cause: error });
+    }
+    clearedSlugs.add(normalized);
+  }
+
+  try {
+    await kv.del(INDEX_KEY);
+  } catch (error) {
+    throw new KvOperationError('Failed to delete SVG index from KV', { cause: error });
+  }
+
+  return { cleared: clearedSlugs.size };
+}
+
 async function listSvgs() {
   const entries = [];
   const storeMode = getStoreMode();
@@ -862,6 +907,7 @@ module.exports = {
   getSvg,
   setSvg,
   deleteSvg,
+  clearAllSvgs,
   listSvgs,
   updateSvgMetadata,
   KvOperationError,
