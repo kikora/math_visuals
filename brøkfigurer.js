@@ -2435,12 +2435,18 @@ const fillColorPickerInstances = new WeakMap();
       }
       const outline = ensureRoundedRectElement(`brok-rect-outline-${id}`, false);
       if (outline) {
-        outline.setAttribute('x', rectBox.x.toFixed(3));
-        outline.setAttribute('y', rectBox.y.toFixed(3));
-        outline.setAttribute('width', rectBox.width.toFixed(3));
-        outline.setAttribute('height', rectBox.height.toFixed(3));
-        outline.setAttribute('rx', radius.toFixed(3));
-        outline.setAttribute('ry', radius.toFixed(3));
+        const inset = Math.max(0, OUTLINE_STROKE_WIDTH / 2);
+        const outlineX = rectBox.x + inset;
+        const outlineY = rectBox.y + inset;
+        const outlineWidth = Math.max(0, rectBox.width - inset * 2);
+        const outlineHeight = Math.max(0, rectBox.height - inset * 2);
+        const outlineRadius = Math.max(0, Math.min(outlineWidth, outlineHeight) * RECT_CORNER_RADIUS_RATIO);
+        outline.setAttribute('x', outlineX.toFixed(3));
+        outline.setAttribute('y', outlineY.toFixed(3));
+        outline.setAttribute('width', outlineWidth.toFixed(3));
+        outline.setAttribute('height', outlineHeight.toFixed(3));
+        outline.setAttribute('rx', outlineRadius.toFixed(3));
+        outline.setAttribute('ry', outlineRadius.toFixed(3));
         outline.setAttribute('fill', 'none');
         outline.setAttribute('stroke', activeLineColor);
         outline.setAttribute('stroke-width', String(OUTLINE_STROKE_WIDTH));
@@ -2925,8 +2931,8 @@ const fillColorPickerInstances = new WeakMap();
               visible: false
             }
           },
-          fillColor: '#fff',
-          fillOpacity: 1,
+          fillColor: 'none',
+          fillOpacity: 0,
           highlight: false,
           fixed: true,
           hasInnerPoints: false,
@@ -3137,7 +3143,9 @@ const fillColorPickerInstances = new WeakMap();
       var _board;
       const svg = (_board = board) === null || _board === void 0 || (_board = _board.renderer) === null || _board === void 0 ? void 0 : _board.svgRoot;
       if (!svg) return;
-      const clipTarget = ensureFillGroup() || svg.querySelector('g.JXGroot') || svg;
+      const fillGroup = ensureFillGroup();
+      const rootGroup = svg.querySelector('g.JXGroot') || svg;
+      const clipTargets = shape === 'circle' || shape === 'triangle' ? [rootGroup] : [fillGroup || rootGroup];
       const pad = CLIP_PAD_PERCENT;
       const padStr = pad.toFixed(2);
       const maxStr = (100 + pad).toFixed(2);
@@ -3211,10 +3219,16 @@ const fillColorPickerInstances = new WeakMap();
           defs.appendChild(clipPath);
         }
         clipUpdater(clipPath);
-        clipTarget.setAttribute('clip-path', `url(#${clipId})`);
+        for (const target of clipTargets) {
+          if (!target) continue;
+          target.setAttribute('clip-path', `url(#${clipId})`);
+        }
         svg.removeAttribute('clip-path');
       } else {
-        clipTarget.removeAttribute('clip-path');
+        for (const target of clipTargets) {
+          if (!target) continue;
+          target.removeAttribute('clip-path');
+        }
         svg.removeAttribute('clip-path');
         const defs = defsLookup();
         const clipPath = defs === null || defs === void 0 ? void 0 : defs.querySelector(`#${clipId}`);
