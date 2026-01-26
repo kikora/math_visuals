@@ -2305,6 +2305,21 @@
     });
   }
 
+  function shouldAutoOpenTrash() {
+    if (typeof window === 'undefined') return false;
+    const search = window.location && typeof window.location.search === 'string' ? window.location.search : '';
+    if (!search) return false;
+    const params = new URLSearchParams(search);
+    const raw = params.get('trash') || params.get('show') || params.get('view');
+    if (!raw) return false;
+    const normalized = raw.trim().toLowerCase();
+    return ['1', 'true', 'yes', 'open', 'trash', 'deleted', 'slettede'].includes(normalized);
+  }
+
+  if (shouldAutoOpenTrash()) {
+    setTrashPanelVisibility(true, { focusPanel: false, announce: false });
+  }
+
   function normalizeAssetUrl(url, formatHint) {
     if (typeof url !== 'string') {
       return '';
