@@ -3733,8 +3733,17 @@ const fillColorPickerInstances = new WeakMap();
       detail.svgOverride = svgString;
     }
   };
+  const handleExamplesLoaded = () => {
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        scheduleFigureSizeUpdate();
+        scheduleFigureBoardResize();
+      }, 0);
+    });
+  };
   if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
     window.addEventListener('examples:collect', handleExamplesCollect);
+    window.addEventListener('examples:loaded', handleExamplesLoaded);
   }
   function normalizeCleanStatePayload(payload) {
     if (payload == null) return null;
