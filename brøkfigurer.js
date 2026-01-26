@@ -257,18 +257,15 @@ function isValidColor(value) {
       const exportMetrics = getExportCanvasMetrics();
       const baseWidth = Math.max(1, Math.round(exportMetrics.width));
       const baseHeight = Math.max(1, Math.round(exportMetrics.height));
-      const padding = 8;
-      const vb = svgEl && svgEl.viewBox ? svgEl.viewBox.baseVal : null;
-      const vbX = vb && Number.isFinite(vb.x) ? vb.x : 0;
-      const vbY = vb && Number.isFinite(vb.y) ? vb.y : 0;
+      const viewBoxX = 0;
+      const viewBoxY = 0;
+      const viewBoxWidth = baseWidth;
+      const viewBoxHeight = baseHeight;
       const exportSvg = helper && typeof helper.cloneSvgForExport === 'function' ? helper.cloneSvgForExport(svgEl) : svgEl.cloneNode(true);
       if (exportSvg) {
         exportSvg.setAttribute('width', String(baseWidth));
         exportSvg.setAttribute('height', String(baseHeight));
-        exportSvg.setAttribute(
-          'viewBox',
-          `${vbX - padding} ${vbY - padding} ${baseWidth + padding * 2} ${baseHeight + padding * 2}`
-        );
+        exportSvg.setAttribute('viewBox', `${viewBoxX} ${viewBoxY} ${viewBoxWidth} ${viewBoxHeight}`);
       }
       const data = svgToString(exportSvg || svgEl);
       const blob = new Blob([data], {
@@ -287,7 +284,7 @@ function isValidColor(value) {
       };
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const fixedScale = 2;
+        const fixedScale = Number.isFinite(_scale) && _scale > 0 ? _scale : 2;
         canvas.width = Math.max(1, Math.round(baseWidth * fixedScale));
         canvas.height = Math.max(1, Math.round(baseHeight * fixedScale));
         const ctx = canvas.getContext('2d');
