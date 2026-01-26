@@ -361,6 +361,9 @@ function isValidColor(value) {
   const OUTLINE_STROKE_WIDTH = 3;
   const RECT_CORNER_RADIUS_RATIO = 0.01;
   const DIVISION_SEGMENT_EXTENSION = 0;
+  const EXPORT_FIGURE_SIZE = 360;
+  const EXPORT_GAP = 18;
+  const EXPORT_MARGIN = 18;
   const colorCountInp = document.getElementById('colorCount');
   const allowWrongInp = document.getElementById('allowWrong');
   const showDivisionLinesInp = document.getElementById('showDivisionLines');
@@ -3310,38 +3313,53 @@ const fillColorPickerInstances = new WeakMap();
     }
   }
   const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+  function getExportCanvasMetrics() {
+    const exportRows = Math.max(1, rows || 1);
+    const exportCols = Math.max(1, cols || 1);
+    const figureSize = EXPORT_FIGURE_SIZE;
+    const gap = EXPORT_GAP;
+    const margin = EXPORT_MARGIN;
+    const width = exportCols * figureSize + Math.max(0, exportCols - 1) * gap + margin * 2;
+    const height = exportRows * figureSize + Math.max(0, exportRows - 1) * gap + margin * 2;
+    return {
+      rows: exportRows,
+      cols: exportCols,
+      figureSize,
+      gap,
+      margin,
+      width,
+      height
+    };
+  }
   function buildCompositeExportSvg() {
     if (typeof document === 'undefined') return null;
     const grid = gridEl || boardEl;
     if (!grid) return null;
-    const gridRect = grid.getBoundingClientRect();
-    if (!gridRect || !gridRect.width || !gridRect.height) return null;
     const ids = getActiveFigureIds();
     const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
+    const exportMetrics = getExportCanvasMetrics();
     const items = [];
-    ids.forEach(id => {
+    ids.forEach((id, index) => {
       const fig = figures[id];
       if (!fig || typeof fig.getSvgElement !== 'function') return;
       const svg = fig.getSvgElement();
       if (!svg) return;
-      const rect = svg.getBoundingClientRect();
-      if (!rect || !rect.width || !rect.height) return;
-      const x = rect.left - gridRect.left;
-      const y = rect.top - gridRect.top;
+      const row = Math.floor(index / exportMetrics.cols);
+      const col = index % exportMetrics.cols;
+      const x = exportMetrics.margin + col * (exportMetrics.figureSize + exportMetrics.gap);
+      const y = exportMetrics.margin + row * (exportMetrics.figureSize + exportMetrics.gap);
       items.push({
         id,
         svg,
         x,
         y,
-        width: rect.width,
-        height: rect.height
+        width: exportMetrics.figureSize,
+        height: exportMetrics.figureSize
       });
     });
     if (!items.length) return null;
-    const maxX = Math.max(...items.map(item => item.x + item.width));
-    const maxY = Math.max(...items.map(item => item.y + item.height));
-    const width = Math.max(1, Math.round(Math.max(gridRect.width, maxX)));
-    const height = Math.max(1, Math.round(Math.max(gridRect.height, maxY)));
+    const width = Math.max(1, Math.round(exportMetrics.width));
+    const height = Math.max(1, Math.round(exportMetrics.height));
     const exportSvg = document.createElementNS(SVG_NS, 'svg');
     exportSvg.setAttribute('width', String(width));
     exportSvg.setAttribute('height', String(height));
