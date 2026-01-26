@@ -2357,9 +2357,7 @@ const fillColorPickerInstances = new WeakMap();
     }
     function registerFillNodes(element) {
       if (!element) return;
-      const nodes = [];
-      if (element.rendNode) nodes.push(element.rendNode);
-      if (element.rendNodeFront && element.rendNodeFront !== element.rendNode) nodes.push(element.rendNodeFront);
+      const nodes = collectRenderNodes(element);
       for (const node of nodes) {
         registerFillNode(node);
       }
@@ -2480,20 +2478,39 @@ const fillColorPickerInstances = new WeakMap();
     const DOM_TOGGLE_EVENTS = typeof window !== 'undefined' && 'PointerEvent' in window ? ['pointerdown', 'click'] : ['mousedown', 'touchstart', 'click'];
     let lastToggleEventTime = 0;
     let lastToggleEventType = '';
+    function collectRenderNodes(element) {
+      if (!element) return [];
+      const nodes = new Set();
+      const addNode = node => {
+        if (!node) return;
+        nodes.add(node);
+        if (node.nodeType === 1 && typeof node.querySelectorAll === 'function') {
+          const children = node.querySelectorAll('path, polygon, rect');
+          for (const child of children) {
+            nodes.add(child);
+          }
+        }
+      };
+      addNode(element.rendNode);
+      if (element.rendNodeFront && element.rendNodeFront !== element.rendNode) {
+        addNode(element.rendNodeFront);
+      }
+      return Array.from(nodes);
+    }
     function attachToggleHandler(element, partIndex) {
       if (!element) return;
       const handler = evt => togglePart(partIndex, element, evt);
       const domHandler = evt => {
         handler(evt);
       };
-      const nodes = [];
-      if (element.rendNode) nodes.push(element.rendNode);
-      if (element.rendNodeFront && element.rendNodeFront !== element.rendNode) nodes.push(element.rendNodeFront);
-      for (const node of nodes) {
+      const nodes = collectRenderNodes(element);
+      const fillNodes = nodes.filter(node => isFilledNode(node));
+      const interactiveNodes = fillNodes.length ? fillNodes : nodes;
+      for (const node of interactiveNodes) {
         if (!node) continue;
         if (node.style) {
           if (!node.style.pointerEvents || node.style.pointerEvents === 'none') {
-            node.style.pointerEvents = 'auto';
+            node.style.pointerEvents = isFilledNode(node) ? 'fill' : 'auto';
           }
           if (!node.style.cursor || node.style.cursor === 'default') {
             node.style.cursor = 'pointer';
