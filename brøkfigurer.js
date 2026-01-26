@@ -251,21 +251,42 @@ function isValidColor(value) {
       }, 0);
     });
   }
+  function getSvgExportDimensions(svgEl) {
+    if (!svgEl || typeof svgEl.getAttribute !== 'function') return null;
+    const viewBox = svgEl.getAttribute('viewBox');
+    if (viewBox) {
+      const parts = viewBox
+        .trim()
+        .split(/[\s,]+/)
+        .map(val => Number.parseFloat(val))
+        .filter(Number.isFinite);
+      if (parts.length >= 4) {
+        const [, , width, height] = parts;
+        if (width > 0 && height > 0) {
+          return { width, height, viewBox };
+        }
+      }
+    }
+    const widthAttr = Number.parseFloat(svgEl.getAttribute('width'));
+    const heightAttr = Number.parseFloat(svgEl.getAttribute('height'));
+    if (Number.isFinite(widthAttr) && Number.isFinite(heightAttr) && widthAttr > 0 && heightAttr > 0) {
+      return { width: widthAttr, height: heightAttr, viewBox: `0 0 ${widthAttr} ${heightAttr}` };
+    }
+    return null;
+  }
   function downloadPNG(svgEl, filename, _scale = 2, bg = '#fff') {
     return new Promise(resolve => {
       const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
       const exportMetrics = getExportCanvasMetrics();
-      const baseWidth = Math.max(1, Math.round(exportMetrics.width));
-      const baseHeight = Math.max(1, Math.round(exportMetrics.height));
-      const viewBoxX = 0;
-      const viewBoxY = 0;
-      const viewBoxWidth = baseWidth;
-      const viewBoxHeight = baseHeight;
+      const svgDimensions = getSvgExportDimensions(svgEl);
+      const baseWidth = Math.max(1, Math.round((svgDimensions && svgDimensions.width) || exportMetrics.width));
+      const baseHeight = Math.max(1, Math.round((svgDimensions && svgDimensions.height) || exportMetrics.height));
+      const viewBoxValue = (svgDimensions && svgDimensions.viewBox) || `0 0 ${baseWidth} ${baseHeight}`;
       const exportSvg = helper && typeof helper.cloneSvgForExport === 'function' ? helper.cloneSvgForExport(svgEl) : svgEl.cloneNode(true);
       if (exportSvg) {
         exportSvg.setAttribute('width', String(baseWidth));
         exportSvg.setAttribute('height', String(baseHeight));
-        exportSvg.setAttribute('viewBox', `${viewBoxX} ${viewBoxY} ${viewBoxWidth} ${viewBoxHeight}`);
+        exportSvg.setAttribute('viewBox', viewBoxValue);
       }
       const data = svgToString(exportSvg || svgEl);
       const blob = new Blob([data], {
@@ -351,9 +372,9 @@ function isValidColor(value) {
   const OUTLINE_STROKE_WIDTH = 3;
   const RECT_CORNER_RADIUS_RATIO = 0.01;
   const DIVISION_SEGMENT_EXTENSION = 0;
-  const EXPORT_FIGURE_SIZE = 360;
+  const EXPORT_FIGURE_SIZE = 800;
   const EXPORT_GAP = 18;
-  const EXPORT_MARGIN = 18;
+  const EXPORT_MARGIN = 0;
   const colorCountInp = document.getElementById('colorCount');
   const allowWrongInp = document.getElementById('allowWrong');
   const showDivisionLinesInp = document.getElementById('showDivisionLines');
@@ -3363,6 +3384,66 @@ const fillColorPickerInstances = new WeakMap();
       height
     };
   }
+  function getSvgContentBounds(svgEl) {
+    if (!svgEl) return null;
+    if (typeof svgEl.getBBox === 'function') {
+      try {
+        const bbox = svgEl.getBBox();
+        if (bbox && Number.isFinite(bbox.width) && bbox.width > 0 && Number.isFinite(bbox.height) && bbox.height > 0) {
+          return {
+            x: Number.isFinite(bbox.x) ? bbox.x : 0,
+            y: Number.isFinite(bbox.y) ? bbox.y : 0,
+            width: bbox.width,
+            height: bbox.height
+          };
+        }
+      } catch (error) {
+        // fall back to attributes
+      }
+    }
+    if (typeof svgEl.getAttribute === 'function') {
+      const viewBox = svgEl.getAttribute('viewBox');
+      if (viewBox) {
+        const parts = viewBox
+          .trim()
+          .split(/[\s,]+/)
+          .map(val => Number.parseFloat(val))
+          .filter(Number.isFinite);
+        if (parts.length >= 4) {
+          const [minX, minY, width, height] = parts;
+          if (width > 0 && height > 0) {
+            return {
+              x: minX,
+              y: minY,
+              width,
+              height
+            };
+          }
+        }
+      }
+      const widthAttr = Number.parseFloat(svgEl.getAttribute('width'));
+      const heightAttr = Number.parseFloat(svgEl.getAttribute('height'));
+      if (Number.isFinite(widthAttr) && Number.isFinite(heightAttr) && widthAttr > 0 && heightAttr > 0) {
+        return {
+          x: 0,
+          y: 0,
+          width: widthAttr,
+          height: heightAttr
+        };
+      }
+    }
+    return null;
+  }
+  function scaleExportBounds(bounds, targetSize) {
+    if (!bounds || !Number.isFinite(bounds.width) || !Number.isFinite(bounds.height)) return null;
+    const maxSide = Math.max(bounds.width, bounds.height, 1);
+    const scale = targetSize / maxSide;
+    return {
+      width: bounds.width * scale,
+      height: bounds.height * scale,
+      scale
+    };
+  }
   function buildCompositeExportSvg() {
     if (typeof document === 'undefined') return null;
     const grid = gridEl || boardEl;
@@ -3376,17 +3457,22 @@ const fillColorPickerInstances = new WeakMap();
       if (!fig || typeof fig.getSvgElement !== 'function') return;
       const svg = fig.getSvgElement();
       if (!svg) return;
+      const bounds = getSvgContentBounds(svg);
+      const scaled = scaleExportBounds(bounds, exportMetrics.figureSize);
+      const width = scaled && Number.isFinite(scaled.width) ? Math.round(scaled.width) : exportMetrics.figureSize;
+      const height = scaled && Number.isFinite(scaled.height) ? Math.round(scaled.height) : exportMetrics.figureSize;
       const row = Math.floor(index / exportMetrics.cols);
       const col = index % exportMetrics.cols;
-      const x = exportMetrics.margin + col * (exportMetrics.figureSize + exportMetrics.gap);
-      const y = exportMetrics.margin + row * (exportMetrics.figureSize + exportMetrics.gap);
+      const x = exportMetrics.margin + col * (exportMetrics.figureSize + exportMetrics.gap) + Math.max(0, (exportMetrics.figureSize - width) / 2);
+      const y = exportMetrics.margin + row * (exportMetrics.figureSize + exportMetrics.gap) + Math.max(0, (exportMetrics.figureSize - height) / 2);
       items.push({
         id,
         svg,
         x,
         y,
-        width: exportMetrics.figureSize,
-        height: exportMetrics.figureSize
+        width,
+        height,
+        bounds
       });
     });
     if (!items.length) return null;
@@ -3402,17 +3488,41 @@ const fillColorPickerInstances = new WeakMap();
       const clone = helper && typeof helper.cloneSvgForExport === 'function' ? helper.cloneSvgForExport(item.svg) : item.svg.cloneNode(true);
       if (!clone) return;
       prefixSvgIds(clone, `brokfigurer-fig${item.id}`);
+      if (item.bounds) {
+        clone.setAttribute('viewBox', `${item.bounds.x} ${item.bounds.y} ${item.bounds.width} ${item.bounds.height}`);
+        clone.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+      }
       clone.setAttribute('x', String(item.x));
       clone.setAttribute('y', String(item.y));
       clone.setAttribute('width', String(item.width));
       clone.setAttribute('height', String(item.height));
       exportSvg.appendChild(clone);
     });
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    items.forEach(item => {
+      if (!Number.isFinite(item.x) || !Number.isFinite(item.y) || !Number.isFinite(item.width) || !Number.isFinite(item.height)) {
+        return;
+      }
+      minX = Math.min(minX, item.x);
+      minY = Math.min(minY, item.y);
+      maxX = Math.max(maxX, item.x + item.width);
+      maxY = Math.max(maxY, item.y + item.height);
+    });
+    if (Number.isFinite(minX) && Number.isFinite(minY) && Number.isFinite(maxX) && Number.isFinite(maxY) && maxX > minX && maxY > minY) {
+      const cropWidth = Math.round(maxX - minX);
+      const cropHeight = Math.round(maxY - minY);
+      exportSvg.setAttribute('viewBox', `${minX} ${minY} ${cropWidth} ${cropHeight}`);
+      exportSvg.setAttribute('width', String(cropWidth));
+      exportSvg.setAttribute('height', String(cropHeight));
+    }
     return {
       svg: exportSvg,
       htmlTarget: grid,
-      width,
-      height
+      width: exportSvg.width.baseVal.value || width,
+      height: exportSvg.height.baseVal.value || height
     };
   }
   function prefixSvgIds(svgElement, prefix) {
