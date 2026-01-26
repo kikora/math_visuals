@@ -404,6 +404,13 @@ module.exports = async function handler(req, res) {
     res.setHeader('Allow', 'GET,POST,PUT,DELETE,OPTIONS');
     sendJson(res, 405, { error: 'Method Not Allowed' });
   } catch (error) {
+    console.error('SVG archive request failed', {
+      method: req.method,
+      url: req.url,
+      slug: querySlug,
+      message: error && error.message ? error.message : undefined,
+      stack: error && error.stack ? error.stack : undefined
+    });
     if (error instanceof KvConfigurationError) {
       const metadata = applyModeHeaders(res, 'memory');
       sendJson(res, 503, { error: 'KV storage not configured', ...metadata });
@@ -415,6 +422,6 @@ module.exports = async function handler(req, res) {
       return;
     }
     const metadata = applyModeHeaders(res, currentMode);
-    sendJson(res, 500, { error: 'Internal Server Error', ...metadata });
+    sendJson(res, 500, { error: 'Internal Server Error', code: 'SVG_ARCHIVE_UNHANDLED', ...metadata });
   }
 };

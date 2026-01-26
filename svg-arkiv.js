@@ -4487,12 +4487,16 @@
       const response = await fetch(apiUrl, { headers: { Accept: 'application/json' } });
       if (!response.ok) {
         let responseDetails = '';
+        let responseCode = '';
         try {
           const contentType = response.headers.get('content-type') || '';
           if (contentType.includes('application/json')) {
             const payload = await response.json();
             if (payload && typeof payload.error === 'string') {
               responseDetails = payload.error.trim();
+            }
+            if (payload && typeof payload.code === 'string') {
+              responseCode = payload.code.trim();
             }
           } else {
             const text = await response.text();
@@ -4503,7 +4507,14 @@
         } catch (error) {
           responseDetails = '';
         }
-        const detailSuffix = responseDetails ? ` (${responseDetails})` : '';
+        const detailParts = [];
+        if (responseDetails) {
+          detailParts.push(responseDetails);
+        }
+        if (responseCode) {
+          detailParts.push(`Feilkode: ${responseCode}`);
+        }
+        const detailSuffix = detailParts.length ? ` (${detailParts.join(' · ')})` : '';
         throw new Error(`Uventet svar: ${response.status}${detailSuffix}`);
       }
       const payload = await response.json();
