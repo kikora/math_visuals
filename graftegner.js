@@ -37,6 +37,8 @@ const {
       options: {
         grid: true,
         axisNumbers: true,
+        showNames: true,
+        showExpression: false,
         lockAspect: true,
         axisLabels: { x: 'x', y: 'y' }
       }
@@ -934,7 +936,7 @@ const LEGACY_FONT_SIZE_ALIASES = { normal: 'medium' };
 const FONT_PARAM_KEYS = ['fontSize', 'font', 'axisFont', 'tickFont', 'curveFont'];
 const STORAGE_OPTIONS_DEFAULTS = STORAGE_SCHEMA_V2 && STORAGE_SCHEMA_V2.defaults && STORAGE_SCHEMA_V2.defaults.options
   ? STORAGE_SCHEMA_V2.defaults.options
-  : { grid: true, axisNumbers: true, lockAspect: true, axisLabels: { x: 'x', y: 'y' } };
+  : { grid: true, axisNumbers: true, showNames: true, showExpression: false, lockAspect: true, axisLabels: { x: 'x', y: 'y' } };
 const SHOW_CURVE_NAMES = params.has('showNames') ? paramBool('showNames') : true;
 const SHOW_CURVE_EXPRESSIONS = params.has('showExpr') ? paramBool('showExpr') : false;
 const SHOW_DOMAIN_MARKERS = params.has('brackets') ? paramBool('brackets') : true;
@@ -944,6 +946,8 @@ const STORAGE_SCHEMA_VERSION = STORAGE_SCHEMA_V2.version;
 const STORAGE_V2_DEFAULTS = {
   grid: SHOW_GRID,
   axisNumbers: SHOW_AXIS_NUMBERS,
+  showNames: SHOW_CURVE_NAMES,
+  showExpression: SHOW_CURVE_EXPRESSIONS,
   lockAspect: params.has('lock') ? paramBool('lock') : (STORAGE_OPTIONS_DEFAULTS.lockAspect !== false),
   axisLabels: {
     x: paramStr('xName', (STORAGE_OPTIONS_DEFAULTS.axisLabels && STORAGE_OPTIONS_DEFAULTS.axisLabels.x) || 'x'),
@@ -994,6 +998,18 @@ function buildCleanSaveOptionsSnapshot(adv, defaults = CLEAN_SAVE_DEFAULTS) {
   const defaultAxisNumbers = !!(resolvedDefaults && resolvedDefaults.axisNumbers);
   if (axisNumbers !== defaultAxisNumbers) {
     diff.axisNumbers = axisNumbers;
+  }
+
+  const showNames = !!(adv && adv.curveName && adv.curveName.showName);
+  const defaultShowNames = !!(resolvedDefaults && resolvedDefaults.showNames);
+  if (showNames !== defaultShowNames) {
+    diff.showNames = showNames;
+  }
+
+  const showExpression = !!(adv && adv.curveName && adv.curveName.showExpression);
+  const defaultShowExpression = !!(resolvedDefaults && resolvedDefaults.showExpression);
+  if (showExpression !== defaultShowExpression) {
+    diff.showExpression = showExpression;
   }
 
   const lockAspect = adv && adv.lockAspect === false ? false : true;
@@ -1551,6 +1567,8 @@ const INITIAL_SHOW_POINT_COORDS = !!(ADV.points && ADV.points.showCoordsOnHover)
 const CLEAN_SAVE_DEFAULTS = {
   grid: STORAGE_V2_DEFAULTS.grid,
   axisNumbers: STORAGE_V2_DEFAULTS.axisNumbers,
+  showNames: STORAGE_V2_DEFAULTS.showNames,
+  showExpression: STORAGE_V2_DEFAULTS.showExpression,
   lockAspect: STORAGE_V2_DEFAULTS.lockAspect,
   firstQuadrant: INITIAL_FIRST_QUADRANT,
   axisLabels: STORAGE_V2_DEFAULTS.axisLabels
@@ -1572,6 +1590,12 @@ function buildExampleStateFromStorageV2(storageState) {
   }
   if (opts.axisNumbers !== undefined) {
     exampleState.showAxisNumbers = !!opts.axisNumbers;
+  }
+  if (opts.showNames !== undefined) {
+    exampleState.showNames = !!opts.showNames;
+  }
+  if (opts.showExpression !== undefined) {
+    exampleState.showExpression = !!opts.showExpression;
   }
   if (opts.firstQuadrant !== undefined) {
     exampleState.firstQuadrant = !!opts.firstQuadrant;
