@@ -37,7 +37,7 @@ async function collectUniqueColors(png) {
 }
 
 test.describe('Kuler export buttons', () => {
-  test('exported SVG and PNG have expected content', async ({ page }, testInfo) => {
+  test('exported PNG has expected content', async ({ page }, testInfo) => {
     await page.goto('/kuler.html', { waitUntil: 'load' });
 
     const uploadRequests = [];
@@ -52,32 +52,11 @@ test.describe('Kuler export buttons', () => {
     });
     page.on('dialog', dialog => dialog.accept());
 
-    const firstDownloadPromise = page.waitForEvent('download');
-    const secondDownloadPromise = page.waitForEvent('download');
+    const downloadPromise = page.waitForEvent('download');
     await page.click('#downloadSVG1');
-    const [firstDownload, secondDownload] = await Promise.all([
-      firstDownloadPromise,
-      secondDownloadPromise
-    ]);
-
-    const downloads = [firstDownload, secondDownload];
-    const svgDownload = downloads.find(download => download.suggestedFilename().endsWith('.svg'));
-    const pngDownload = downloads.find(download => download.suggestedFilename().endsWith('.png'));
-    expect(svgDownload).toBeTruthy();
+    const pngDownload = await downloadPromise;
     expect(pngDownload).toBeTruthy();
-    expect(svgDownload && svgDownload.suggestedFilename()).toBe('kuler1.svg');
     expect(pngDownload && pngDownload.suggestedFilename()).toBe('kuler1.png');
-
-    const svgPath = testInfo.outputPath('kuler-export.svg');
-    await svgDownload.saveAs(svgPath);
-
-    const svgContent = await fs.promises.readFile(svgPath, 'utf-8');
-    expect(svgContent).toContain('<svg');
-    expect(svgContent).toContain('viewBox="0 0 500 300"');
-    expect(svgContent).not.toContain('href="images/');
-    expect(svgContent).toMatch(/<image[^>]+href="data:image\/svg\+xml;base64/);
-    expect(svgContent).toMatch(WHITE_MATCHER);
-    expect(svgContent).toContain('data-export-background="true"');
     const pngPath = testInfo.outputPath('kuler-export.png');
     await pngDownload.saveAs(pngPath);
 

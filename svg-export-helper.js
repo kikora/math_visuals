@@ -1217,15 +1217,23 @@
       }
     }
 
-    if (svgUrl) {
-      triggerDownload(doc, svgUrl, svgFilename);
-    } else {
-      triggerDownload(doc, `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgString)}`, svgFilename);
+    const shouldDownloadSvg = options.downloadSvg !== false;
+    const shouldDownloadPng = options.downloadPng !== false;
+    const shouldDownloadMetadata = options.downloadMetadata !== false;
+
+    if (shouldDownloadSvg) {
+      if (svgUrl) {
+        triggerDownload(doc, svgUrl, svgFilename);
+      } else {
+        triggerDownload(doc, `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgString)}`, svgFilename);
+      }
     }
-    if (pngUrl) {
-      triggerDownload(doc, pngUrl, pngFilename);
-    } else if (pngData && pngData.dataUrl) {
-      triggerDownload(doc, pngData.dataUrl, pngFilename);
+    if (shouldDownloadPng) {
+      if (pngUrl) {
+        triggerDownload(doc, pngUrl, pngFilename);
+      } else if (pngData && pngData.dataUrl) {
+        triggerDownload(doc, pngData.dataUrl, pngFilename);
+      }
     }
 
     if (urlApi && svgUrl) {
@@ -1368,20 +1376,26 @@
     } else if (typeof global.fetch === 'function' && canUpload && !hasPng) {
       showToast('PNG mangler, så arkivopplasting ble hoppet over.', 'error');
     } else if (typeof global.fetch !== 'function') {
-      showToast(`Grafikk lastet ned som ${svgFilename} og ${pngFilename}. (Arkivopplasting ikke tilgjengelig.)`, 'info');
+      const downloadedFiles = [];
+      if (shouldDownloadSvg) downloadedFiles.push(svgFilename);
+      if (shouldDownloadPng) downloadedFiles.push(pngFilename);
+      const downloadLabel = downloadedFiles.length ? downloadedFiles.join(' og ') : 'ingen filer';
+      showToast(`Grafikk lastet ned som ${downloadLabel}. (Arkivopplasting ikke tilgjengelig.)`, 'info');
     } else if (!canUpload) {
       showToast(`Grafikk lastet ned, men SVG-data manglet. Arkivopplasting ble hoppet over.`, 'warning');
     }
 
     const metadataFilename = `${slugSegment || sanitizeBaseName(baseName, 'export')}.json`;
-    if (metadataUrl) {
-      triggerDownload(doc, metadataUrl, metadataFilename);
-    } else {
-      triggerDownload(
-        doc,
-        `data:application/json;charset=utf-8,${encodeURIComponent(metadataString)}`,
-        metadataFilename
-      );
+    if (shouldDownloadMetadata) {
+      if (metadataUrl) {
+        triggerDownload(doc, metadataUrl, metadataFilename);
+      } else {
+        triggerDownload(
+          doc,
+          `data:application/json;charset=utf-8,${encodeURIComponent(metadataString)}`,
+          metadataFilename
+        );
+      }
     }
 
     if (urlApi && metadataUrl) {
@@ -1445,7 +1459,9 @@
     return exportGraphicWithArchive(svgElement, suggestedName, toolId, {
       ...options,
       htmlTarget,
-      pngFallbackOrder: 'svg-first'
+      pngFallbackOrder: 'svg-first',
+      downloadSvg: options.downloadSvg ?? false,
+      downloadMetadata: options.downloadMetadata ?? false
     });
   }
 
