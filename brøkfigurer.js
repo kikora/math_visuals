@@ -1827,6 +1827,7 @@ const fillColorPickerInstances = new WeakMap();
     let board;
     const divisionSegmentIds = new Set();
     const divisionSegmentNodes = new Set();
+    const fillSegmentNodes = new Set();
     let filled = new Map();
     let suppressToggle = false;
     let suppressToggleResetTimer = null;
@@ -2273,25 +2274,8 @@ const fillColorPickerInstances = new WeakMap();
     }
     function markDivisionNode(node) {
       if (!node) return;
-      const fillAttr = typeof node.getAttribute === 'function' ? node.getAttribute('fill') : null;
-      const fillOpacityAttr = typeof node.getAttribute === 'function' ? node.getAttribute('fill-opacity') : null;
-      const inlineFill = node.style && typeof node.style.fill === 'string' ? node.style.fill.trim().toLowerCase() : '';
-      const inlineOpacity = node.style && typeof node.style.fillOpacity === 'string' ? node.style.fillOpacity.trim() : '';
-      const effectiveFill = (typeof fillAttr === 'string' && fillAttr.trim().toLowerCase()) || inlineFill;
-      const hasColor = effectiveFill && effectiveFill !== 'none' && effectiveFill !== 'transparent';
-      const parseOpacity = value => {
-        if (typeof value !== 'string' || value === '') return NaN;
-        const num = Number(value);
-        return Number.isFinite(num) ? num : NaN;
-      };
-      const fillOpacity = parseOpacity(fillOpacityAttr);
-      const styleOpacity = parseOpacity(inlineOpacity);
-      const opacityValue = Number.isFinite(styleOpacity) ? styleOpacity : fillOpacity;
-      const hasVisibleOpacity = Number.isFinite(opacityValue) ? opacityValue > 0 : true;
-      const isFilled = hasColor && hasVisibleOpacity;
-      if (isFilled) {
-        return;
-      }
+      const isFilled = isFilledNode(node);
+      if (isFilled) return;
       if (node.classList) node.classList.add('brok-division-segment');
       if (typeof node.setAttribute === 'function') node.setAttribute('data-division-segment', 'true');
       if (node.id) divisionSegmentIds.add(node.id);
@@ -2315,6 +2299,65 @@ const fillColorPickerInstances = new WeakMap();
           node.setAttribute('stroke-linejoin', 'round');
           markDivisionNode(node);
         }
+      }
+    }
+    function isFilledNode(node) {
+      if (!node || typeof node.getAttribute !== 'function') return false;
+      const fillAttr = node.getAttribute('fill');
+      const fillOpacityAttr = node.getAttribute('fill-opacity');
+      const inlineFill = node.style && typeof node.style.fill === 'string' ? node.style.fill.trim().toLowerCase() : '';
+      const inlineOpacity = node.style && typeof node.style.fillOpacity === 'string' ? node.style.fillOpacity.trim() : '';
+      const effectiveFill = (typeof fillAttr === 'string' && fillAttr.trim().toLowerCase()) || inlineFill;
+      const hasColor = effectiveFill && effectiveFill !== 'none' && effectiveFill !== 'transparent';
+      const parseOpacity = value => {
+        if (typeof value !== 'string' || value === '') return NaN;
+        const num = Number(value);
+        return Number.isFinite(num) ? num : NaN;
+      };
+      const fillOpacity = parseOpacity(fillOpacityAttr);
+      const styleOpacity = parseOpacity(inlineOpacity);
+      const opacityValue = Number.isFinite(styleOpacity) ? styleOpacity : fillOpacity;
+      const hasVisibleOpacity = Number.isFinite(opacityValue) ? opacityValue > 0 : true;
+      return hasColor && hasVisibleOpacity;
+    }
+    function ensureFillGroup() {
+      var _board$renderer3, _board$renderer3$svg;
+      const svg = (_board$renderer3 = board == null ? void 0 : board.renderer) === null || _board$renderer3 === void 0 || (_board$renderer3$svg = _board$renderer3.svgRoot) === null || _board$renderer3$svg === void 0 ? void 0 : _board$renderer3$svg;
+      if (!svg) return null;
+      const groupId = `brok-fill-group-${id}`;
+      let group = svg.querySelector(`#${groupId}`);
+      if (!group) {
+        group = document.createElementNS(SVG_NS, 'g');
+        group.setAttribute('id', groupId);
+        group.setAttribute('data-brok-fill-group', String(id));
+      }
+      if (!group.parentNode) {
+        const defs = svg.querySelector('defs');
+        const insertBefore = defs ? defs.nextSibling : svg.firstChild;
+        if (insertBefore) {
+          svg.insertBefore(group, insertBefore);
+        } else {
+          svg.appendChild(group);
+        }
+      }
+      return group;
+    }
+    function registerFillNode(node) {
+      if (!node || !isFilledNode(node)) return;
+      const group = ensureFillGroup();
+      if (!group) return;
+      if (node.parentNode !== group) {
+        group.appendChild(node);
+      }
+      fillSegmentNodes.add(node);
+    }
+    function registerFillNodes(element) {
+      if (!element) return;
+      const nodes = [];
+      if (element.rendNode) nodes.push(element.rendNode);
+      if (element.rendNodeFront && element.rendNodeFront !== element.rendNode) nodes.push(element.rendNodeFront);
+      for (const node of nodes) {
+        registerFillNode(node);
       }
     }
     function getRoundedRectScreenBox() {
@@ -2541,6 +2584,7 @@ const fillColorPickerInstances = new WeakMap();
       }
       divisionSegmentIds.clear();
       divisionSegmentNodes.clear();
+      fillSegmentNodes.clear();
       ensureDivisionGuard();
       if ((shape === 'rectangle' || shape === 'square') && division === 'diagonal') n = 4;
       const gridOpt = divSel === null || divSel === void 0 ? void 0 : divSel.querySelector('option[value="grid"]');
@@ -2630,6 +2674,7 @@ const fillColorPickerInstances = new WeakMap();
               fixed: true,
               cssStyle: 'pointer-events:fill;'
             });
+            registerFillNodes(poly);
             attachToggleHandler(poly, idx);
             markPolygonBorders(poly);
           }
@@ -2673,6 +2718,7 @@ const fillColorPickerInstances = new WeakMap();
             fixed: true,
             cssStyle: 'pointer-events:fill;'
           });
+          registerFillNodes(sector);
           attachToggleHandler(sector, i);
         }
         for (const p of boundaryPts) {
@@ -2719,6 +2765,7 @@ const fillColorPickerInstances = new WeakMap();
             fixed: true,
             cssStyle: 'pointer-events:fill;'
           });
+          registerFillNodes(poly);
           attachToggleHandler(poly, i);
           markPolygonBorders(poly);
           createDivisionSegment(c, corners[i], {}, false);
@@ -2756,6 +2803,7 @@ const fillColorPickerInstances = new WeakMap();
               fixed: true,
               cssStyle: 'pointer-events:fill;'
             });
+            registerFillNodes(poly);
             attachToggleHandler(poly, idx);
             markPolygonBorders(poly);
           }
@@ -2801,6 +2849,7 @@ const fillColorPickerInstances = new WeakMap();
           fixed: true,
           cssStyle: 'pointer-events:fill;'
         });
+          registerFillNodes(poly);
           attachToggleHandler(poly, i);
           markPolygonBorders(poly);
         }
@@ -2883,6 +2932,7 @@ const fillColorPickerInstances = new WeakMap();
               fixed: true,
               cssStyle: 'pointer-events:fill;'
             });
+            registerFillNodes(poly);
             attachToggleHandler(poly, idx);
             markPolygonBorders(poly);
             idx++;
@@ -2911,6 +2961,7 @@ const fillColorPickerInstances = new WeakMap();
               fixed: true,
               cssStyle: 'pointer-events:fill;'
             });
+            registerFillNodes(poly);
             attachToggleHandler(poly, idx);
             markPolygonBorders(poly);
             idx++;
@@ -2991,6 +3042,7 @@ const fillColorPickerInstances = new WeakMap();
           fixed: true,
           cssStyle: 'pointer-events:fill;'
         });
+        registerFillNodes(poly);
         attachToggleHandler(poly, i);
         markPolygonBorders(poly);
       }
@@ -3047,7 +3099,7 @@ const fillColorPickerInstances = new WeakMap();
       var _board;
       const svg = (_board = board) === null || _board === void 0 || (_board = _board.renderer) === null || _board === void 0 ? void 0 : _board.svgRoot;
       if (!svg) return;
-      const clipTarget = svg.querySelector('g.JXGroot') || svg;
+      const clipTarget = ensureFillGroup() || svg.querySelector('g.JXGroot') || svg;
       const pad = CLIP_PAD_PERCENT;
       const padStr = pad.toFixed(2);
       const maxStr = (100 + pad).toFixed(2);
@@ -3123,9 +3175,7 @@ const fillColorPickerInstances = new WeakMap();
         }
         clipUpdater(clipPath);
         clipTarget.setAttribute('clip-path', `url(#${clipId})`);
-        if (clipTarget !== svg) {
-          svg.removeAttribute('clip-path');
-        }
+        svg.removeAttribute('clip-path');
       } else {
         clipTarget.removeAttribute('clip-path');
         svg.removeAttribute('clip-path');
