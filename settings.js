@@ -5,6 +5,11 @@
 
   const colorGroupsContainer = form.querySelector('[data-color-groups]');
   const statusElement = form.querySelector('[data-status]');
+  const resetDatabaseButton = document.querySelector('[data-reset-database]');
+  const viewDeletedButton = document.querySelector('[data-view-deleted]');
+  const actionsStatusElement = document.querySelector('[data-actions-status]');
+  const LOCAL_STORAGE_PREFIXES = ['examples_', 'mathvis:', 'mathVisuals:', 'svg-archive'];
+  const LOCAL_STORAGE_KEYS = new Set(['archive_open_request', 'example_to_load']);
 
   function resolvePaletteConfig() {
     const scopes = [
@@ -723,6 +728,49 @@
     setStatus('', 'info');
   }
 
+  function setActionsStatus(message, tone) {
+    if (!actionsStatusElement) return;
+    actionsStatusElement.textContent = message || '';
+    if (message) {
+      actionsStatusElement.dataset.status = tone || 'success';
+    } else {
+      actionsStatusElement.removeAttribute('data-status');
+    }
+  }
+
+  function getLocalStorage() {
+    if (typeof window === 'undefined') return null;
+    try {
+      return window.localStorage || null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function shouldClearStorageKey(key) {
+    if (!key || typeof key !== 'string') return false;
+    if (LOCAL_STORAGE_KEYS.has(key)) return true;
+    return LOCAL_STORAGE_PREFIXES.some(prefix => key.startsWith(prefix));
+  }
+
+  function clearLocalStorageEntries() {
+    const storage = getLocalStorage();
+    if (!storage) return { ok: false, cleared: 0 };
+    const keysToRemove = [];
+    for (let index = 0; index < storage.length; index += 1) {
+      const key = storage.key(index);
+      if (shouldClearStorageKey(key)) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(key => {
+      try {
+        storage.removeItem(key);
+      } catch (_) {}
+    });
+    return { ok: true, cleared: keysToRemove.length };
+  }
+
   function notifySettingsUpdated() {
     if (statusElement && statusElement.dataset.status === 'success') {
       return;
@@ -1112,6 +1160,42 @@
   form.addEventListener('submit', event => {
     event.preventDefault();
   });
+
+  if (resetDatabaseButton) {
+    resetDatabaseButton.addEventListener('click', event => {
+      event.preventDefault();
+      const confirmation = typeof window !== 'undefined'
+        ? window.confirm('Dette sletter lokale data for eksempler, arkiv og farger. Vil du fortsette?')
+        : false;
+      if (!confirmation) return;
+      const result = clearLocalStorageEntries();
+      if (settingsApi && typeof settingsApi.resetSettings === 'function') {
+        try {
+          settingsApi.resetSettings();
+        } catch (_) {}
+      }
+      if (!result.ok) {
+        setActionsStatus('Kunne ikke slette lokale data i nettleseren.', 'error');
+        return;
+      }
+      setActionsStatus(
+        result.cleared > 0
+          ? `Lokale data ble slettet (${result.cleared} oppføringer). Oppdater siden om nødvendig.`
+          : 'Fant ingen lokale data å slette.',
+        'success'
+      );
+    });
+  }
+
+  if (viewDeletedButton) {
+    viewDeletedButton.addEventListener('click', event => {
+      event.preventDefault();
+      if (typeof window === 'undefined') return;
+      const targetUrl = new URL('svg-arkiv.html', window.location.href);
+      targetUrl.searchParams.set('trash', '1');
+      window.location.assign(targetUrl.toString());
+    });
+  }
 
   if (settingsApi && typeof settingsApi.subscribe === 'function') {
     try {
