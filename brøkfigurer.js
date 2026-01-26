@@ -3186,18 +3186,23 @@ const fillColorPickerInstances = new WeakMap();
           clipPath.appendChild(rect);
         };
       } else if (shape === 'circle') {
-        var _svg$viewBox, _svg$viewBox2;
-        const viewBoxSize = Math.max(((_svg$viewBox = svg.viewBox) === null || _svg$viewBox === void 0 || (_svg$viewBox = _svg$viewBox.baseVal) === null || _svg$viewBox === void 0 ? void 0 : _svg$viewBox.width) || 0, ((_svg$viewBox2 = svg.viewBox) === null || _svg$viewBox2 === void 0 || (_svg$viewBox2 = _svg$viewBox2.baseVal) === null || _svg$viewBox2 === void 0 ? void 0 : _svg$viewBox2.height) || 0);
-        const size = viewBoxSize || EXPORT_FIGURE_SIZE;
-        const strokePadding = OUTLINE_STROKE_WIDTH / (2 * size);
-        const circleClip = 0.5 + strokePadding;
+        var _svg$viewBox, _svg$viewBox2, _svg$viewBox3, _svg$viewBox4;
+        const viewBoxWidth = ((_svg$viewBox = svg.viewBox) === null || _svg$viewBox === void 0 || (_svg$viewBox = _svg$viewBox.baseVal) === null || _svg$viewBox === void 0 ? void 0 : _svg$viewBox.width) || 0;
+        const viewBoxHeight = ((_svg$viewBox2 = svg.viewBox) === null || _svg$viewBox2 === void 0 || (_svg$viewBox2 = _svg$viewBox2.baseVal) === null || _svg$viewBox2 === void 0 ? void 0 : _svg$viewBox2.height) || 0;
+        const viewBoxX = ((_svg$viewBox3 = svg.viewBox) === null || _svg$viewBox3 === void 0 || (_svg$viewBox3 = _svg$viewBox3.baseVal) === null || _svg$viewBox3 === void 0 ? void 0 : _svg$viewBox3.x) || 0;
+        const viewBoxY = ((_svg$viewBox4 = svg.viewBox) === null || _svg$viewBox4 === void 0 || (_svg$viewBox4 = _svg$viewBox4.baseVal) === null || _svg$viewBox4 === void 0 ? void 0 : _svg$viewBox4.y) || 0;
+        const viewBoxSize = Math.min(viewBoxWidth || 0, viewBoxHeight || 0) || EXPORT_FIGURE_SIZE;
+        const strokePadding = OUTLINE_STROKE_WIDTH / 2;
+        const circleCx = viewBoxX + (viewBoxWidth || viewBoxSize) * 0.5;
+        const circleCy = viewBoxY + (viewBoxHeight || viewBoxSize) * 0.5;
+        const circleRadius = CIRCLE_RADIUS * viewBoxSize + strokePadding;
         clipUpdater = clipPath => {
-          clipPath.setAttribute('clipPathUnits', 'objectBoundingBox');
+          clipPath.setAttribute('clipPathUnits', 'userSpaceOnUse');
           while (clipPath.firstChild) clipPath.removeChild(clipPath.firstChild);
           const circle = document.createElementNS(SVG_NS, 'circle');
-          circle.setAttribute('cx', '0.5');
-          circle.setAttribute('cy', '0.5');
-          circle.setAttribute('r', circleClip.toFixed(6));
+          circle.setAttribute('cx', circleCx.toFixed(4));
+          circle.setAttribute('cy', circleCy.toFixed(4));
+          circle.setAttribute('r', circleRadius.toFixed(4));
           clipPath.appendChild(circle);
         };
       }
