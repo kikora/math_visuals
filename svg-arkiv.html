@@ -63,14 +63,34 @@
             <p class="svg-archive__selection-count" data-selection-count aria-live="polite" hidden></p>
             <p class="svg-archive__note" data-storage-note hidden></p>
             <div class="svg-archive__actions-buttons">
-              <button
-                type="button"
-                class="svg-archive__actions-button svg-archive__actions-button--danger"
-                data-reset-archive
-                hidden
-              >
-                Nullstill arkiv
-              </button>
+              <div class="svg-archive__settings">
+                <button
+                  type="button"
+                  class="svg-archive__settings-toggle"
+                  data-archive-settings-toggle
+                  aria-expanded="false"
+                  aria-controls="svg-archive-settings-panel"
+                  aria-label="Innstillinger"
+                >
+                  <span aria-hidden="true">⚙</span>
+                </button>
+                <div
+                  id="svg-archive-settings-panel"
+                  class="svg-archive__settings-panel"
+                  data-archive-settings
+                  hidden
+                >
+                  <p class="svg-archive__settings-title">Innstillinger</p>
+                  <button
+                    type="button"
+                    class="svg-archive__actions-button svg-archive__actions-button--danger"
+                    data-reset-archive
+                    hidden
+                  >
+                    Nullstill arkiv
+                  </button>
+                </div>
+              </div>
             </div>
           </section>
         </section>

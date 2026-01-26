@@ -18,6 +18,8 @@
   const renameSelectedButton = document.querySelector('[data-selection-rename]');
   const sizeSelect = document.querySelector('[data-size-select]');
   const resetArchiveButton = document.querySelector('[data-reset-archive]');
+  const settingsToggle = document.querySelector('[data-archive-settings-toggle]');
+  const settingsPanel = document.querySelector('[data-archive-settings]');
   const pageBody = document.querySelector('.svg-archive-page');
   const rootElement = document.documentElement;
 
@@ -148,6 +150,38 @@
       const value = sizeSelect.value;
       applyArchiveSize(value);
       writeArchiveSizePreference(value);
+    });
+  }
+
+  function setSettingsOpen(isOpen) {
+    if (!settingsToggle || !settingsPanel) {
+      return;
+    }
+    settingsToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    settingsPanel.hidden = !isOpen;
+  }
+
+  if (settingsToggle && settingsPanel) {
+    setSettingsOpen(false);
+    settingsToggle.addEventListener('click', event => {
+      event.preventDefault();
+      setSettingsOpen(settingsPanel.hidden);
+    });
+    document.addEventListener('click', event => {
+      if (settingsPanel.hidden) {
+        return;
+      }
+      const target = event.target;
+      if (target && (settingsPanel.contains(target) || settingsToggle.contains(target))) {
+        return;
+      }
+      setSettingsOpen(false);
+    });
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && !settingsPanel.hidden) {
+        setSettingsOpen(false);
+        settingsToggle.focus();
+      }
     });
   }
 
