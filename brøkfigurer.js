@@ -3162,11 +3162,10 @@ const fillColorPickerInstances = new WeakMap();
         };
       } else if (shape === 'circle') {
         var _svg$viewBox, _svg$viewBox2;
-        const circleBase = CIRCLE_RADIUS / BOARD_SIZE;
         const viewBoxSize = Math.max(((_svg$viewBox = svg.viewBox) === null || _svg$viewBox === void 0 || (_svg$viewBox = _svg$viewBox.baseVal) === null || _svg$viewBox === void 0 ? void 0 : _svg$viewBox.width) || 0, ((_svg$viewBox2 = svg.viewBox) === null || _svg$viewBox2 === void 0 || (_svg$viewBox2 = _svg$viewBox2.baseVal) === null || _svg$viewBox2 === void 0 ? void 0 : _svg$viewBox2.height) || 0);
         const size = viewBoxSize || EXPORT_FIGURE_SIZE;
         const strokePadding = OUTLINE_STROKE_WIDTH / (2 * size);
-        const circleClip = Math.min(0.5, circleBase + strokePadding);
+        const circleClip = 0.5 + strokePadding;
         clipUpdater = clipPath => {
           clipPath.setAttribute('clipPathUnits', 'objectBoundingBox');
           while (clipPath.firstChild) clipPath.removeChild(clipPath.firstChild);
