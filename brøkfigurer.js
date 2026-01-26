@@ -3419,16 +3419,27 @@ const fillColorPickerInstances = new WeakMap();
   }
   function getSvgContentBounds(svgEl) {
     if (!svgEl) return null;
+    const outlinePad = Number.isFinite(OUTLINE_STROKE_WIDTH) ? OUTLINE_STROKE_WIDTH / 2 : 0;
+    const applyPadding = bounds => {
+      if (!bounds || !Number.isFinite(bounds.width) || !Number.isFinite(bounds.height)) return bounds;
+      if (!Number.isFinite(outlinePad) || outlinePad <= 0) return bounds;
+      return {
+        x: bounds.x - outlinePad,
+        y: bounds.y - outlinePad,
+        width: bounds.width + outlinePad * 2,
+        height: bounds.height + outlinePad * 2
+      };
+    };
     if (typeof svgEl.getBBox === 'function') {
       try {
         const bbox = svgEl.getBBox();
         if (bbox && Number.isFinite(bbox.width) && bbox.width > 0 && Number.isFinite(bbox.height) && bbox.height > 0) {
-          return {
+          return applyPadding({
             x: Number.isFinite(bbox.x) ? bbox.x : 0,
             y: Number.isFinite(bbox.y) ? bbox.y : 0,
             width: bbox.width,
             height: bbox.height
-          };
+          });
         }
       } catch (error) {
         // fall back to attributes
@@ -3445,24 +3456,24 @@ const fillColorPickerInstances = new WeakMap();
         if (parts.length >= 4) {
           const [minX, minY, width, height] = parts;
           if (width > 0 && height > 0) {
-            return {
+            return applyPadding({
               x: minX,
               y: minY,
               width,
               height
-            };
+            });
           }
         }
       }
       const widthAttr = Number.parseFloat(svgEl.getAttribute('width'));
       const heightAttr = Number.parseFloat(svgEl.getAttribute('height'));
       if (Number.isFinite(widthAttr) && Number.isFinite(heightAttr) && widthAttr > 0 && heightAttr > 0) {
-        return {
+        return applyPadding({
           x: 0,
           y: 0,
           width: widthAttr,
           height: heightAttr
-        };
+        });
       }
     }
     return null;
