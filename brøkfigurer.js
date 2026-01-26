@@ -251,20 +251,26 @@ function isValidColor(value) {
       }, 0);
     });
   }
-  function downloadPNG(svgEl, filename, scale = 2, bg = '#fff') {
+  function downloadPNG(svgEl, filename, _scale = 2, bg = '#fff') {
     return new Promise(resolve => {
+      const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
+      const exportMetrics = getExportCanvasMetrics();
+      const baseWidth = Math.max(1, Math.round(exportMetrics.width));
+      const baseHeight = Math.max(1, Math.round(exportMetrics.height));
+      const padding = 8;
       const vb = svgEl && svgEl.viewBox ? svgEl.viewBox.baseVal : null;
-      const readNumericAttr = name => {
-        if (!svgEl || typeof svgEl.getAttribute !== 'function') return NaN;
-        const raw = svgEl.getAttribute(name);
-        if (!raw) return NaN;
-        const value = parseFloat(raw);
-        return Number.isFinite(value) && value > 0 ? value : NaN;
-      };
-      const fallbackSize = 420;
-      const w = (vb === null || vb === void 0 ? void 0 : vb.width) || readNumericAttr('width') || fallbackSize;
-      const h = (vb === null || vb === void 0 ? void 0 : vb.height) || readNumericAttr('height') || fallbackSize;
-      const data = svgToString(svgEl);
+      const vbX = vb && Number.isFinite(vb.x) ? vb.x : 0;
+      const vbY = vb && Number.isFinite(vb.y) ? vb.y : 0;
+      const exportSvg = helper && typeof helper.cloneSvgForExport === 'function' ? helper.cloneSvgForExport(svgEl) : svgEl.cloneNode(true);
+      if (exportSvg) {
+        exportSvg.setAttribute('width', String(baseWidth));
+        exportSvg.setAttribute('height', String(baseHeight));
+        exportSvg.setAttribute(
+          'viewBox',
+          `${vbX - padding} ${vbY - padding} ${baseWidth + padding * 2} ${baseHeight + padding * 2}`
+        );
+      }
+      const data = svgToString(exportSvg || svgEl);
       const blob = new Blob([data], {
         type: 'image/svg+xml;charset=utf-8'
       });
@@ -281,29 +287,9 @@ function isValidColor(value) {
       };
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
-        const sizing = helper && typeof helper.ensureMinimumPngDimensions === 'function'
-          ? helper.ensureMinimumPngDimensions({ width: w, height: h }, { scale })
-          : (() => {
-              const minDimension = 100;
-              const baseScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
-              const safeWidth = Number.isFinite(w) && w > 0 ? w : minDimension;
-              const safeHeight = Number.isFinite(h) && h > 0 ? h : minDimension;
-              const scaledWidth = safeWidth * baseScale;
-              const scaledHeight = safeHeight * baseScale;
-              const scaleMultiplier = Math.max(
-                1,
-                scaledWidth > 0 ? minDimension / scaledWidth : 1,
-                scaledHeight > 0 ? minDimension / scaledHeight : 1
-              );
-              const finalScale = baseScale * scaleMultiplier;
-              return {
-                width: Math.max(minDimension, Math.round(safeWidth * finalScale)),
-                height: Math.max(minDimension, Math.round(safeHeight * finalScale))
-              };
-            })();
-        canvas.width = sizing.width;
-        canvas.height = sizing.height;
+        const fixedScale = 2;
+        canvas.width = Math.max(1, Math.round(baseWidth * fixedScale));
+        canvas.height = Math.max(1, Math.round(baseHeight * fixedScale));
         const ctx = canvas.getContext('2d');
         ctx.fillStyle = bg;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
