@@ -3718,16 +3718,19 @@ const fillColorPickerInstances = new WeakMap();
       return true;
     };
     const htmlTarget = isRenderableTarget(composite.htmlTarget) ? composite.htmlTarget : null;
-    if (helper && typeof helper.exportGraphicWithArchive === 'function') {
+    if (helper && typeof helper.exportGraphicWithArchiveWithFallback === 'function') {
       try {
-        await helper.exportGraphicWithArchive(composite.svg, `${meta.defaultBaseName || 'brokfigurer'}.svg`, 'brokfigurer', {
+        await helper.exportGraphicWithArchiveWithFallback({
+          svgElement: composite.svg,
+          htmlTarget,
+          suggestedName: `${meta.defaultBaseName || 'brokfigurer'}.svg`,
+          toolId: 'brokfigurer',
           svgString,
           description: meta.description,
           slug: meta.slug,
           defaultBaseName: meta.defaultBaseName,
           summary: meta.summary,
           backgroundColor: '#fff',
-          htmlTarget,
           pngFallbackOrder: 'html-first',
           downloadSvg: false,
           downloadMetadata: false,
