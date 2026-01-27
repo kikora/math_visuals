@@ -446,6 +446,7 @@
     applyComputedStylesToClone(svgElement, clone);
     ensureSvgBackground(clone);
     injectDocumentStylesIntoSvg(svgElement.ownerDocument || (typeof document !== 'undefined' ? document : null), clone);
+    injectKatexStylesIntoSvg(svgElement.ownerDocument || (typeof document !== 'undefined' ? document : null), clone);
     return clone;
   }
 
@@ -528,6 +529,30 @@
     return cssParts.filter(Boolean).join('\n');
   }
 
+  function collectKatexStyleText(doc) {
+    if (!doc || !doc.styleSheets) return '';
+    const parts = [];
+    const styleSheets = Array.from(doc.styleSheets);
+    styleSheets.forEach(sheet => {
+      const href = sheet && sheet.href ? String(sheet.href) : '';
+      const ownerId =
+        sheet && sheet.ownerNode && sheet.ownerNode.getAttribute ? sheet.ownerNode.getAttribute('id') : '';
+      if (!/katex/i.test(href || ownerId)) return;
+      try {
+        const rules = sheet.cssRules || sheet.rules;
+        if (!rules) return;
+        Array.from(rules).forEach(rule => {
+          if (rule && rule.cssText) {
+            parts.push(rule.cssText);
+          }
+        });
+      } catch (error) {
+        // ignore cross-origin stylesheet errors
+      }
+    });
+    return parts.join('\n');
+  }
+
   function injectDocumentStylesIntoSvg(doc, svgElement) {
     if (!svgElement || typeof svgElement.querySelector !== 'function') return;
     const cssText = collectDocumentStyleText(doc);
@@ -548,6 +573,127 @@
     } else {
       svgElement.appendChild(style);
     }
+  }
+
+  function injectKatexStylesIntoSvg(doc, svgElement) {
+    if (!svgElement || typeof svgElement.querySelector !== 'function') return;
+    const cssText = collectKatexStyleText(doc);
+    if (!cssText) return;
+    const existing = svgElement.querySelector('style[data-exported-katex-style="true"]');
+    if (existing) {
+      existing.textContent = cssText;
+      return;
+    }
+    const ownerDocument = svgElement.ownerDocument || doc;
+    if (!ownerDocument || typeof ownerDocument.createElementNS !== 'function') return;
+    const style = ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'style');
+    style.setAttribute('data-exported-katex-style', 'true');
+    style.textContent = cssText;
+    const firstChild = svgElement.firstChild;
+    if (firstChild) {
+      svgElement.insertBefore(style, firstChild);
+    } else {
+      svgElement.appendChild(style);
+    }
+  }
+
+  function collectForeignObjectStyles(svgElement) {
+    if (!svgElement) return [];
+    const doc = svgElement.ownerDocument || (typeof document !== 'undefined' ? document : null);
+    const view = doc && doc.defaultView ? doc.defaultView : null;
+    if (!view || typeof view.getComputedStyle !== 'function') return [];
+    const foreignObjects = svgElement.querySelectorAll('foreignObject');
+    return Array.from(foreignObjects, foreignObject => {
+      const target = foreignObject.firstElementChild || foreignObject;
+      const computed = view.getComputedStyle(target);
+      const getProp = prop => {
+        const value = computed.getPropertyValue(prop);
+        return value ? value.trim() : '';
+      };
+      return {
+        fontFamily: getProp('font-family'),
+        fontSize: getProp('font-size'),
+        fontWeight: getProp('font-weight'),
+        fontStyle: getProp('font-style'),
+        color: getProp('color'),
+        lineHeight: getProp('line-height')
+      };
+    });
+  }
+
+  function normalizeForeignObjectText(text) {
+    if (typeof text !== 'string') return '';
+    let normalized = text.replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+    if (normalized.startsWith('$') && normalized.endsWith('$') && normalized.length > 1) {
+      normalized = normalized.replace(/^\$+|\$+$/g, '').trim();
+    }
+    return normalized;
+  }
+
+  function resolveForeignObjectFontFamily(foreignObject, styleInfo, options = {}) {
+    if (options.fontFamily) return options.fontFamily;
+    if (styleInfo && styleInfo.fontFamily) return styleInfo.fontFamily;
+    if (foreignObject && typeof foreignObject.querySelector === 'function' && foreignObject.querySelector('.katex')) {
+      return '"KaTeX_Main", "Times New Roman", Times, serif';
+    }
+    return '"Inter", "Segoe UI", system-ui, sans-serif';
+  }
+
+  function replaceForeignObjectsWithText(svgElement, styleData, options = {}) {
+    if (!svgElement || typeof svgElement.querySelectorAll !== 'function') return;
+    const foreignObjects = Array.from(svgElement.querySelectorAll('foreignObject'));
+    foreignObjects.forEach((foreignObject, index) => {
+      const parent = foreignObject.parentNode;
+      if (!parent) return;
+      const textContent = normalizeForeignObjectText(foreignObject.textContent || '');
+      if (!textContent) {
+        parent.removeChild(foreignObject);
+        return;
+      }
+      const doc = foreignObject.ownerDocument;
+      if (!doc || typeof doc.createElementNS !== 'function') return;
+      const textEl = doc.createElementNS('http://www.w3.org/2000/svg', 'text');
+      const width = parseLength(foreignObject.getAttribute('width'));
+      const height = parseLength(foreignObject.getAttribute('height'));
+      const x = parseLength(foreignObject.getAttribute('x'));
+      const y = parseLength(foreignObject.getAttribute('y'));
+      const centerX = Number.isFinite(width) && Number.isFinite(x) ? x + width / 2 : Number.isFinite(x) ? x : 0;
+      const centerY = Number.isFinite(height) && Number.isFinite(y) ? y + height / 2 : Number.isFinite(y) ? y : 0;
+      textEl.setAttribute('x', String(centerX));
+      textEl.setAttribute('y', String(centerY));
+      textEl.setAttribute('text-anchor', 'middle');
+      textEl.setAttribute('dominant-baseline', 'middle');
+      textEl.setAttribute('xml:space', 'preserve');
+      const existingClass = foreignObject.getAttribute('class');
+      const fallbackClass = existingClass ? `${existingClass} foreign-object-fallback` : 'foreign-object-fallback';
+      textEl.setAttribute('class', fallbackClass);
+      textEl.textContent = textContent;
+
+      const styleInfo = Array.isArray(styleData) ? styleData[index] : null;
+      const fontFamily = resolveForeignObjectFontFamily(foreignObject, styleInfo, options);
+      if (fontFamily) {
+        textEl.setAttribute('font-family', fontFamily);
+      }
+      if (styleInfo) {
+        if (styleInfo.fontSize) {
+          textEl.setAttribute('font-size', styleInfo.fontSize);
+        }
+        if (styleInfo.fontWeight && styleInfo.fontWeight !== 'normal') {
+          textEl.setAttribute('font-weight', styleInfo.fontWeight);
+        }
+        if (styleInfo.fontStyle && styleInfo.fontStyle !== 'normal') {
+          textEl.setAttribute('font-style', styleInfo.fontStyle);
+        }
+        if (styleInfo.color) {
+          textEl.setAttribute('fill', styleInfo.color);
+        }
+        if (styleInfo.lineHeight && styleInfo.lineHeight !== 'normal') {
+          textEl.setAttribute('line-height', styleInfo.lineHeight);
+        }
+      }
+
+      parent.replaceChild(textEl, foreignObject);
+    });
   }
 
   function resolveImageHref(imageElement) {
@@ -635,6 +781,7 @@
     const doc = options.doc || (typeof document !== 'undefined' ? document : null);
     let svgElement = options.svgElement || null;
     let workingSvg = null;
+    const foreignObjectStyles = svgElement ? collectForeignObjectStyles(svgElement) : [];
     if (typeof options.svgString === 'string') {
       const parsedSvg = parseSvgString(options.svgString);
       if (parsedSvg) {
@@ -643,6 +790,7 @@
         ensureSvgSizingAttributes(workingSvg, workingSvg);
         ensureSvgBackground(workingSvg, options.bounds || {});
         injectDocumentStylesIntoSvg(doc, workingSvg);
+        injectKatexStylesIntoSvg(doc, workingSvg);
       }
     }
 
@@ -662,6 +810,13 @@
 
     if (options.backgroundColor) {
       ensureSvgBackground(workingSvg, { bounds: options.bounds || {}, fill: options.backgroundColor });
+    }
+
+    const shouldConvertForeignObjects = options.convertForeignObjectsToText !== false;
+    if (shouldConvertForeignObjects) {
+      replaceForeignObjectsWithText(workingSvg, foreignObjectStyles, {
+        fontFamily: options.foreignObjectFontFamily
+      });
     }
 
     const resourceStatus = await inlineExternalImages(workingSvg, { doc, timeoutMs: options.timeoutMs });
