@@ -309,6 +309,12 @@ function isValidColor(value) {
         canvas.width = Math.max(1, Math.round(baseWidth * fixedScale));
         canvas.height = Math.max(1, Math.round(baseHeight * fixedScale));
         const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          console.error('Kunne ikke eksportere PNG: canvas-kontekst mangler');
+          cleanup();
+          setTimeout(resolve, 0);
+          return;
+        }
         ctx.fillStyle = bg;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
@@ -3696,7 +3702,45 @@ const fillColorPickerInstances = new WeakMap();
     (_window$render2 = (_window2 = window).render) === null || _window$render2 === void 0 || _window$render2.call(_window2);
     const composite = buildCompositeExportSvg();
     if (!composite) return;
+    const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
     const meta = buildBrokfigurerExportMeta();
+    const svgString = svgToString(composite.svg);
+    const isRenderableTarget = element => {
+      if (!element || !element.isConnected) return false;
+      const rect = element.getBoundingClientRect();
+      if (!rect || rect.width <= 1 || rect.height <= 1) return false;
+      if (typeof window === 'undefined' || typeof window.getComputedStyle !== 'function') return true;
+      const style = window.getComputedStyle(element);
+      if (!style) return true;
+      if (style.display === 'none' || style.visibility === 'hidden') return false;
+      const opacity = Number.parseFloat(style.opacity);
+      if (Number.isFinite(opacity) && opacity <= 0) return false;
+      return true;
+    };
+    const htmlTarget = isRenderableTarget(composite.htmlTarget) ? composite.htmlTarget : null;
+    if (helper && typeof helper.exportGraphicWithArchiveWithFallback === 'function') {
+      try {
+        await helper.exportGraphicWithArchiveWithFallback({
+          svgElement: composite.svg,
+          htmlTarget,
+          suggestedName: `${meta.defaultBaseName || 'brokfigurer'}.svg`,
+          toolId: 'brokfigurer',
+          svgString,
+          description: meta.description,
+          slug: meta.slug,
+          defaultBaseName: meta.defaultBaseName,
+          summary: meta.summary,
+          backgroundColor: '#fff',
+          pngFallbackOrder: 'html-first',
+          downloadSvg: false,
+          downloadMetadata: false,
+          downloadPng: true
+        });
+        return;
+      } catch (error) {
+        console.error('Kunne ikke eksportere PNG', error);
+      }
+    }
     await downloadPNG(composite.svg, `${meta.defaultBaseName || 'brokfigurer'}.png`, 2);
   }
   exportSvgBtn === null || exportSvgBtn === void 0 || exportSvgBtn.addEventListener('click', () => {
