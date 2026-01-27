@@ -89,9 +89,6 @@
       margin:0 auto;
       position:relative;
     }
-    .figure .box[data-shape="rectangle"]{
-      aspect-ratio:1.2 / 1;
-    }
     @supports not (aspect-ratio: 1) {
       .figure .box{
         height:0;
@@ -100,9 +97,6 @@
         content:'';
         display:block;
         padding-bottom:100%;
-      }
-      .figure .box[data-shape="rectangle"]::before{
-        padding-bottom:83.333%;
       }
       .figure .box > *{
         position:absolute;
