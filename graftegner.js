@@ -3651,7 +3651,9 @@ function appendAxisLabelsToSvgClone(node) {
         color,
         fontSize,
         alignH: axisKey === 'x' ? 'end' : 'start',
-        alignV: axisKey === 'x' ? 'after-edge' : 'before-edge'
+        alignV: axisKey === 'x' ? 'after-edge' : 'before-edge',
+        plainText: label,
+        fontStyle: 'italic'
       });
       if (katexNode) return katexNode;
     }
@@ -3720,7 +3722,9 @@ function appendCurveLabelsToSvgClone(node) {
         color: normalizeColorValue(g && g.color) || '#111827',
         fontSize,
         alignH: 'start',
-        alignV: 'middle'
+        alignV: 'middle',
+        plainText: textContent,
+        fontStyle: 'italic'
       });
       if (katexNode) {
         group.appendChild(katexNode);
@@ -4692,10 +4696,20 @@ function createKatexExportLabel(doc, html, screenPos, options = {}) {
   const offsetX = alignH === 'end' ? -width : alignH === 'middle' ? -(width / 2) : 0;
   const offsetY = alignV === 'after-edge' ? -height : alignV === 'middle' ? -(height / 2) : 0;
   const fo = doc.createElementNS('http://www.w3.org/2000/svg', 'foreignObject');
+  const anchor = alignH === 'end' ? 'end' : alignH === 'middle' ? 'middle' : 'start';
+  const baseline = alignV === 'after-edge' ? 'text-after-edge' : alignV === 'middle' ? 'middle' : 'text-before-edge';
   fo.setAttribute('width', `${width}`);
   fo.setAttribute('height', `${height}`);
   fo.setAttribute('x', `${screenPos.x + offsetX}`);
   fo.setAttribute('y', `${screenPos.y + offsetY}`);
+  if (options.plainText) {
+    fo.setAttribute('data-export-plain-text', options.plainText);
+  }
+  fo.setAttribute('data-export-text-anchor', anchor);
+  fo.setAttribute('data-export-dominant-baseline', baseline);
+  if (options.fontStyle) {
+    fo.setAttribute('data-export-font-style', options.fontStyle);
+  }
   const body = doc.createElementNS('http://www.w3.org/1999/xhtml', 'div');
   body.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
   body.style.display = 'inline-block';
@@ -7301,7 +7315,8 @@ function sanitizeSvgForeignObjects(svgNode) {
   nodes.forEach(node => {
     const parent = node.parentNode;
     if (!parent) return;
-    const textContent = (node.textContent || '').trim();
+    const attrFallback = typeof node.getAttribute === 'function' ? (node.getAttribute('data-export-plain-text') || '') : '';
+    const textContent = (node.textContent || '').trim() || (attrFallback || '').trim();
     if (!textContent) {
       parent.removeChild(node);
       return;
@@ -7311,7 +7326,16 @@ function sanitizeSvgForeignObjects(svgNode) {
     const yAttr = node.getAttribute('y');
     if (xAttr != null) replacement.setAttribute('x', xAttr);
     if (yAttr != null) replacement.setAttribute('y', yAttr);
-    replacement.setAttribute('dominant-baseline', 'text-before-edge');
+    const textAnchor = node.getAttribute && node.getAttribute('data-export-text-anchor');
+    const dominantBaseline = node.getAttribute && node.getAttribute('data-export-dominant-baseline');
+    const fontStyle = node.getAttribute && node.getAttribute('data-export-font-style');
+    replacement.setAttribute('dominant-baseline', dominantBaseline || 'text-before-edge');
+    if (textAnchor) {
+      replacement.setAttribute('text-anchor', textAnchor);
+    }
+    if (fontStyle) {
+      replacement.setAttribute('font-style', fontStyle);
+    }
     replacement.setAttribute('font-family', 'Inter, "Segoe UI", system-ui, sans-serif');
     const styleSources = [node.getAttribute('style') || ''];
     if (node.firstElementChild && typeof node.firstElementChild.getAttribute === 'function') {
