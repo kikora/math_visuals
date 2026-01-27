@@ -3678,8 +3678,16 @@ const fillColorPickerInstances = new WeakMap();
     await downloadSVG(composite.svg, `${meta.defaultBaseName || 'brokfigurer'}.svg`);
     await downloadPNG(composite.svg, `${meta.defaultBaseName || 'brokfigurer'}.png`, 2);
   }
+  async function downloadAllFiguresPng() {
+    var _window$render2, _window2;
+    (_window$render2 = (_window2 = window).render) === null || _window$render2 === void 0 || _window$render2.call(_window2);
+    const composite = buildCompositeExportSvg();
+    if (!composite) return;
+    const meta = buildBrokfigurerExportMeta();
+    await downloadPNG(composite.svg, `${meta.defaultBaseName || 'brokfigurer'}.png`, 2);
+  }
   exportSvgBtn === null || exportSvgBtn === void 0 || exportSvgBtn.addEventListener('click', () => {
-    void downloadAllFigures();
+    void downloadAllFiguresPng();
   });
   exportPngBtn === null || exportPngBtn === void 0 || exportPngBtn.addEventListener('click', () => {
     void downloadAllFigures();
