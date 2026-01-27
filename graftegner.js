@@ -7856,7 +7856,7 @@ if (btnSvg) {
         svgString: svgExport.markup,
         htmlTarget,
         backgroundColor: '#fff',
-        pngFallbackOrder: 'html-first',
+        pngFallbackOrder: 'svg-first',
         downloadSvg: false,
         downloadMetadata: false,
         downloadPng: true
