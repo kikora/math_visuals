@@ -1612,7 +1612,7 @@ removeRowBtn === null || removeRowBtn === void 0 || removeRowBtn.addEventListene
 });
 btnSvg === null || btnSvg === void 0 || btnSvg.addEventListener('click', () => {
   const exportSvg = getExportSvg();
-  if (exportSvg) downloadPNG(exportSvg, 'tenkeblokker.png', 2);
+  if (exportSvg) downloadSVG(exportSvg, 'tenkeblokker.svg');
 });
 btnPng === null || btnPng === void 0 || btnPng.addEventListener('click', () => {
   const exportSvg = getExportSvg();

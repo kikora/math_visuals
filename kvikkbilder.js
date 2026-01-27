@@ -2056,13 +2056,13 @@
     const svg = getActiveSvg();
     if (svg) {
       const fileName = CFG.type === 'monster'
-        ? 'numbervisuals.png'
+        ? 'numbervisuals.svg'
         : CFG.type === 'rectangles'
-        ? 'rektangler.png'
+        ? 'rektangler.svg'
         : CFG.type === 'figurer'
-        ? 'figurer.png'
-        : 'kvikkbilder.png';
-      downloadPNG(svg, fileName, 2);
+        ? 'figurer.svg'
+        : 'kvikkbilder.svg';
+      downloadSVG(svg, fileName);
     }
   });
   btnPng === null || btnPng === void 0 || btnPng.addEventListener('click', () => {

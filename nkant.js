@@ -6179,8 +6179,8 @@ function bindUI() {
       btnSvg.addEventListener("click", async () => {
         await renderCombined();
         const svg = document.getElementById("paper");
-        const filename = `${getSuggestedFilename()}.png`;
-        await downloadPNG(svg, filename, 2);
+        const filename = `${getSuggestedFilename()}.svg`;
+        await downloadSVG(svg, filename);
       });
     }
     if (btnPng) {

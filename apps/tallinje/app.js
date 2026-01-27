@@ -2456,7 +2456,7 @@ function setupTallinjeApp({ registerCleanup, target } = {}) {
   }
 
   if (btnSvg) {
-    const handleSvgExportClick = () => downloadPNG(svg, 'tallinje.png');
+    const handleSvgExportClick = () => downloadSVG(svg, 'tallinje.svg');
     addManagedEventListener(btnSvg, 'click', handleSvgExportClick);
   }
 
