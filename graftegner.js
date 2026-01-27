@@ -7487,6 +7487,7 @@ function cloneBoardSvgRoot() {
   sanitizeSvgForeignObjects(node);
   appendAxisLabelsToSvgClone(node);
   appendCurveLabelsToSvgClone(node);
+  sanitizeSvgForeignObjects(node);
   ensureAxisArrowsInSvgClone(node);
   if (helper && typeof helper.ensureSvgBackground === 'function') {
     helper.ensureSvgBackground(node, {
