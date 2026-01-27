@@ -1352,13 +1352,11 @@ const fillColorPickerInstances = new WeakMap();
       if (figureController && typeof figureController.updateDenominatorControls === 'function') {
         figureController.updateDenominatorControls(allowDenominator);
       } else {
-        if (partsInp) partsInp.disabled = !allowDenominator;
-        const stepper = document.getElementById(`partsStepper${id}`);
-        if (stepper) stepper.style.display = allowDenominator ? '' : 'none';
+        if (partsInp) partsInp.disabled = false;
         const minusBtn = document.getElementById(`partsMinus${id}`);
-        if (minusBtn) minusBtn.disabled = !allowDenominator;
+        if (minusBtn) minusBtn.style.display = allowDenominator ? '' : 'none';
         const plusBtn = document.getElementById(`partsPlus${id}`);
-        if (plusBtn) plusBtn.disabled = !allowDenominator;
+        if (plusBtn) plusBtn.style.display = allowDenominator ? '' : 'none';
       }
       if (partsInp) {
         const parts = clampInt(figState.parts, 1);
@@ -1372,15 +1370,6 @@ const fillColorPickerInstances = new WeakMap();
       if (divSel && figState.division) {
         const options = Array.from(divSel.options || []);
         if (options.some(opt => opt.value === figState.division)) divSel.value = figState.division;
-      }
-      const solution = figState.solution && typeof figState.solution === 'object' ? figState.solution : {};
-      const solutionNumInp = document.getElementById(`solutionNumerator${id}`);
-      if (solutionNumInp) {
-        solutionNumInp.value = solution.numerator != null ? String(solution.numerator) : '';
-      }
-      const solutionDenInp = document.getElementById(`solutionDenominator${id}`);
-      if (solutionDenInp) {
-        solutionDenInp.value = solution.denominator != null ? String(solution.denominator) : '';
       }
     }
   }
@@ -1451,14 +1440,6 @@ const fillColorPickerInstances = new WeakMap();
           <label for="parts${id}">Antall deler</label>
           <input id="parts${id}" class="input--digit input--small" type="number" min="1" value="4" />
         </div>
-        <div class="field">
-          <label for="solutionDenominator${id}">Fasit nevner</label>
-          <input id="solutionDenominator${id}" class="input--digit" type="number" min="1" step="1" />
-        </div>
-        <div class="field">
-          <label for="solutionNumerator${id}">Fasit teller</label>
-          <input id="solutionNumerator${id}" class="input--digit" type="number" min="0" step="1" />
-        </div>
       </div>
       <div class="fill-color-picker" data-fill-color-picker data-figure-id="${id}">
         <span class="fill-color-picker__label">Fyllfarge</span>
@@ -1469,7 +1450,7 @@ const fillColorPickerInstances = new WeakMap();
       </div>
       <div class="checkbox-row">
         <input id="allowDenominator${id}" type="checkbox" />
-        <label for="allowDenominator${id}">Endre nevner</label>
+        <label for="allowDenominator${id}">Vis endre nevnerknapp</label>
       </div>
     `;
     return fieldset;
@@ -1832,8 +1813,6 @@ const fillColorPickerInstances = new WeakMap();
     const allowDenominatorInp = document.getElementById(`allowDenominator${id}`);
     const stepperEl = document.getElementById(`partsStepper${id}`);
     const panel = document.getElementById(`panel${id}`);
-    const solutionNumInp = document.getElementById(`solutionNumerator${id}`);
-    const solutionDenInp = document.getElementById(`solutionDenominator${id}`);
     let board;
     const divisionSegmentIds = new Set();
     const divisionSegmentNodes = new Set();
@@ -1893,17 +1872,12 @@ const fillColorPickerInstances = new WeakMap();
         allowDenominatorInp.checked = enabled;
       }
       if (partsInp) {
-        partsInp.disabled = !enabled;
+        partsInp.disabled = false;
       }
-      if (minusBtn) minusBtn.disabled = !enabled;
-      if (plusBtn) plusBtn.disabled = !enabled;
+      if (minusBtn) minusBtn.style.display = enabled ? '' : 'none';
+      if (plusBtn) plusBtn.style.display = enabled ? '' : 'none';
       if (stepperEl) {
-        stepperEl.style.display = enabled ? '' : 'none';
-        if (enabled) {
-          stepperEl.removeAttribute('aria-hidden');
-        } else {
-          stepperEl.setAttribute('aria-hidden', 'true');
-        }
+        stepperEl.removeAttribute('aria-hidden');
       }
       return enabled;
     }
@@ -1948,22 +1922,6 @@ const fillColorPickerInstances = new WeakMap();
         filled = new Map(entries);
       }
       figState.filled = entries;
-    }
-    function syncSolutionFromInputs() {
-      const figState = ensureFigureState(id);
-      let solution = figState.solution && typeof figState.solution === 'object' ? figState.solution : null;
-      if (!solution) {
-        solution = { numerator: null, denominator: null };
-        figState.solution = solution;
-      }
-      if (solutionNumInp) {
-        const num = parseInt(solutionNumInp.value, 10);
-        solution.numerator = Number.isFinite(num) ? num : null;
-      }
-      if (solutionDenInp) {
-        const den = parseInt(solutionDenInp.value, 10);
-        solution.denominator = Number.isFinite(den) && den > 0 ? den : null;
-      }
     }
     function initBoard(shape) {
       if (board) {
@@ -3265,12 +3223,6 @@ const fillColorPickerInstances = new WeakMap();
     });
     partsInp === null || partsInp === void 0 || registerListener(partsInp, 'input', () => {
       const figState = ensureFigureState(id);
-      if (!figState.allowDenominatorChange) {
-        const current = clampInt(figState.parts, 1);
-        partsInp.value = String(current);
-        if (partsVal) partsVal.textContent = String(current);
-        return;
-      }
       figState.parts = clampInt(partsInp.value, 1);
       window.render();
       clearCheckStatus();
@@ -3279,14 +3231,6 @@ const fillColorPickerInstances = new WeakMap();
       const figState = ensureFigureState(id);
       figState.division = divSel.value;
       window.render();
-      clearCheckStatus();
-    });
-    solutionNumInp === null || solutionNumInp === void 0 || registerListener(solutionNumInp, 'input', () => {
-      syncSolutionFromInputs();
-      clearCheckStatus();
-    });
-    solutionDenInp === null || solutionDenInp === void 0 || registerListener(solutionDenInp, 'input', () => {
-      syncSolutionFromInputs();
       clearCheckStatus();
     });
     minusBtn === null || minusBtn === void 0 || registerListener(minusBtn, 'click', () => {
