@@ -7842,7 +7842,28 @@ if (btnSvg) {
     }
     const svgExport = buildBoardSvgExport();
     if (!svgExport || !svgExport.markup) return;
-    const pngName = `${getSuggestedFilename()}.png`;
+    const baseName = getSuggestedFilename();
+    const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
+    const svgElement =
+      appState && appState.board && appState.board.renderer
+        ? appState.board.renderer.svgRoot
+        : null;
+    const htmlTarget =
+      document.querySelector('.figure') ||
+      document.getElementById('board');
+    if (helper && typeof helper.exportGraphicWithArchive === 'function' && svgElement) {
+      await helper.exportGraphicWithArchive(svgElement, baseName, 'graftegner', {
+        svgString: svgExport.markup,
+        htmlTarget,
+        backgroundColor: '#fff',
+        pngFallbackOrder: 'html-first',
+        downloadSvg: false,
+        downloadMetadata: false,
+        downloadPng: true
+      });
+      return;
+    }
+    const pngName = `${baseName}.png`;
     const html2CanvasDidDownload = await downloadBoardPngWithHtml2Canvas(pngName);
     if (!html2CanvasDidDownload) {
       await downloadBoardPNG(svgExport, pngName);
