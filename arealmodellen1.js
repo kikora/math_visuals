@@ -2625,8 +2625,25 @@ function draw() {
       includeHotZones: false
     });
     const svgStr = buildBaseSvgMarkup(exportOptions, true);
-    const filename = ((_ADV$export3 = ADV.export) === null || _ADV$export3 === void 0 ? void 0 : _ADV$export3.filenamePng) || "arealmodell.png";
-    downloadPNGFromString(svgStr, filename);
+    const filename = ((_ADV$export3 = ADV.export) === null || _ADV$export3 === void 0 ? void 0 : _ADV$export3.filename) || "arealmodell.svg";
+    const svgElement = document.getElementById("area");
+    const helper = typeof window !== "undefined" ? window.MathVisSvgExport : null;
+    const meta = buildArealmodellExportMeta();
+    if (svgElement && helper && typeof helper.exportSvgWithArchive === "function") {
+      maybeRefreshAltText("export");
+      helper.exportSvgWithArchive(svgElement, filename, "arealmodell", {
+        svgString: svgStr,
+        description: meta.description,
+        defaultBaseName: meta.defaultBaseName,
+        summary: meta.summary,
+        title: meta.title
+      }).catch(error => {
+        console.error("Kunne ikke eksportere via arkivet", error);
+        downloadText(filename, svgStr, "image/svg+xml");
+      });
+      return;
+    }
+    downloadText(filename, svgStr, "image/svg+xml");
   };
   const btnPng = document.getElementById("btnPng");
   if (btnPng) btnPng.onclick = () => {

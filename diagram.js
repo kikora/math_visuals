@@ -1248,8 +1248,8 @@ const btnSvg = document.getElementById('btnSvg');
 const btnPng = document.getElementById('btnPng');
 btnSvg === null || btnSvg === void 0 || btnSvg.addEventListener('click', () => {
   applyCfg();
-  const filename = `${getSuggestedFilename()}.png`;
-  downloadPNG(svg, filename, 2);
+  const filename = `${getSuggestedFilename()}.svg`;
+  downloadSVG(svg, filename);
 });
 btnPng === null || btnPng === void 0 || btnPng.addEventListener('click', async () => {
   applyCfg();
