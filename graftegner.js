@@ -3623,8 +3623,9 @@ function worldToScreenPoint(worldPoint) {
   const rx = xmax - xmin;
   const ry = ymax - ymin;
   if (!Number.isFinite(rx) || !Number.isFinite(ry) || rx === 0 || ry === 0) return null;
-  const width = Math.max(1, appState.board.canvasWidth || 1);
-  const height = Math.max(1, appState.board.canvasHeight || 1);
+  const width = Number(appState.board.canvasWidth);
+  const height = Number(appState.board.canvasHeight);
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null;
   const sx = ((worldPoint.x - xmin) / rx) * width;
   const sy = ((ymax - worldPoint.y) / ry) * height;
   if (!Number.isFinite(sx) || !Number.isFinite(sy)) return null;
@@ -7551,6 +7552,27 @@ function serializeBoardSvg(clone) {
     };
   }
 
+  function inspectExportLabelGroups(svgMarkup, context = 'export') {
+    if (typeof svgMarkup !== 'string') {
+      return { hasAxisLabels: false, hasCurveLabels: false };
+    }
+    const hasAxisLabels = svgMarkup.includes('data-export-axis-labels');
+    const hasCurveLabels = svgMarkup.includes('data-export-curve-labels');
+    if (typeof console !== 'undefined' && typeof console.info === 'function') {
+      console.info(
+        `[svg ${context}] axis labels ${hasAxisLabels ? 'found' : 'missing'}, curve labels ${hasCurveLabels ? 'found' : 'missing'}`
+      );
+    }
+    return { hasAxisLabels, hasCurveLabels };
+  }
+
+  function nextAnimationFrame() {
+    if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
+      return Promise.resolve();
+    }
+    return new Promise(resolve => window.requestAnimationFrame(() => resolve()));
+  }
+
   async function downloadBoardPNG(svgExport, filename, scale = 2, bg = '#fff') {
     if (!svgExport || !svgExport.markup) return false;
     const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
@@ -7865,8 +7887,17 @@ if (btnSvg) {
       window.STATE_V2 = cleanState;
       window.STATE = cleanState;
     }
-    const svgExport = buildBoardSvgExport();
+    let svgExport = buildBoardSvgExport();
     if (!svgExport || !svgExport.markup) return;
+    let labelStatus = inspectExportLabelGroups(svgExport.markup, 'initial');
+    if (!labelStatus.hasAxisLabels || !labelStatus.hasCurveLabels) {
+      await nextAnimationFrame();
+      const refreshedExport = buildBoardSvgExport();
+      if (refreshedExport && refreshedExport.markup) {
+        svgExport = refreshedExport;
+        labelStatus = inspectExportLabelGroups(svgExport.markup, 'after-raf');
+      }
+    }
     const baseName = getSuggestedFilename();
     const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
     const svgElement =
@@ -7877,6 +7908,7 @@ if (btnSvg) {
       document.querySelector('.figure') ||
       document.getElementById('board');
     if (helper && typeof helper.exportGraphicWithArchive === 'function' && svgElement) {
+      inspectExportLabelGroups(svgExport.markup, 'pre-archive');
       await helper.exportGraphicWithArchive(svgElement, baseName, 'graftegner', {
         svgString: svgExport.markup,
         htmlTarget,
