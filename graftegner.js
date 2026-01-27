@@ -7914,10 +7914,11 @@ if (btnSvg) {
         htmlTarget,
         backgroundColor: '#fff',
         pngFallbackOrder: 'svg-first',
-        downloadSvg: false,
+        downloadSvg: true,
         downloadMetadata: false,
         downloadPng: true
       });
+      await downloadBoardSvg(svgExport, baseName);
       return;
     }
     const pngName = `${baseName}.png`;
@@ -7925,6 +7926,7 @@ if (btnSvg) {
     if (!html2CanvasDidDownload) {
       await downloadBoardPNG(svgExport, pngName);
     }
+    await downloadBoardSvg(svgExport, baseName);
   });
 }
 setupSettingsForm();
