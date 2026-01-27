@@ -635,9 +635,7 @@
     const doc = options.doc || (typeof document !== 'undefined' ? document : null);
     let svgElement = options.svgElement || null;
     let workingSvg = null;
-    if (svgElement) {
-      workingSvg = cloneSvgForExport(svgElement);
-    } else if (typeof options.svgString === 'string') {
+    if (typeof options.svgString === 'string') {
       const parsedSvg = parseSvgString(options.svgString);
       if (parsedSvg) {
         workingSvg = parsedSvg;
@@ -646,6 +644,10 @@
         ensureSvgBackground(workingSvg, options.bounds || {});
         injectDocumentStylesIntoSvg(doc, workingSvg);
       }
+    }
+
+    if (!workingSvg && svgElement) {
+      workingSvg = cloneSvgForExport(svgElement);
     }
 
     if (!workingSvg) {
