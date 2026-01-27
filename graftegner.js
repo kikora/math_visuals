@@ -3632,8 +3632,51 @@ function worldToScreenPoint(worldPoint) {
   return { x: sx, y: sy };
 }
 
+function parseSvgNumber(value) {
+  if (typeof value !== 'string') return NaN;
+  const match = value.match(/-?\d*\.?\d+(?:e[-+]?\d+)?/i);
+  return match ? Number(match[0]) : NaN;
+}
+
+function getSvgLabelPosition(node) {
+  if (!node || typeof node.getAttribute !== 'function') return null;
+  const xRaw = node.getAttribute('x');
+  const yRaw = node.getAttribute('y');
+  const x = parseSvgNumber(xRaw);
+  const y = parseSvgNumber(yRaw);
+  if (Number.isFinite(x) && Number.isFinite(y)) return { x, y };
+  return null;
+}
+
+function hasExistingAxisLabelNodes(node) {
+  if (!node || typeof node.querySelector !== 'function') return false;
+  return !!node.querySelector('.graf-axis-label, [data-axis-label], [data-export-axis-labels]');
+}
+
+function hasExistingCurveLabel(node, textContent, screenPos) {
+  if (!node || !textContent || typeof node.querySelectorAll !== 'function') return false;
+  const target = textContent.trim();
+  if (!target) return false;
+  const candidates = node.querySelectorAll('text, foreignObject[data-export-plain-text]');
+  const tolerance = 4;
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const candidateText = candidate.getAttribute && candidate.getAttribute('data-export-plain-text')
+      ? candidate.getAttribute('data-export-plain-text')
+      : candidate.textContent;
+    if (!candidateText || candidateText.trim() !== target) continue;
+    const pos = getSvgLabelPosition(candidate);
+    if (!pos || !screenPos) return true;
+    if (Math.abs(pos.x - screenPos.x) <= tolerance && Math.abs(pos.y - screenPos.y) <= tolerance) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function appendAxisLabelsToSvgClone(node) {
   if (!node || typeof node.ownerDocument === 'undefined') return;
+  if (hasExistingAxisLabelNodes(node)) return;
   const doc = node.ownerDocument || (typeof document !== 'undefined' ? document : null);
   if (!doc) return;
   const fontSizeRaw = Number.parseFloat(ADV.axis.labels.fontSize);
@@ -3702,6 +3745,7 @@ function appendCurveLabelsToSvgClone(node) {
   if (!Array.isArray(appState.graphs) || appState.graphs.length === 0) return;
   const doc = node.ownerDocument || (typeof document !== 'undefined' ? document : null);
   if (!doc) return;
+  if (node.querySelector('[data-export-curve-labels]')) return;
   const fontSizeRaw = Number.parseFloat(ADV.curveName.fontSize);
   const fontSize = Number.isFinite(fontSizeRaw) ? fontSizeRaw : 15;
   const group = doc.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -3716,6 +3760,7 @@ function appendCurveLabelsToSvgClone(node) {
     if (!Number.isFinite(x) || !Number.isFinite(y)) return;
     const screenPos = worldToScreenPoint({ x, y });
     if (!screenPos) return;
+    if (hasExistingCurveLabel(node, textContent, screenPos)) return;
     const latex = convertExpressionToLatex(textContent) || formatPointLabelLatex(textContent);
     const katexHtml = latex ? renderLatexToHtml(latex) : '';
     if (katexHtml && ensureKatexStyleInSvg(node)) {
@@ -7566,6 +7611,34 @@ function serializeBoardSvg(clone) {
     return { hasAxisLabels, hasCurveLabels };
   }
 
+  function verifyExportLabelUniqueness(svgNode, context = 'export') {
+    if (!svgNode || typeof svgNode.querySelectorAll !== 'function') return null;
+    const targets = ['x', 'y', 'f(x)'];
+    const counts = targets.reduce((acc, label) => {
+      acc[label] = 0;
+      return acc;
+    }, {});
+    const nodes = svgNode.querySelectorAll('text, foreignObject[data-export-plain-text]');
+    nodes.forEach(node => {
+      if (!node) return;
+      const content = node.getAttribute && node.getAttribute('data-export-plain-text')
+        ? node.getAttribute('data-export-plain-text')
+        : node.textContent;
+      const trimmed = content ? content.trim() : '';
+      if (Object.prototype.hasOwnProperty.call(counts, trimmed)) {
+        counts[trimmed] += 1;
+      }
+    });
+    if (typeof console !== 'undefined' && typeof console.info === 'function') {
+      console.info(`[svg ${context}] label counts`, counts);
+    }
+    const hasDuplicates = targets.some(label => counts[label] > 1);
+    if (hasDuplicates && typeof console !== 'undefined' && typeof console.warn === 'function') {
+      console.warn(`[svg ${context}] duplicate labels detected`, counts);
+    }
+    return counts;
+  }
+
   function nextAnimationFrame() {
     if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
       return Promise.resolve();
@@ -7575,6 +7648,7 @@ function serializeBoardSvg(clone) {
 
   async function downloadBoardPNG(svgExport, filename, scale = 2, bg = '#fff') {
     if (!svgExport || !svgExport.markup) return false;
+    verifyExportLabelUniqueness(svgExport.node, 'png');
     const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
     const urlApi = typeof window !== 'undefined' ? window.URL || URL : null;
     const svgBlob = new Blob([svgExport.markup], {
