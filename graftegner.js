@@ -3638,6 +3638,15 @@ function parseSvgNumber(value) {
   return match ? Number(match[0]) : NaN;
 }
 
+function normalizeExportLabelText(text) {
+  if (typeof text !== 'string') return '';
+  return text
+    .replace(/\u00a0/g, ' ')
+    .replace(/[\u2061\u2062\u2063\u2064]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function getSvgLabelPosition(node) {
   if (!node || typeof node.getAttribute !== 'function') return null;
   const xRaw = node.getAttribute('x');
@@ -3650,12 +3659,28 @@ function getSvgLabelPosition(node) {
 
 function hasExistingAxisLabelNodes(node) {
   if (!node || typeof node.querySelector !== 'function') return false;
-  return !!node.querySelector('.graf-axis-label, [data-axis-label], [data-export-axis-labels]');
+  if (node.querySelector('.graf-axis-label, [data-axis-label], [data-export-axis-labels]')) return true;
+  const axisLabels = [axisLabelText('x'), axisLabelText('y')]
+    .map(label => normalizeExportLabelText(label))
+    .filter(Boolean);
+  if (axisLabels.length === 0) return false;
+  const candidates = node.querySelectorAll('text, foreignObject[data-export-plain-text]');
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const candidateText = candidate.getAttribute && candidate.getAttribute('data-export-plain-text')
+      ? candidate.getAttribute('data-export-plain-text')
+      : candidate.textContent;
+    const normalized = normalizeExportLabelText(candidateText || '');
+    if (normalized && axisLabels.includes(normalized)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function hasExistingCurveLabel(node, textContent, screenPos) {
   if (!node || !textContent || typeof node.querySelectorAll !== 'function') return false;
-  const target = textContent.trim();
+  const target = normalizeExportLabelText(textContent);
   if (!target) return false;
   const candidates = node.querySelectorAll('text, foreignObject[data-export-plain-text]');
   const tolerance = 4;
@@ -3664,7 +3689,8 @@ function hasExistingCurveLabel(node, textContent, screenPos) {
     const candidateText = candidate.getAttribute && candidate.getAttribute('data-export-plain-text')
       ? candidate.getAttribute('data-export-plain-text')
       : candidate.textContent;
-    if (!candidateText || candidateText.trim() !== target) continue;
+    const normalized = normalizeExportLabelText(candidateText || '');
+    if (!normalized || normalized !== target) continue;
     const pos = getSvgLabelPosition(candidate);
     if (!pos || !screenPos) return true;
     if (Math.abs(pos.x - screenPos.x) <= tolerance && Math.abs(pos.y - screenPos.y) <= tolerance) {
@@ -3738,6 +3764,44 @@ function curveLabelExportText(label) {
   if (secondary && secondary.trim()) return secondary.trim();
   const fallback = label.rendNodeText && label.rendNodeText.textContent ? label.rendNodeText.textContent : '';
   return fallback && fallback.trim() ? fallback.trim() : '';
+}
+
+function removeExistingExportLabels(node) {
+  if (!node || typeof node.querySelectorAll !== 'function') return;
+  const labelTargets = new Set();
+  ['x', 'y'].forEach(axisKey => {
+    const label = normalizeExportLabelText(axisLabelText(axisKey));
+    if (label) labelTargets.add(label);
+  });
+  if (Array.isArray(appState.graphs)) {
+    appState.graphs.forEach(g => {
+      const label = g && g.labelElement;
+      if (!label || label.visProp && label.visProp.visible === false) return;
+      const textContent = normalizeExportLabelText(curveLabelExportText(label));
+      if (textContent) labelTargets.add(textContent);
+    });
+  }
+  if (labelTargets.size === 0) return;
+  const candidates = Array.from(node.querySelectorAll('text, foreignObject'));
+  candidates.forEach(candidate => {
+    if (!candidate) return;
+    if (candidate.getAttribute && candidate.getAttribute('data-axis-label')) {
+      candidate.remove();
+      return;
+    }
+    if (candidate.querySelector && candidate.querySelector('.graf-axis-label, .curve-label')) {
+      candidate.remove();
+      return;
+    }
+    const candidateText = candidate.getAttribute && candidate.getAttribute('data-export-plain-text')
+      ? candidate.getAttribute('data-export-plain-text')
+      : candidate.textContent;
+    const normalized = normalizeExportLabelText(candidateText || '');
+    if (!normalized) return;
+    if (labelTargets.has(normalized)) {
+      candidate.remove();
+    }
+  });
 }
 
 function appendCurveLabelsToSvgClone(node) {
@@ -7382,10 +7446,17 @@ function sanitizeSvgForeignObjects(svgNode) {
     if (fontStyle) {
       replacement.setAttribute('font-style', fontStyle);
     }
-    replacement.setAttribute('font-family', 'Inter, "Segoe UI", system-ui, sans-serif');
     const styleSources = [node.getAttribute('style') || ''];
     if (node.firstElementChild && typeof node.firstElementChild.getAttribute === 'function') {
       styleSources.push(node.firstElementChild.getAttribute('style') || '');
+    }
+    const fontFamilyValue = styleSources.reduce((acc, style) => acc || extractInlineStyleValue(style, ['font-family']), null);
+    if (fontFamilyValue) {
+      replacement.setAttribute('font-family', fontFamilyValue);
+    } else if (node.querySelector && node.querySelector('.katex')) {
+      replacement.setAttribute('font-family', 'KaTeX_Main, "Times New Roman", serif');
+    } else {
+      replacement.setAttribute('font-family', 'Inter, "Segoe UI", system-ui, sans-serif');
     }
     const colorValue = styleSources.reduce((acc, style) => acc || extractInlineStyleValue(style, ['color', '--graf-axis-label-text']), null);
     if (colorValue) {
@@ -7554,6 +7625,7 @@ function cloneBoardSvgRoot() {
   node.setAttribute('viewBox', `0 0 ${width} ${height}`);
   node.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
   node.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+  removeExistingExportLabels(node);
   sanitizeSvgForeignObjects(node);
   appendAxisLabelsToSvgClone(node);
   appendCurveLabelsToSvgClone(node);
