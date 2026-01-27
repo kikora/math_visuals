@@ -7472,7 +7472,12 @@ function cloneBoardSvgRoot() {
   if (!appState.board || !appState.board.renderer || !appState.board.renderer.svgRoot) return null;
   const width = appState.board.canvasWidth;
   const height = appState.board.canvasHeight;
-  const node = appState.board.renderer.svgRoot.cloneNode(true);
+  const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
+  const sourceSvg = appState.board.renderer.svgRoot;
+  const node =
+    helper && typeof helper.cloneSvgForExport === 'function'
+      ? helper.cloneSvgForExport(sourceSvg)
+      : sourceSvg.cloneNode(true);
   node.removeAttribute('style');
   node.setAttribute('width', `${width}`);
   node.setAttribute('height', `${height}`);
@@ -7483,7 +7488,6 @@ function cloneBoardSvgRoot() {
   appendAxisLabelsToSvgClone(node);
   appendCurveLabelsToSvgClone(node);
   ensureAxisArrowsInSvgClone(node);
-  const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
   if (helper && typeof helper.ensureSvgBackground === 'function') {
     helper.ensureSvgBackground(node, {
       bounds: { minX: 0, minY: 0, width, height }
@@ -7496,6 +7500,9 @@ function cloneBoardSvgRoot() {
     rect.setAttribute('height', String(height));
     rect.setAttribute('fill', '#ffffff');
     node.insertBefore(rect, node.firstChild);
+  }
+  if (helper && typeof helper.ensureSvgNamespaces === 'function') {
+    helper.ensureSvgNamespaces(node);
   }
   const exportDims = getNormalizedBoardExportDimensions(width, height);
   normalizeBoardSvgForExport(node, exportDims);
@@ -7631,6 +7638,27 @@ function serializeBoardSvg(clone) {
       document.querySelector('.figure') ||
       document.getElementById('board');
     if (!target) return false;
+    const isVisibleTarget = element => {
+      if (!element || !element.isConnected) return false;
+      const rect = element.getBoundingClientRect();
+      if (!rect || rect.width <= 1 || rect.height <= 1) return false;
+      if (typeof window === 'undefined' || typeof window.getComputedStyle !== 'function') return true;
+      const style = window.getComputedStyle(element);
+      if (!style) return true;
+      if (style.display === 'none' || style.visibility === 'hidden') return false;
+      const opacity = Number.parseFloat(style.opacity);
+      if (Number.isFinite(opacity) && opacity <= 0) return false;
+      return true;
+    };
+    const hasRenderableContent = element => {
+      if (!element) return false;
+      const tagName = typeof element.tagName === 'string' ? element.tagName.toLowerCase() : '';
+      if (tagName === 'svg' || tagName === 'canvas') return true;
+      return Boolean(element.querySelector && element.querySelector('svg, canvas'));
+    };
+    if (!isVisibleTarget(target) || !hasRenderableContent(target)) {
+      return false;
+    }
     const ratio = typeof window !== 'undefined' && window.devicePixelRatio ? window.devicePixelRatio : 1;
     const renderScale = Math.max(Number.isFinite(scale) && scale > 0 ? scale : 2, ratio);
     try {
@@ -7641,7 +7669,7 @@ function serializeBoardSvg(clone) {
         foreignObjectRendering: true,
         logging: false
       });
-      if (!canvas) return false;
+      if (!canvas || canvas.width <= 1 || canvas.height <= 1) return false;
       let blob = null;
       if (typeof canvas.toBlob === 'function') {
         blob = await new Promise(resolve => {

@@ -3645,11 +3645,24 @@ const fillColorPickerInstances = new WeakMap();
     const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
     const meta = buildBrokfigurerExportMeta();
     const svgString = svgToString(composite.svg);
+    const isRenderableTarget = element => {
+      if (!element || !element.isConnected) return false;
+      const rect = element.getBoundingClientRect();
+      if (!rect || rect.width <= 1 || rect.height <= 1) return false;
+      if (typeof window === 'undefined' || typeof window.getComputedStyle !== 'function') return true;
+      const style = window.getComputedStyle(element);
+      if (!style) return true;
+      if (style.display === 'none' || style.visibility === 'hidden') return false;
+      const opacity = Number.parseFloat(style.opacity);
+      if (Number.isFinite(opacity) && opacity <= 0) return false;
+      return true;
+    };
+    const htmlTarget = isRenderableTarget(composite.htmlTarget) ? composite.htmlTarget : null;
     if (helper && typeof helper.exportGraphicWithArchive === 'function') {
       try {
         await helper.exportGraphicWithArchive({
           svgElement: composite.svg,
-          htmlTarget: composite.htmlTarget || composite.svg,
+          htmlTarget: htmlTarget || null,
           suggestedName: `${meta.defaultBaseName || 'brokfigurer'}.svg`,
           toolId: 'brokfigurer',
           svgString,
