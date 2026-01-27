@@ -370,7 +370,6 @@ function isValidColor(value) {
   const BOARD_MARGIN = 0.05;
   const BOARD_SIZE = 1 + BOARD_MARGIN * 2;
   const BOARD_BOUNDING_BOX = [-BOARD_MARGIN, 1 + BOARD_MARGIN, 1 + BOARD_MARGIN, -BOARD_MARGIN];
-  const RECTANGLE_ASPECT_RATIO = 0.75;
   const CLIP_PADDING_PERCENT = BOARD_MARGIN / BOARD_SIZE * 100;
   const CLIP_PAD_EXTRA_PERCENT = 2;
   const CLIP_PAD_PERCENT = CLIP_PADDING_PERCENT + CLIP_PAD_EXTRA_PERCENT;
@@ -949,8 +948,9 @@ const fillColorPickerInstances = new WeakMap();
     const clamped = Math.max(min, base);
     return max != null ? Math.min(clamped, max) : clamped;
   };
-  const VALID_SHAPES = new Set(['circle', 'rectangle', 'square', 'triangle']);
+  const VALID_SHAPES = new Set(['circle', 'square', 'triangle']);
   const VALID_DIVISIONS = new Set(['horizontal', 'vertical', 'grid', 'diagonal', 'triangular']);
+  const normalizeShape = value => value === 'rectangle' ? 'square' : value;
   function sanitizeFilledEntries(value) {
     let iterable;
     if (value instanceof Map) {
@@ -1161,6 +1161,12 @@ const fillColorPickerInstances = new WeakMap();
     const partsEl = document.getElementById(`parts${id}`);
     const divisionEl = document.getElementById(`division${id}`);
     if (shapeEl && fig.shape == null) fig.shape = shapeEl.value;
+    if (typeof fig.shape === 'string') {
+      fig.shape = normalizeShape(fig.shape);
+    }
+    if (!VALID_SHAPES.has(fig.shape)) {
+      fig.shape = normalizeShape(shapeEl ? shapeEl.value : 'square');
+    }
     if (partsEl && fig.parts == null) {
       const parsed = parseInt(partsEl.value, 10);
       fig.parts = Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
@@ -1343,8 +1349,14 @@ const fillColorPickerInstances = new WeakMap();
       if (allowDenominatorInp) allowDenominatorInp.checked = allowDenominator;
       const shapeSel = document.getElementById(`shape${id}`);
       if (shapeSel && figState.shape) {
+        const normalizedShape = normalizeShape(figState.shape);
         const options = Array.from(shapeSel.options || []);
-        if (options.some(opt => opt.value === figState.shape)) shapeSel.value = figState.shape;else figState.shape = shapeSel.value;
+        if (options.some(opt => opt.value === normalizedShape)) {
+          shapeSel.value = normalizedShape;
+          figState.shape = normalizedShape;
+        } else {
+          figState.shape = normalizeShape(shapeSel.value);
+        }
       }
       const partsInp = document.getElementById(`parts${id}`);
       const partsVal = document.getElementById(`partsVal${id}`);
@@ -1401,11 +1413,6 @@ const fillColorPickerInstances = new WeakMap();
     panel.dataset.figureId = String(id);
     panel.innerHTML = `
       <div class="figure"><div id="box${id}" class="box"></div></div>
-      <div class="stepper" id="partsStepper${id}" aria-label="Antall deler">
-        <button id="partsMinus${id}" type="button" aria-label="Færre deler">−</button>
-        <span id="partsVal${id}">4</span>
-        <button id="partsPlus${id}" type="button" aria-label="Flere deler">+</button>
-      </div>
     `;
     return panel;
   }
@@ -1419,8 +1426,7 @@ const fillColorPickerInstances = new WeakMap();
           <label for="shape${id}">Form</label>
           <select id="shape${id}">
             <option value="circle">sirkel</option>
-            <option value="rectangle" selected>rektangel</option>
-            <option value="square">kvadrat</option>
+            <option value="square" selected>kvadrat</option>
             <option value="triangle">trekant</option>
           </select>
         </div>
@@ -1556,11 +1562,9 @@ const fillColorPickerInstances = new WeakMap();
     return `${num} ${word}`;
   }
   function getShapeInfo(shape) {
-    switch (shape) {
+    switch (normalizeShape(shape)) {
       case 'circle':
         return { article: 'en', noun: 'sirkel' };
-      case 'rectangle':
-        return { article: 'et', noun: 'rektangel' };
       case 'square':
         return { article: 'et', noun: 'kvadrat' };
       case 'triangle':
@@ -1636,7 +1640,7 @@ const fillColorPickerInstances = new WeakMap();
     const paletteLength = getFillPalette().length;
     figureIds.forEach((id, index) => {
       const figState = ensureFigureState(id);
-      const shape = typeof (figState == null ? void 0 : figState.shape) === 'string' ? figState.shape : 'rectangle';
+      const shape = typeof (figState == null ? void 0 : figState.shape) === 'string' ? normalizeShape(figState.shape) : 'square';
       const division = typeof (figState == null ? void 0 : figState.division) === 'string' ? figState.division : 'horizontal';
       const parts = clampInt(figState == null ? void 0 : figState.parts, 1);
       const entries = Array.isArray(figState == null ? void 0 : figState.filled) ? figState.filled : [];
@@ -1929,7 +1933,7 @@ const fillColorPickerInstances = new WeakMap();
         (_board$stopResizeObse = board.stopResizeObserver) === null || _board$stopResizeObse === void 0 ? void 0 : _board$stopResizeObse.call(board);
         JXG.JSXGraph.freeBoard(board);
       }
-      const boundingBox = shape === 'rectangle' ? [-BOARD_MARGIN, 1 + BOARD_MARGIN, RECTANGLE_ASPECT_RATIO + BOARD_MARGIN, -BOARD_MARGIN] : BOARD_BOUNDING_BOX;
+      const boundingBox = BOARD_BOUNDING_BOX;
       board = JXG.JSXGraph.initBoard(`box${id}`, {
         boundingbox: boundingBox,
         axis: false,
@@ -1963,10 +1967,8 @@ const fillColorPickerInstances = new WeakMap();
       const height = board.containerObj.clientHeight;
       if (!width || !height) return;
       const figState = ensureFigureState(id);
-      const shape = figState.shape || (shapeSel && shapeSel.value) || 'rectangle';
-      const boundingBox = shape === 'rectangle'
-        ? [-BOARD_MARGIN, 1 + BOARD_MARGIN, RECTANGLE_ASPECT_RATIO + BOARD_MARGIN, -BOARD_MARGIN]
-        : BOARD_BOUNDING_BOX;
+      const shape = normalizeShape(figState.shape || (shapeSel && shapeSel.value) || 'square');
+      const boundingBox = BOARD_BOUNDING_BOX;
       board.resizeContainer(width, height);
       if (typeof board.setBoundingBox === 'function') {
         board.setBoundingBox(BOARD_BOUNDING_BOX, true);
@@ -2374,8 +2376,8 @@ const fillColorPickerInstances = new WeakMap();
     }
     function updateRoundedRectFrame() {
       const figState = ensureFigureState(id);
-      const shape = figState.shape || (shapeSel && shapeSel.value) || 'rectangle';
-      if (shape !== 'rectangle' && shape !== 'square') {
+      const shape = normalizeShape(figState.shape || (shapeSel && shapeSel.value) || 'square');
+      if (shape !== 'square') {
         clearRoundedRectFrame();
         return;
       }
@@ -2581,10 +2583,10 @@ const fillColorPickerInstances = new WeakMap();
       updateDenominatorControls(figState.allowDenominatorChange, figState);
       setFilled(figState.filled);
       let n = clampInt((_ref = (_partsInp$value = partsInp === null || partsInp === void 0 ? void 0 : partsInp.value) !== null && _partsInp$value !== void 0 ? _partsInp$value : figState.parts) !== null && _ref !== void 0 ? _ref : 1, 1);
-      const shape = (shapeSel === null || shapeSel === void 0 ? void 0 : shapeSel.value) || figState.shape || 'rectangle';
+      const shape = normalizeShape((shapeSel === null || shapeSel === void 0 ? void 0 : shapeSel.value) || figState.shape || 'square');
       let division = (divSel === null || divSel === void 0 ? void 0 : divSel.value) || figState.division || 'horizontal';
       const allowWrong = allowWrongGlobal;
-      rectWidthScale = shape === 'rectangle' ? RECTANGLE_ASPECT_RATIO : 1;
+      rectWidthScale = 1;
       updateBoxLayout(shape);
       initBoard(shape);
       if (shape === 'circle' || shape === 'triangle') {
@@ -2594,17 +2596,26 @@ const fillColorPickerInstances = new WeakMap();
       divisionSegmentNodes.clear();
       fillSegmentNodes.clear();
       ensureDivisionGuard();
-      if ((shape === 'rectangle' || shape === 'square') && division === 'diagonal') n = 4;
+      if (shape === 'square' && division === 'diagonal') n = 4;
       const gridOpt = divSel === null || divSel === void 0 ? void 0 : divSel.querySelector('option[value="grid"]');
+      const horizOpt = divSel === null || divSel === void 0 ? void 0 : divSel.querySelector('option[value="horizontal"]');
       const vertOpt = divSel === null || divSel === void 0 ? void 0 : divSel.querySelector('option[value="vertical"]');
       const triOpt = divSel === null || divSel === void 0 ? void 0 : divSel.querySelector('option[value="triangular"]');
+      if (shape === 'circle' && !allowWrong && division !== 'diagonal') {
+        division = 'diagonal';
+        if (divSel) divSel.value = 'diagonal';
+      }
       if (gridOpt) {
         gridOpt.hidden = !hasProperFactor(n) || shape === 'circle' && !allowWrong || shape === 'triangle';
         if (gridOpt.hidden && division === 'grid') divSel.value = 'horizontal';
       }
+      if (horizOpt) {
+        horizOpt.hidden = shape === 'circle' && !allowWrong;
+        if (horizOpt.hidden && division === 'horizontal') divSel.value = 'diagonal';
+      }
       if (vertOpt) {
         vertOpt.hidden = shape === 'circle' && !allowWrong;
-        if (vertOpt.hidden && division === 'vertical') divSel.value = 'horizontal';
+        if (vertOpt.hidden && division === 'vertical') divSel.value = 'diagonal';
       }
       if (triOpt) {
         triOpt.hidden = shape !== 'triangle';
@@ -2618,7 +2629,7 @@ const fillColorPickerInstances = new WeakMap();
       if (partsInp) partsInp.value = String(n);
       if (partsVal) partsVal.textContent = String(n);
       figState.parts = n;
-      figState.shape = (shapeSel === null || shapeSel === void 0 ? void 0 : shapeSel.value) || shape;
+      figState.shape = shape;
       figState.division = division;
       figState.allowWrong = allowWrong;
       fillPalette = getFillPalette();
@@ -2629,7 +2640,7 @@ const fillColorPickerInstances = new WeakMap();
         const c = filled.get(idx);
         return c ? fillPalette[c - 1] || '#fff' : '#fff';
       };
-      if (shape === 'circle') drawCircle(n, division, allowWrong, colorFor);else if (shape === 'rectangle' || shape === 'square') drawRect(n, division, colorFor);else drawTriangle(n, division, allowWrong, colorFor);
+      if (shape === 'circle') drawCircle(n, division, allowWrong, colorFor);else if (shape === 'square') drawRect(n, division, colorFor);else drawTriangle(n, division, allowWrong, colorFor);
       scheduleClipUpdate(shape, division);
     }
     function drawCircle(n, division, allowWrong, colorFor) {
@@ -3135,7 +3146,7 @@ const fillColorPickerInstances = new WeakMap();
           );
           clipPath.appendChild(polygon);
         };
-      } else if (shape === 'rectangle' || shape === 'square') {
+      } else if (shape === 'square') {
         clipUpdater = clipPath => {
           clipPath.setAttribute('clipPathUnits', 'objectBoundingBox');
           while (clipPath.firstChild) clipPath.removeChild(clipPath.firstChild);
@@ -3777,8 +3788,9 @@ const fillColorPickerInstances = new WeakMap();
       const solution = figState.solution && typeof figState.solution === 'object' ? figState.solution : {};
       const rawNum = Number.parseInt(solution.numerator, 10);
       const rawDen = Number.parseInt(solution.denominator, 10);
+      const normalizedShape = normalizeShape(figState.shape);
       return {
-        shape: VALID_SHAPES.has(figState.shape) ? figState.shape : 'rectangle',
+        shape: VALID_SHAPES.has(normalizedShape) ? normalizedShape : 'square',
         division: VALID_DIVISIONS.has(figState.division) ? figState.division : 'horizontal',
         parts: clampInt(figState.parts, 1),
         allowDenominatorChange: !!figState.allowDenominatorChange,
@@ -3848,7 +3860,8 @@ const fillColorPickerInstances = new WeakMap();
       const entry = figureEntries[idx] && typeof figureEntries[idx] === 'object' ? figureEntries[idx] : {};
       const id = idx + 1;
       const figState = ensureFigureState(id);
-      if (VALID_SHAPES.has(entry.shape)) figState.shape = entry.shape;
+      const normalizedShape = normalizeShape(entry.shape);
+      if (VALID_SHAPES.has(normalizedShape)) figState.shape = normalizedShape;
       if (VALID_DIVISIONS.has(entry.division)) figState.division = entry.division;
       const parsedParts = Number.parseInt(entry.parts, 10);
       figState.parts = clampInt(Number.isFinite(parsedParts) && parsedParts > 0 ? parsedParts : figState.parts, 1);
