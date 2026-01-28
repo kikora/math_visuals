@@ -7434,11 +7434,41 @@ function sanitizeSvgForeignObjects(svgNode) {
     const replacement = doc.createElementNS('http://www.w3.org/2000/svg', 'text');
     const xAttr = node.getAttribute('x');
     const yAttr = node.getAttribute('y');
-    if (xAttr != null) replacement.setAttribute('x', xAttr);
-    if (yAttr != null) replacement.setAttribute('y', yAttr);
     const textAnchor = node.getAttribute && node.getAttribute('data-export-text-anchor');
     const dominantBaseline = node.getAttribute && node.getAttribute('data-export-dominant-baseline');
     const fontStyle = node.getAttribute && node.getAttribute('data-export-font-style');
+    const widthAttr = node.getAttribute && node.getAttribute('width');
+    const heightAttr = node.getAttribute && node.getAttribute('height');
+    const width = parseSvgNumber(widthAttr);
+    const height = parseSvgNumber(heightAttr);
+    const xValue = parseSvgNumber(xAttr);
+    const yValue = parseSvgNumber(yAttr);
+    let adjustedX = xValue;
+    let adjustedY = yValue;
+    if (Number.isFinite(xValue) && Number.isFinite(width)) {
+      if (textAnchor === 'middle') {
+        adjustedX = xValue + width / 2;
+      } else if (textAnchor === 'end') {
+        adjustedX = xValue + width;
+      }
+    }
+    if (Number.isFinite(yValue) && Number.isFinite(height)) {
+      if (dominantBaseline === 'middle' || dominantBaseline === 'central') {
+        adjustedY = yValue + height / 2;
+      } else if (dominantBaseline === 'text-after-edge' || dominantBaseline === 'after-edge') {
+        adjustedY = yValue + height;
+      }
+    }
+    if (Number.isFinite(adjustedX)) {
+      replacement.setAttribute('x', `${adjustedX}`);
+    } else if (xAttr != null) {
+      replacement.setAttribute('x', xAttr);
+    }
+    if (Number.isFinite(adjustedY)) {
+      replacement.setAttribute('y', `${adjustedY}`);
+    } else if (yAttr != null) {
+      replacement.setAttribute('y', yAttr);
+    }
     replacement.setAttribute('dominant-baseline', dominantBaseline || 'text-before-edge');
     if (textAnchor) {
       replacement.setAttribute('text-anchor', textAnchor);
