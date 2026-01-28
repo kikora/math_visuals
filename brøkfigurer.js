@@ -375,7 +375,7 @@ function isValidColor(value) {
   const CLIP_PAD_PERCENT = CLIP_PADDING_PERCENT + CLIP_PAD_EXTRA_PERCENT;
   const CIRCLE_RADIUS = 0.45;
   const OUTLINE_STROKE_WIDTH = 3;
-  const RECT_CORNER_RADIUS_RATIO = 0.01;
+  const RECT_CORNER_RADIUS_RATIO = 0.006;
   const DIVISION_SEGMENT_EXTENSION = 0;
   const EXPORT_FIGURE_SIZE = 800;
   const EXPORT_GAP = 18;
@@ -2829,11 +2829,11 @@ const fillColorPickerInstances = new WeakMap();
         }
         for (let i = 1; i < cols; i++) {
           const x = i / cols * width;
-          createDivisionSegment([x, 0], [x, 1]);
+          createDivisionSegment([x, 0], [x, 1], {}, false);
         }
         for (let j = 1; j < rows; j++) {
           const y = j / rows;
-          createDivisionSegment([0, y], [width, y]);
+          createDivisionSegment([0, y], [width, y], {}, false);
         }
       } else {
         for (let i = 0; i < n; i++) {
@@ -2875,10 +2875,10 @@ const fillColorPickerInstances = new WeakMap();
         for (let i = 1; i < n; i++) {
           if (division === 'vertical') {
             const x = i / n * width;
-            createDivisionSegment([x, 0], [x, 1]);
+            createDivisionSegment([x, 0], [x, 1], {}, false);
           } else {
             const y = i / n;
-            createDivisionSegment([0, y], [width, y]);
+            createDivisionSegment([0, y], [width, y], {}, false);
           }
         }
       }
