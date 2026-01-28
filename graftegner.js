@@ -4720,11 +4720,13 @@ function renderLatexToHtml(latex) {
   if (typeof window === 'undefined' || !window.katex) return '';
   const { katex } = window;
   if (!katex) return '';
+  const baseOptions = {
+    throwOnError: false,
+    output: 'html'
+  };
   if (typeof katex.renderToString === 'function') {
     try {
-      return katex.renderToString(latex, {
-        throwOnError: false
-      });
+      return katex.renderToString(latex, baseOptions);
     } catch (_) {
       return '';
     }
@@ -4732,9 +4734,7 @@ function renderLatexToHtml(latex) {
   if (typeof katex.render === 'function' && typeof document !== 'undefined') {
     const span = document.createElement('span');
     try {
-      katex.render(latex, span, {
-        throwOnError: false
-      });
+      katex.render(latex, span, baseOptions);
       return span.innerHTML;
     } catch (_) {
       return '';
