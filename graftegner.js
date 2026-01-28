@@ -7553,7 +7553,19 @@ function getNormalizedBoardExportDimensions(width, height) {
 
 function normalizeFontSizesForExport(node, scale) {
   if (!node || !Number.isFinite(scale) || scale === 1) return;
+  const isExportLabel = el => {
+    let current = el;
+    while (current && current !== node) {
+      if (current.getAttribute && (current.getAttribute('data-export-axis-labels') != null
+        || current.getAttribute('data-export-curve-labels') != null)) {
+        return true;
+      }
+      current = current.parentNode;
+    }
+    return false;
+  };
   const normalizeSize = el => {
+    if (isExportLabel(el)) return;
     const attr = el.getAttribute('font-size');
     let size = attr && attr.trim() ? parseFloat(attr) : NaN;
     if (!Number.isFinite(size) && typeof window !== 'undefined' && typeof getComputedStyle === 'function') {
