@@ -225,8 +225,7 @@ function isValidColor(value) {
       groupId: SHARED_GROUP_ID,
       count: targetCount,
       fallback: LEGACY_COLOR_PALETTE,
-      legacyPaletteId: 'figures',
-      fallbackKinds: ['fractions']
+      legacyPaletteId: 'figures'
     });
     if (Array.isArray(servicePalette) && servicePalette.length) {
       return normalizePaletteToCount(servicePalette, targetCount, LEGACY_COLOR_PALETTE);
@@ -240,7 +239,7 @@ function isValidColor(value) {
       }
     }
     if ((!Array.isArray(palette) || !palette.length) && theme && typeof theme.getPalette === 'function') {
-      palette = theme.getPalette('figures', count, { fallbackKinds: ['fractions'] });
+      palette = theme.getPalette('figures', count);
     }
     return normalizePaletteToCount(palette, targetCount, LEGACY_COLOR_PALETTE);
   }

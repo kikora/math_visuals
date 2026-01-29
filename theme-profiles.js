@@ -124,10 +124,10 @@
     return colors;
   }
   const GROUP_FALLBACKS = {
-    graftegner: ['fractions', 'figures'],
-    nkant: ['figures', 'fractions'],
-    arealmodell: ['fractions', 'figures'],
-    default: ['fractions', 'figures']
+    graftegner: ['figures', 'default'],
+    nkant: ['graftegner', 'default'],
+    arealmodell: ['graftegner', 'default'],
+    default: ['graftegner', 'default']
   };
   const DEFAULT_PALETTE_GROUPS = Array.isArray(paletteConfig.DEFAULT_GROUP_ORDER)
     ? paletteConfig.DEFAULT_GROUP_ORDER.slice()
@@ -137,7 +137,7 @@
     : [];
   const campusProfileBase = {
     palettes: {
-      fractions: fallbackPaletteColors.slice(),
+      graftegner: fallbackPaletteColors.slice(),
       figures: fallbackPaletteColors.slice()
     },
     colors: {
@@ -181,7 +181,7 @@
   };
   const annetProfileBase = {
     palettes: {
-      fractions: fallbackPaletteColors.slice(),
+      graftegner: fallbackPaletteColors.slice(),
       figures: fallbackPaletteColors.slice()
     },
     colors: {
@@ -383,10 +383,10 @@
     if (userPalette && userPalette.length) {
       return ensurePalette(userPalette, count);
     }
-    const requested = typeof kind === 'string' ? kind : 'fractions';
+    const requested = typeof kind === 'string' ? kind : 'graftegner';
     const fallbackKinds = Array.isArray(opts && opts.fallbackKinds) ? opts.fallbackKinds : [];
     const seen = new Set();
-    const queue = [requested, ...fallbackKinds, 'figures', 'fractions', 'default'];
+    const queue = [requested, ...fallbackKinds, 'figures', 'graftegner', 'default'];
     for (const item of queue) {
       if (typeof item !== 'string') continue;
       const key = item.toLowerCase();
@@ -458,7 +458,7 @@
         ...fallbackList
       ])
     );
-    return buildPalette(normalizedId || 'fractions', count, { ...opts, fallbackKinds: dedupedFallbacks });
+    return buildPalette(normalizedId || 'graftegner', count, { ...opts, fallbackKinds: dedupedFallbacks });
   }
   function getColor(token, fallback) {
     if (token === 'graphs.axis') {

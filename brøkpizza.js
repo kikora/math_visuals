@@ -560,9 +560,7 @@ function getFractionPalette(count) {
       groupId: SHARED_GROUP_ID,
       count: target || undefined,
       project: project || undefined,
-      fallback,
-      legacyPaletteId: 'fractions',
-      fallbackKinds: ['figures']
+      fallback
     })
   );
   if (servicePalette && servicePalette.length) {
@@ -592,8 +590,7 @@ function getFractionPalette(count) {
 
   if (theme && typeof theme.getPalette === 'function') {
     const palette = tryResolvePalette(() =>
-      theme.getPalette('fractions', target || fallback.length, {
-        fallbackKinds: ['figures'],
+      theme.getPalette('graftegner', target || fallback.length, {
         project: project || undefined
       })
     );

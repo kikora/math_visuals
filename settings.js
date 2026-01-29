@@ -89,6 +89,7 @@
     }
     return DEFAULT_NKANT_GROUP_ID;
   })();
+  const HIDDEN_COLOR_GROUP_IDS = new Set(['fractions', 'figurtall']);
   const LEGACY_NKANT_SLOT_INDICES = [1, 2, 3, 4, 5, 6, 7, 8, 9];
   const GROUP_IDS = Array.isArray(paletteConfig.COLOR_GROUP_IDS)
     ? paletteConfig.COLOR_GROUP_IDS.slice()
@@ -1132,6 +1133,9 @@
 
     COLOR_SLOT_GROUPS.forEach(group => {
       const normalizedGroupId = normalizeGroupId(group.groupId);
+      if (normalizedGroupId && HIDDEN_COLOR_GROUP_IDS.has(normalizedGroupId)) {
+        return;
+      }
       const section = document.createElement('section');
       section.className = 'color-group';
 

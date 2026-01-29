@@ -142,9 +142,7 @@ const paletteService = typeof require === 'function'
       groupId: SHARED_GROUP_ID,
       count: targetCount,
       project: project || undefined,
-      fallback: LEGACY_COLOR_PALETTE,
-      legacyPaletteId: 'fractions',
-      fallbackKinds: ['figures']
+      fallback: LEGACY_COLOR_PALETTE
     });
     if (Array.isArray(servicePalette) && servicePalette.length) {
       const sanitized = sanitizePaletteList(servicePalette);
@@ -182,7 +180,7 @@ const paletteService = typeof require === 'function'
     }
     if (theme && typeof theme.getPalette === 'function') {
       try {
-        palette = theme.getPalette('fractions', targetCount, { fallbackKinds: ['figures'], project });
+        palette = theme.getPalette('graftegner', targetCount, { project });
       } catch (_) {
         palette = null;
       }

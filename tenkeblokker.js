@@ -683,9 +683,7 @@ function resolveFractionPalette(count = 2) {
     paletteService.resolveGroupPalette({
       groupId: SHARED_GROUP_ID,
       count: target || undefined,
-      fallback,
-      legacyPaletteId: 'fractions',
-      fallbackKinds: ['figures']
+      fallback
     })
   );
   if (servicePalette && servicePalette.length) {
@@ -731,11 +729,7 @@ function resolveFractionPalette(count = 2) {
     }
   }
   if (theme && typeof theme.getPalette === 'function') {
-    const palette = tryResolvePalette(() =>
-      theme.getPalette('fractions', target || fallback.length, {
-        fallbackKinds: ['figures']
-      })
-    );
+    const palette = tryResolvePalette(() => theme.getPalette('graftegner', target || fallback.length));
     if (palette && palette.length) {
       return ensurePaletteCount(palette, fallback, target);
     }

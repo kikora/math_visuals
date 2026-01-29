@@ -30,12 +30,12 @@ test('profile group palette is preferred over fallbacks', () => {
           graftegner: ['#111111', '#222222']
         },
         palettes: {
-          fractions: PROJECT_FALLBACKS.default
+          graftegner: PROJECT_FALLBACKS.default
         }
       }
     },
     groupFallbacks: {
-      default: ['fractions']
+      default: ['graftegner']
     }
   });
   const palette = service.resolveGroupPalette({ groupId: 'graftegner', profile: 'campus', count: 2 });
@@ -49,12 +49,12 @@ test('profile fallback palettes are used when group is missing', () => {
       campus: {
         id: 'campus',
         palettes: {
-          fractions: ['#ABCDEF', '#FEDCBA']
+          graftegner: ['#ABCDEF', '#FEDCBA']
         }
       }
     },
     groupFallbacks: {
-      arealmodell: ['fractions']
+      arealmodell: ['graftegner']
     }
   });
   const palette = service.resolveGroupPalette({ groupId: 'arealmodell', profile: 'campus', count: 2 });

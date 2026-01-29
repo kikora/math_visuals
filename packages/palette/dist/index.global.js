@@ -39,7 +39,13 @@ var MathVisualsPalettePackage = (function (exports) {
         { fillIndex: 6, lineIndex: 7 },
         { fillIndex: 9, lineIndex: 10 },
         { fillIndex: 12, lineIndex: 13 },
-        { fillIndex: 15, lineIndex: 16 }
+        { fillIndex: 15, lineIndex: 16 },
+        { lineIndex: 2 },
+        { lineIndex: 5 },
+        { lineIndex: 8 },
+        { lineIndex: 11 },
+        { lineIndex: 14 },
+        { lineIndex: 17 }
       ],
       slots: [
         { index: 0, label: 'Fyll 1', description: 'Fyllfarge til fargesett 1.' },
@@ -120,17 +126,35 @@ var MathVisualsPalettePackage = (function (exports) {
       .filter(slot => Number.isInteger(slot.index) && slot.index >= 0);
   }
 
+  function cloneColorRoles(colorRoles) {
+    if (!Array.isArray(colorRoles)) return [];
+    return colorRoles
+      .map(role => {
+        if (!role || typeof role !== 'object') return null;
+        const fillIndex = Number.isInteger(role.fillIndex) ? Number(role.fillIndex) : null;
+        const lineIndex = Number.isInteger(role.lineIndex) ? Number(role.lineIndex) : null;
+        if (!Number.isInteger(fillIndex) && !Number.isInteger(lineIndex)) return null;
+        return {
+          fillIndex: Number.isInteger(fillIndex) && fillIndex >= 0 ? fillIndex : undefined,
+          lineIndex: Number.isInteger(lineIndex) && lineIndex >= 0 ? lineIndex : undefined
+        };
+      })
+      .filter(role => role && (Number.isInteger(role.fillIndex) || Number.isInteger(role.lineIndex)));
+  }
+
   const COLOR_SLOT_GROUPS = deepFreeze(
     RAW_COLOR_SLOT_GROUPS.map((group, groupIndex) => {
       const normalizedId =
         group && typeof group.groupId === 'string' ? group.groupId.trim().toLowerCase() : `gruppe-${groupIndex + 1}`;
       const groupId = normalizedId || `gruppe-${groupIndex + 1}`;
       const slots = cloneSlots(group && group.slots, groupId);
+      const colorRoles = cloneColorRoles(group && group.colorRoles);
       return deepFreeze({
         groupId,
         title: group && group.title ? String(group.title) : '',
         description: group && group.description ? String(group.description) : '',
         slots,
+        colorRoles,
         groupIndex
       });
     })

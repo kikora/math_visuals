@@ -715,9 +715,7 @@ function fetchGraftegnerPalette(count) {
   }
   if (theme && typeof theme.getPalette === 'function') {
     const palette = tryResolveGroupPalette(() =>
-      theme.getPalette('figures', targetCount || DEFAULT_FUNCTION_COLORS.fallback.length, {
-        fallbackKinds: ['fractions']
-      })
+      theme.getPalette('graftegner', targetCount || DEFAULT_FUNCTION_COLORS.fallback.length)
     );
     if (palette) return palette;
   }
