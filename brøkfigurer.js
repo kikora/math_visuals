@@ -2787,7 +2787,9 @@ const fillColorPickerInstances = new WeakMap();
           registerFillNodes(poly);
           attachToggleHandler(poly, i);
           markPolygonBorders(poly);
-          createDivisionSegment(c, corners[i], {}, false);
+          createDivisionSegment(c, corners[i], {
+            linecap: 'butt'
+          }, false);
         }
       } else if (division === 'grid') {
         const {
@@ -2829,11 +2831,15 @@ const fillColorPickerInstances = new WeakMap();
         }
         for (let i = 1; i < cols; i++) {
           const x = i / cols * width;
-          createDivisionSegment([x, 0], [x, 1], {}, false);
+          createDivisionSegment([x, 0], [x, 1], {
+            linecap: 'butt'
+          }, false);
         }
         for (let j = 1; j < rows; j++) {
           const y = j / rows;
-          createDivisionSegment([0, y], [width, y], {}, false);
+          createDivisionSegment([0, y], [width, y], {
+            linecap: 'butt'
+          }, false);
         }
       } else {
         for (let i = 0; i < n; i++) {
@@ -2875,10 +2881,14 @@ const fillColorPickerInstances = new WeakMap();
         for (let i = 1; i < n; i++) {
           if (division === 'vertical') {
             const x = i / n * width;
-            createDivisionSegment([x, 0], [x, 1], {}, false);
+            createDivisionSegment([x, 0], [x, 1], {
+              linecap: 'butt'
+            }, false);
           } else {
             const y = i / n;
-            createDivisionSegment([0, y], [width, y], {}, false);
+            createDivisionSegment([0, y], [width, y], {
+              linecap: 'butt'
+            }, false);
           }
         }
       }
