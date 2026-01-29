@@ -48,6 +48,8 @@ Appene er gruppert etter matematiske hovedområder, men kan fint brukes på tver
 
 Flere apper har historiske eller eksperimentelle varianter som bevares side om side med hovedversjonen for å dokumentere utviklingsløp og alternative arbeidsmåter.
 
+> **Brøkfigurer og farger:** Brøkfigurer bruker de samme palettene som andre apper via globale settings. Lagrede oppgaver/eksempler påvirker ikke fargevalgene i brøkfigurer.
+
 ## Dataflyt og lagring
 
 Eksempeltjenesten er navet som binder appene sammen. Den gjør det mulig å lagre elevprodukter, hente dem opp igjen og eksportere dem som JSON eller SVG. Distribusjonen bruker nå ElastiCache/MemoryDB for Redis og forventer `REDIS_ENDPOINT`, `REDIS_PORT` og `REDIS_PASSWORD` fra CloudFormation/SSM/Secrets Manager. Uten disse hemmelighetene faller tjenesten tilbake til et midlertidig minne som er egnet for lokale prototyper.

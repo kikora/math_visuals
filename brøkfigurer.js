@@ -981,15 +981,9 @@ const fillColorPickerInstances = new WeakMap();
   }
   const STATE = window.STATE && typeof window.STATE === 'object' ? window.STATE : {};
   window.STATE = STATE;
-  const modifiedColorIndexes = new Set();
   if (typeof STATE.altText !== 'string') STATE.altText = '';
   if (STATE.altTextSource !== 'manual') STATE.altTextSource = 'auto';
-  if (Array.isArray(STATE.colors)) {
-    STATE.colors.forEach((color, idx) => {
-      if (typeof color === 'string' && color) modifiedColorIndexes.add(idx);
-    });
-  }
-  let autoPaletteEnabled = modifiedColorIndexes.size === 0;
+  STATE.colors = [];
   let activeFillColorIndex = sanitizeFillIndex(STATE.activeFillColorIndex, FILL_COLOR_COUNT);
   STATE.activeFillColorIndex = activeFillColorIndex;
   if (!STATE.figures || typeof STATE.figures !== 'object') STATE.figures = {};
@@ -1239,16 +1233,11 @@ const fillColorPickerInstances = new WeakMap();
     const required = Math.max(count, maxColors);
     const palette = getPaletteFromTheme(required);
     if (!Array.isArray(STATE.colors)) STATE.colors = [];
-    if (autoPaletteEnabled) {
-      STATE.colors = palette.slice(0, required);
-    }
+    STATE.colors = palette.slice(0, required);
     for (let i = 0; i < required; i++) {
       const defaultColor = palette[i] || getDefaultColorForIndex(i);
       const hasColor = typeof STATE.colors[i] === 'string' && STATE.colors[i];
-      const shouldUseDefault = autoPaletteEnabled || !modifiedColorIndexes.has(i);
-      if (shouldUseDefault || !hasColor) {
-        STATE.colors[i] = defaultColor;
-      }
+      if (!hasColor) STATE.colors[i] = defaultColor;
       if (typeof STATE.colors[i] !== 'string' || !STATE.colors[i]) {
         STATE.colors[i] = defaultColor || LEGACY_COLOR_PALETTE[i % LEGACY_COLOR_PALETTE.length];
       }
@@ -1257,15 +1246,12 @@ const fillColorPickerInstances = new WeakMap();
   }
 
   function refreshPaletteDefaults() {
-    autoPaletteEnabled = modifiedColorIndexes.size === 0;
     ensureColorDefaults(colorCount);
     colorInputs.forEach((inp, idx) => {
       if (!inp) return;
-      if (autoPaletteEnabled || !modifiedColorIndexes.has(idx)) {
-        const color = STATE.colors[idx];
-        if (typeof color === 'string' && color) {
-          inp.value = color;
-        }
+      const color = STATE.colors[idx];
+      if (typeof color === 'string' && color) {
+        inp.value = color;
       }
     });
     renderFillColorPickers();
@@ -1292,11 +1278,7 @@ const fillColorPickerInstances = new WeakMap();
   });
   colorInputs.forEach((inp, idx) => inp.addEventListener('input', () => {
     var _window$render2, _window2;
-    modifiedColorIndexes.add(idx);
-    autoPaletteEnabled = modifiedColorIndexes.size === 0;
     ensureColorDefaults(Math.max(idx + 1, colorCount));
-    if (!Array.isArray(STATE.colors)) STATE.colors = [];
-    STATE.colors[idx] = inp.value;
     (_window$render2 = (_window2 = window).render) === null || _window$render2 === void 0 || _window$render2.call(_window2);
     clearCheckStatus();
   }));
@@ -3856,26 +3838,9 @@ const fillColorPickerInstances = new WeakMap();
     STATE.allowWrong = allowWrongGlobal;
     STATE.showDivisionLines = showDivisionLinesGlobal;
     STATE.showOutline = showOutlineGlobal;
-    const palette = rawState.palette && typeof rawState.palette === 'object' ? rawState.palette : {};
-    const paletteColors = Array.isArray(palette.colors)
-      ? palette.colors.map(color => typeof color === 'string' ? color.trim() : '').filter(Boolean)
-      : [];
-    colorCount = clampInt(
-      palette.colorCount != null ? palette.colorCount : paletteColors.length || colorCount,
-      1,
-      maxColors
-    );
+    colorCount = clampInt(PALETTE_SLOT_COUNT, 1, maxColors);
     STATE.colorCount = colorCount;
-    modifiedColorIndexes.clear();
-    autoPaletteEnabled = paletteColors.length === 0;
     STATE.colors = [];
-    for (let i = 0; i < colorCount; i++) {
-      const color = paletteColors[i];
-      if (typeof color === 'string' && color) {
-        STATE.colors[i] = color;
-        modifiedColorIndexes.add(i);
-      }
-    }
     ensureColorDefaults(colorCount);
     rebuildLayout();
     const figureEntries = Array.isArray(rawState.figures) ? rawState.figures : [];
