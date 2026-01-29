@@ -76,26 +76,45 @@
     const label = typeof slot.label === 'string' ? slot.label.toLowerCase() : '';
     if (!label) return '';
     if (label.includes('fyll')) return 'fill';
-    if (label.includes('linje')) return 'line';
+    if (label.includes('linje') || label.includes('kant')) return 'line';
     return '';
   }
 
-  function buildSequentialPairs(pairCount) {
-    const total = Number.isFinite(pairCount) && pairCount > 0 ? Math.trunc(pairCount) : 0;
-    const pairs = [];
-    for (let index = 0; index < total; index += 1) {
-      pairs.push({
-        fillSlotIndex: index * 2,
-        lineSlotIndex: index * 2 + 1
-      });
+  function normalizeRoleType(value) {
+    if (value && typeof value === 'object') {
+      return normalizeRoleType(value.roleType || value.mode || value.kind);
     }
-    return pairs;
+    if (typeof value !== 'string') return 'pair';
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'fill' || normalized === 'line') {
+      return normalized;
+    }
+    return 'pair';
   }
 
-  function resolveRoleSlotPairs(config, groupId, fallbackRoles = []) {
+  function buildSequentialRoles(roleCount, roleType) {
+    const total = Number.isFinite(roleCount) && roleCount > 0 ? Math.trunc(roleCount) : 0;
+    const roles = [];
+    for (let index = 0; index < total; index += 1) {
+      if (roleType === 'fill') {
+        roles.push({ fillSlotIndex: index });
+      } else if (roleType === 'line') {
+        roles.push({ lineSlotIndex: index });
+      } else {
+        roles.push({
+          fillSlotIndex: index * 2,
+          lineSlotIndex: index * 2 + 1
+        });
+      }
+    }
+    return roles;
+  }
+
+  function resolveRoleSlotPairs(config, groupId, fallbackRoles = [], roleOptions = {}) {
     const normalizedGroupId = normalizeGroupId(groupId);
+    const roleType = normalizeRoleType(roleOptions);
     const fallbackPairCount = Array.isArray(fallbackRoles) ? fallbackRoles.length : 0;
-    const fallbackPairs = buildSequentialPairs(fallbackPairCount);
+    const fallbackPairs = buildSequentialRoles(fallbackPairCount, roleType);
     if (!config || !normalizedGroupId || !Array.isArray(config.COLOR_SLOT_GROUPS)) {
       return fallbackPairs;
     }
@@ -121,14 +140,44 @@
       : Array.isArray(fallbackRoles)
       ? fallbackRoles
       : [];
+    let rolesToUse = roleSource;
+    if (roleType === 'line') {
+      const lineOnly = roleSource.filter(role => {
+        if (!role || typeof role !== 'object') return false;
+        const fillIndex = Number.isInteger(role.fillIndex) ? role.fillIndex : null;
+        const lineIndex = Number.isInteger(role.lineIndex) ? role.lineIndex : null;
+        return Number.isInteger(lineIndex) && !Number.isInteger(fillIndex);
+      });
+      if (lineOnly.length) {
+        rolesToUse = lineOnly;
+      }
+    }
     const pairs = [];
-    if (roleSource.length) {
-      roleSource.forEach(role => {
+    if (rolesToUse.length) {
+      rolesToUse.forEach(role => {
         if (!role || typeof role !== 'object') return;
         const fillIndex = Number.isInteger(role.fillIndex) ? role.fillIndex : null;
         const lineIndex = Number.isInteger(role.lineIndex) ? role.lineIndex : null;
         const fillSlotIndex = fillIndex !== null ? slotIndexByPaletteIndex.get(fillIndex) : undefined;
         const lineSlotIndex = lineIndex !== null ? slotIndexByPaletteIndex.get(lineIndex) : undefined;
+        if (roleType === 'fill') {
+          if (Number.isInteger(fillSlotIndex)) {
+            pairs.push({
+              fillSlotIndex,
+              fillIndex
+            });
+          }
+          return;
+        }
+        if (roleType === 'line') {
+          if (Number.isInteger(lineSlotIndex)) {
+            pairs.push({
+              lineSlotIndex,
+              lineIndex
+            });
+          }
+          return;
+        }
         if (Number.isInteger(fillSlotIndex) && Number.isInteger(lineSlotIndex)) {
           pairs.push({
             fillSlotIndex,
@@ -154,7 +203,23 @@
         }
       });
     }
-    if (labeledFills.length && labeledLines.length) {
+    if (roleType === 'fill' && labeledFills.length) {
+      labeledFills.forEach(slotIndex => {
+        pairs.push({ fillSlotIndex: slotIndex });
+      });
+      if (pairs.length) {
+        return pairs;
+      }
+    }
+    if (roleType === 'line' && labeledLines.length) {
+      labeledLines.forEach(slotIndex => {
+        pairs.push({ lineSlotIndex: slotIndex });
+      });
+      if (pairs.length) {
+        return pairs;
+      }
+    }
+    if (roleType === 'pair' && labeledFills.length && labeledLines.length) {
       const limit = Math.min(labeledFills.length, labeledLines.length);
       for (let index = 0; index < limit; index += 1) {
         pairs.push({
@@ -166,8 +231,11 @@
         return pairs;
       }
     }
-    if (slots.length >= 2) {
-      return buildSequentialPairs(Math.floor(slots.length / 2));
+    if (roleType === 'pair' && slots.length >= 2) {
+      return buildSequentialRoles(Math.floor(slots.length / 2), roleType);
+    }
+    if (roleType !== 'pair' && slots.length) {
+      return buildSequentialRoles(slots.length, roleType);
     }
     return fallbackPairs;
   }
