@@ -31,12 +31,12 @@ const RAW_COLOR_SLOT_GROUPS = [
     description:
       'Farger som brukes av graftegner, diagram, brøksirkler, brøkfigurer, tallfigurer, kvikkbilder, tenkeblokker, brøkvegg og 3D-figurer.',
     colorRoles: [
-      { fillIndex: 0, lineIndex: 1 },
-      { fillIndex: 3, lineIndex: 4 },
-      { fillIndex: 6, lineIndex: 7 },
-      { fillIndex: 9, lineIndex: 10 },
-      { fillIndex: 12, lineIndex: 13 },
-      { fillIndex: 15, lineIndex: 16 }
+      { lineIndex: 2 },
+      { lineIndex: 5 },
+      { lineIndex: 8 },
+      { lineIndex: 11 },
+      { lineIndex: 14 },
+      { lineIndex: 17 }
     ],
     slots: [
       { index: 0, label: 'Fyll 1', description: 'Fyllfarge til fargesett 1.' },
@@ -57,6 +57,28 @@ const RAW_COLOR_SLOT_GROUPS = [
       { index: 15, label: 'Fyll 6', description: 'Fyllfarge til fargesett 6.' },
       { index: 16, label: 'Kant 6', description: 'Kantfarge til fargesett 6.' },
       { index: 17, label: 'Linje 6', description: 'Linjefarge for grafer i fargesett 6.' }
+    ]
+  },
+  {
+    groupId: 'fractions',
+    title: 'Brøk og tenkeblokker',
+    description: 'Farger for linjer og fyll i brøkmodeller og tenkeblokker.',
+    colorRoles: [{ fillIndex: 0, lineIndex: 2 }],
+    slots: [
+      { index: 0, label: 'Fyll', description: 'Fyllfarge for brøker og tenkeblokker.' },
+      { index: 2, label: 'Linje', description: 'Konturer i brøker og tenkeblokker.' }
+    ]
+  },
+  {
+    groupId: 'figurtall',
+    title: 'Figurtall',
+    description: 'Fire standardfarger for figurer i mønstre.',
+    colorRoles: [{ fillIndex: 0 }, { fillIndex: 3 }, { fillIndex: 6 }, { fillIndex: 9 }],
+    slots: [
+      { index: 0, label: 'Fyll 1', description: 'Første farge i figurtall.' },
+      { index: 3, label: 'Fyll 2', description: 'Andre farge i figurtall.' },
+      { index: 6, label: 'Fyll 3', description: 'Tredje farge i figurtall.' },
+      { index: 9, label: 'Fyll 4', description: 'Fjerde farge i figurtall.' }
     ]
   },
   {
@@ -117,17 +139,35 @@ function cloneSlots(slots, groupId) {
     .filter(slot => Number.isInteger(slot.index) && slot.index >= 0);
 }
 
+function cloneColorRoles(colorRoles) {
+  if (!Array.isArray(colorRoles)) return [];
+  return colorRoles
+    .map(role => {
+      if (!role || typeof role !== 'object') return null;
+      const fillIndex = Number.isInteger(role.fillIndex) ? Number(role.fillIndex) : null;
+      const lineIndex = Number.isInteger(role.lineIndex) ? Number(role.lineIndex) : null;
+      if (!Number.isInteger(fillIndex) && !Number.isInteger(lineIndex)) return null;
+      return {
+        fillIndex: Number.isInteger(fillIndex) && fillIndex >= 0 ? fillIndex : undefined,
+        lineIndex: Number.isInteger(lineIndex) && lineIndex >= 0 ? lineIndex : undefined
+      };
+    })
+    .filter(role => role && (Number.isInteger(role.fillIndex) || Number.isInteger(role.lineIndex)));
+}
+
 const COLOR_SLOT_GROUPS = deepFreeze(
   RAW_COLOR_SLOT_GROUPS.map((group, groupIndex) => {
     const normalizedId =
       group && typeof group.groupId === 'string' ? group.groupId.trim().toLowerCase() : `gruppe-${groupIndex + 1}`;
     const groupId = normalizedId || `gruppe-${groupIndex + 1}`;
     const slots = cloneSlots(group && group.slots, groupId);
+    const colorRoles = cloneColorRoles(group && group.colorRoles);
     return deepFreeze({
       groupId,
       title: group && group.title ? String(group.title) : '',
       description: group && group.description ? String(group.description) : '',
       slots,
+      colorRoles,
       groupIndex
     });
   })
