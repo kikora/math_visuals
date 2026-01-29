@@ -135,15 +135,15 @@ const LEGACY_PIZZA_COLORS = {
   handle: '#e9e6f7',
   handleStroke: '#333333'
 };
-const SHARED_GROUP_ID = 'fractions';
+const SHARED_GROUP_ID = 'graftegner';
 const FILL_COLOR_COUNT = 6;
 const DEFAULT_GRAFTEGNER_COLOR_ROLES = [
   { fillIndex: 0, lineIndex: 1 },
-  { fillIndex: 2, lineIndex: 3 },
-  { fillIndex: 4, lineIndex: 5 },
+  { fillIndex: 3, lineIndex: 4 },
   { fillIndex: 6, lineIndex: 7 },
-  { fillIndex: 8, lineIndex: 9 },
-  { fillIndex: 10, lineIndex: 11 }
+  { fillIndex: 9, lineIndex: 10 },
+  { fillIndex: 12, lineIndex: 13 },
+  { fillIndex: 15, lineIndex: 16 }
 ];
 const colorPickerHelper = getColorPickerHelper();
 const colorPickerModule = getColorPickerModule();
@@ -363,7 +363,7 @@ function getGroupSlotIndices(config, groupId) {
 function getGraftegnerRoleSlotPairs() {
   const config = getPaletteConfig();
   if (colorPickerHelper && typeof colorPickerHelper.resolveRoleSlotPairs === 'function') {
-    return colorPickerHelper.resolveRoleSlotPairs(config, SHARED_GROUP_ID, DEFAULT_GRAFTEGNER_COLOR_ROLES);
+    return colorPickerHelper.resolveRoleSlotPairs(config, 'graftegner', DEFAULT_GRAFTEGNER_COLOR_ROLES);
   }
   const pairs = [];
   for (let index = 0; index < FILL_COLOR_COUNT; index += 1) {
@@ -395,15 +395,17 @@ function applyPairSwatch(element, fillColor, lineColor) {
 function buildFillColorSlots(fillColors, lineColors) {
   const slots = [];
   const fallbackLine = lineColors[0] || '#000';
-  fillColors.forEach((color, index) => {
+  const pairCount = Math.min(fillColors.length, lineColors.length);
+  for (let index = 0; index < pairCount; index += 1) {
+    const fillColor = fillColors[index];
     const lineColor = lineColors[index] || fallbackLine;
     slots.push({
       value: index + 1,
       label: `Velg farge ${index + 1}`,
-      fillColor: color,
+      fillColor,
       lineColor
     });
-  });
+  }
   return slots;
 }
 
