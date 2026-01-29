@@ -165,10 +165,27 @@ function buildLegacyPaletteConfig() {
       groupId: 'fractions',
       title: 'Brøk og tenkeblokker',
       description: 'Farger for linjer og fyll i brøkmodeller og tenkeblokker.',
-      colorRoles: [{ fillIndex: 0, lineIndex: 2 }],
+      colorRoles: [
+        { fillIndex: 0, lineIndex: 1 },
+        { fillIndex: 2, lineIndex: 3 },
+        { fillIndex: 4, lineIndex: 5 },
+        { fillIndex: 6, lineIndex: 7 },
+        { fillIndex: 8, lineIndex: 9 },
+        { fillIndex: 10, lineIndex: 11 }
+      ],
       slots: [
-        { index: 0, label: 'Fyll', description: 'Fyllfarge for brøker og tenkeblokker.' },
-        { index: 2, label: 'Linje', description: 'Konturer i brøker og tenkeblokker.' }
+        { index: 0, label: 'Fyll 1', description: 'Fyllfarge for fargesett 1 i brøker og tenkeblokker.' },
+        { index: 1, label: 'Kant 1', description: 'Kantfarge for fargesett 1 i brøker og tenkeblokker.' },
+        { index: 2, label: 'Fyll 2', description: 'Fyllfarge for fargesett 2 i brøker og tenkeblokker.' },
+        { index: 3, label: 'Kant 2', description: 'Kantfarge for fargesett 2 i brøker og tenkeblokker.' },
+        { index: 4, label: 'Fyll 3', description: 'Fyllfarge for fargesett 3 i brøker og tenkeblokker.' },
+        { index: 5, label: 'Kant 3', description: 'Kantfarge for fargesett 3 i brøker og tenkeblokker.' },
+        { index: 6, label: 'Fyll 4', description: 'Fyllfarge for fargesett 4 i brøker og tenkeblokker.' },
+        { index: 7, label: 'Kant 4', description: 'Kantfarge for fargesett 4 i brøker og tenkeblokker.' },
+        { index: 8, label: 'Fyll 5', description: 'Fyllfarge for fargesett 5 i brøker og tenkeblokker.' },
+        { index: 9, label: 'Kant 5', description: 'Kantfarge for fargesett 5 i brøker og tenkeblokker.' },
+        { index: 10, label: 'Fyll 6', description: 'Fyllfarge for fargesett 6 i brøker og tenkeblokker.' },
+        { index: 11, label: 'Kant 6', description: 'Kantfarge for fargesett 6 i brøker og tenkeblokker.' }
       ]
     },
     {

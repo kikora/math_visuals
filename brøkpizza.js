@@ -135,7 +135,7 @@ const LEGACY_PIZZA_COLORS = {
   handle: '#e9e6f7',
   handleStroke: '#333333'
 };
-const SHARED_GROUP_ID = 'graftegner';
+const SHARED_GROUP_ID = 'fractions';
 const FILL_COLOR_COUNT = 6;
 const DEFAULT_GRAFTEGNER_COLOR_ROLES = [
   { fillIndex: 0, lineIndex: 1 },
