@@ -66,28 +66,6 @@ const RAW_COLOR_SLOT_GROUPS = [
     ]
   },
   {
-    groupId: 'fractions',
-    title: 'Brøk og tenkeblokker',
-    description: 'Farger for linjer og fyll i brøkmodeller og tenkeblokker.',
-    colorRoles: [{ fillIndex: 0, lineIndex: 2 }],
-    slots: [
-      { index: 0, label: 'Fyll', description: 'Fyllfarge for brøker og tenkeblokker.' },
-      { index: 2, label: 'Linje', description: 'Konturer i brøker og tenkeblokker.' }
-    ]
-  },
-  {
-    groupId: 'figurtall',
-    title: 'Figurtall',
-    description: 'Fire standardfarger for figurer i mønstre.',
-    colorRoles: [{ fillIndex: 0 }, { fillIndex: 3 }, { fillIndex: 6 }, { fillIndex: 9 }],
-    slots: [
-      { index: 0, label: 'Fyll 1', description: 'Første farge i figurtall.' },
-      { index: 3, label: 'Fyll 2', description: 'Andre farge i figurtall.' },
-      { index: 6, label: 'Fyll 3', description: 'Tredje farge i figurtall.' },
-      { index: 9, label: 'Fyll 4', description: 'Fjerde farge i figurtall.' }
-    ]
-  },
-  {
     groupId: 'nkant',
     title: 'nKant',
     description: 'Farger for linjer, vinkler og fyll i nKant.',

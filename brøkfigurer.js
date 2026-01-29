@@ -762,9 +762,7 @@ const fillColorPickerInstances = new WeakMap();
       paletteService.resolveGroupPalette({
         groupId: SHARED_GROUP_ID,
         count: target || undefined,
-        fallback,
-        legacyPaletteId: 'fractions',
-        fallbackKinds: ['figures']
+        fallback
       })
     );
     if (servicePalette && servicePalette.length) {
@@ -786,11 +784,7 @@ const fillColorPickerInstances = new WeakMap();
     }
 
     if (theme && typeof theme.getPalette === 'function') {
-      const palette = tryResolvePalette(() =>
-        theme.getPalette('fractions', target || fallback.length, {
-          fallbackKinds: ['figures']
-        })
-      );
+      const palette = tryResolvePalette(() => theme.getPalette('graftegner', target || fallback.length));
       if (palette && palette.length) {
         return ensurePaletteSize(palette, fallback, target);
       }

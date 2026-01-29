@@ -197,7 +197,7 @@
     if (theme && typeof theme.getPalette === 'function') {
       let palette = null;
       try {
-        palette = theme.getPalette('fractions', target, { fallbackKinds: ['figures'] });
+        palette = theme.getPalette('graftegner', target);
       } catch (_) {
         palette = null;
       }
