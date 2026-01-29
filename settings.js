@@ -957,6 +957,42 @@
     return row;
   }
 
+  function createNkantHeaderRow() {
+    const row = document.createElement('div');
+    row.className = 'color-triple-row color-triple-row--header';
+    const headers = ['Fyllfarger', 'Kantfarger', 'Vinkelfarger'];
+    headers.forEach(text => {
+      const cell = document.createElement('div');
+      cell.className = 'color-pair-row__heading';
+      cell.textContent = text;
+      row.appendChild(cell);
+    });
+    return row;
+  }
+
+  function createNkantTripleRow(fillSlot, edgeSlot, angleSlot) {
+    const row = document.createElement('div');
+    row.className = 'color-triple-row';
+    row.appendChild(createColorSlotElement(fillSlot));
+    row.appendChild(createColorSlotElement(edgeSlot));
+    row.appendChild(createColorSlotElement(angleSlot));
+    return row;
+  }
+
+  function resolveNkantRoleTriples(group) {
+    if (!group || !Array.isArray(group.slots)) return [];
+    const triples = [];
+    for (let slotIndex = 0; slotIndex < group.slots.length; slotIndex += 3) {
+      const fillSlot = group.slots[slotIndex];
+      const edgeSlot = group.slots[slotIndex + 1];
+      const angleSlot = group.slots[slotIndex + 2];
+      if (fillSlot && edgeSlot && angleSlot) {
+        triples.push({ fillSlot, edgeSlot, angleSlot });
+      }
+    }
+    return triples;
+  }
+
   function resolveGraftegnerRoleTriples(group) {
     if (!group || !Array.isArray(group.slots)) return [];
     const triples = [];
@@ -991,6 +1027,12 @@
       title.className = 'color-group__title';
       title.textContent = group.title;
       header.appendChild(title);
+      if (group.description) {
+        const description = document.createElement('p');
+        description.className = 'color-group__description';
+        description.textContent = group.description;
+        header.appendChild(description);
+      }
 
       const actions = document.createElement('div');
       actions.className = 'color-group__actions';
@@ -1037,21 +1079,17 @@
           });
         }
       } else if (normalizedGroupId === 'nkant') {
-        table.classList.add('color-table--nkant');
-        const buckets = [[], [], []];
-        group.slots.forEach((slot, slotIndex) => {
-          const normalizedIndex = Number.isInteger(slot && slot.groupIndex)
-            ? slot.groupIndex
-            : slotIndex;
-          const bucket = normalizedIndex % 3;
-          if (!buckets[bucket]) buckets[bucket] = [];
-          buckets[bucket].push(slot);
-        });
-        buckets.forEach(bucket => {
-          bucket.forEach(slot => {
+        const triples = resolveNkantRoleTriples(group);
+        if (triples.length) {
+          appendSlotToTable(table, createNkantHeaderRow());
+          triples.forEach(triple => {
+            appendSlotToTable(table, createNkantTripleRow(triple.fillSlot, triple.edgeSlot, triple.angleSlot));
+          });
+        } else {
+          group.slots.forEach(slot => {
             appendSlotToTable(table, createColorSlotElement(slot));
           });
-        });
+        }
       } else {
         group.slots.forEach(slot => {
           appendSlotToTable(table, createColorSlotElement(slot));

@@ -125,6 +125,11 @@
       font-weight: 600;
       color: var(--profile-title-color, #0f172a);
     }
+    .color-group__description {
+      margin: 0;
+      font-size: 0.85rem;
+      color: #64748b;
+    }
     .color-group__actions {
       display: flex;
       align-items: center;
@@ -146,10 +151,8 @@
     .color-table[data-group-id="graftegner"] {
       grid-template-columns: minmax(0, 1fr);
     }
-    .color-table--nkant {
-      grid-template-columns: repeat(3, minmax(220px, 1fr));
-      grid-template-rows: repeat(3, auto);
-      grid-auto-flow: column;
+    .color-table[data-group-id="nkant"] {
+      grid-template-columns: minmax(0, 1fr);
     }
     .color-pair-row {
       display: grid;
@@ -158,7 +161,17 @@
       align-items: stretch;
       width: 100%;
     }
+    .color-triple-row {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) minmax(220px, 1fr);
+      gap: 12px;
+      align-items: stretch;
+      width: 100%;
+    }
     .color-pair-row--header {
+      align-items: center;
+    }
+    .color-triple-row--header {
       align-items: center;
     }
     .color-pair-row__heading {
@@ -315,10 +328,14 @@
       .color-table[data-group-id="graftegner"] {
         grid-template-columns: 1fr;
       }
-      .color-table--nkant {
+      .color-table[data-group-id="nkant"] {
         grid-template-columns: 1fr;
-        grid-template-rows: auto;
-        grid-auto-flow: row;
+      }
+      .color-triple-row {
+        grid-template-columns: 1fr;
+      }
+      .color-triple-row--header {
+        display: none;
       }
     }
   </style>
