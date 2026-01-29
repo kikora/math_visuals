@@ -2763,13 +2763,18 @@ const fillColorPickerInstances = new WeakMap();
         const c = [width / 2, 0.5];
         const corners = [[0, 0], [width, 0], [width, 1], [0, 1]];
         const diagonalStrokeWidth = 2;
-        const diagonalInset = diagonalStrokeWidth / 2;
+        const diagonalInsetPx = 2;
         const insetCorner = corner => {
-          const dx = c[0] - corner[0];
-          const dy = c[1] - corner[1];
+          if (!board || typeof JXG === 'undefined' || !JXG.Coords) return corner.slice();
+          const cornerScreen = new JXG.Coords(JXG.COORDS_BY_USER, corner, board).scrCoords;
+          const centerScreen = new JXG.Coords(JXG.COORDS_BY_USER, c, board).scrCoords;
+          const dx = centerScreen[1] - cornerScreen[1];
+          const dy = centerScreen[2] - cornerScreen[2];
           const length = Math.hypot(dx, dy);
           if (!(length > 0)) return corner.slice();
-          return [corner[0] + dx / length * diagonalInset, corner[1] + dy / length * diagonalInset];
+          const insetScreen = [cornerScreen[1] + dx / length * diagonalInsetPx, cornerScreen[2] + dy / length * diagonalInsetPx];
+          const insetUser = new JXG.Coords(JXG.COORDS_BY_SCREEN, insetScreen, board).usrCoords;
+          return [insetUser[1], insetUser[2]];
         };
         for (let i = 0; i < 4; i++) {
           const pts = [corners[i], corners[(i + 1) % 4], c];
