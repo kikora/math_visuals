@@ -52,6 +52,30 @@
   const GROUPED_PALETTE_ORDER = Array.isArray(paletteConfig.DEFAULT_GROUP_ORDER)
     ? paletteConfig.DEFAULT_GROUP_ORDER.map(value => (typeof value === 'string' ? value.trim().toLowerCase() : '')).filter(Boolean)
     : COLOR_GROUP_IDS.slice();
+  const COLOR_SLOT_GROUPS = Array.isArray(paletteConfig.COLOR_SLOT_GROUPS)
+    ? paletteConfig.COLOR_SLOT_GROUPS.map(group => ({
+        groupId: typeof group.groupId === 'string' ? group.groupId.trim().toLowerCase() : '',
+        slots: Array.isArray(group.slots)
+          ? group.slots.map((slot, slotIndex) => ({
+              index: Number.isInteger(slot && slot.index) ? Number(slot.index) : slotIndex,
+              label: slot && typeof slot.label === 'string' ? slot.label : '',
+              groupId:
+                slot && typeof slot.groupId === 'string'
+                  ? slot.groupId.trim().toLowerCase()
+                  : typeof group.groupId === 'string'
+                  ? group.groupId.trim().toLowerCase()
+                  : '',
+              groupIndex: Number.isInteger(slot && slot.groupIndex) ? Number(slot.groupIndex) : slotIndex
+            }))
+          : []
+      }))
+    : [];
+  const GROUPS_BY_ID = new Map();
+  COLOR_SLOT_GROUPS.forEach(group => {
+    if (group && group.groupId) {
+      GROUPS_BY_ID.set(group.groupId, group);
+    }
+  });
   const missingGroupWarnings = new Set();
 
   function normalizeGroupId(value) {
@@ -97,16 +121,96 @@
     if (!Array.isArray(values)) return [];
     const maxSize = Number.isInteger(limit) && limit >= 0 ? limit : MAX_COLORS;
     const sanitized = [];
-    for (const value of values) {
-      const clean = sanitizeColor(value);
-      if (clean) {
-        sanitized.push(clean);
-        if (sanitized.length >= maxSize) {
-          break;
-        }
-      }
+    for (let index = 0; index < maxSize; index += 1) {
+      const clean = sanitizeColor(values[index]);
+      sanitized[index] = clean || null;
     }
     return sanitized;
+  }
+
+  function normalizeRoleKey(value) {
+    if (typeof value !== 'string') return '';
+    const trimmed = value.trim().toLowerCase();
+    if (!trimmed) return '';
+    if (trimmed.startsWith('fill')) return 'fills';
+    if (trimmed.startsWith('line')) return 'lines';
+    if (trimmed.startsWith('edge') || trimmed.startsWith('kant')) return 'edges';
+    if (trimmed.startsWith('angle') || trimmed.startsWith('vinkel')) return 'angles';
+    return '';
+  }
+
+  function resolveSlotRole(slot) {
+    const label = slot && typeof slot.label === 'string' ? slot.label.trim().toLowerCase() : '';
+    if (!label) return '';
+    if (label.includes('fyll')) return 'fills';
+    if (label.includes('linje')) return 'lines';
+    if (label.includes('kant')) return 'edges';
+    if (label.includes('vinkel')) return 'angles';
+    return '';
+  }
+
+  function extractFlatPalette(entry) {
+    if (!entry) return null;
+    if (Array.isArray(entry)) return entry;
+    if (entry && typeof entry === 'object') {
+      if (Array.isArray(entry.colors)) return entry.colors;
+      if (Array.isArray(entry.palette)) return entry.palette;
+      if (Array.isArray(entry.values)) return entry.values;
+      if (entry.default != null) {
+        const nested = extractFlatPalette(entry.default);
+        if (nested && nested.length) return nested;
+      }
+      if (entry.fallback != null) {
+        const nested = extractFlatPalette(entry.fallback);
+        if (nested && nested.length) return nested;
+      }
+    }
+    return null;
+  }
+
+  function collectRoleLists(entry) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return {};
+    const roles = {};
+    Object.keys(entry).forEach(key => {
+      const roleKey = normalizeRoleKey(key);
+      if (!roleKey) return;
+      const values = sanitizeColorList(entry[key]);
+      if (values.length) {
+        roles[roleKey] = values;
+      }
+    });
+    return roles;
+  }
+
+  function buildRolePaletteSlots(group, roleLists, fallbackList) {
+    const slotRoles = {};
+    const fallback = Array.isArray(fallbackList) ? fallbackList : [];
+    const slots = group && Array.isArray(group.slots) ? group.slots : [];
+    return slots.map((slot, slotIndex) => {
+      const roleKey = resolveSlotRole(slot);
+      if (roleKey && Array.isArray(roleLists[roleKey])) {
+        const position = Number.isInteger(slotRoles[roleKey]) ? slotRoles[roleKey] : 0;
+        const color = roleLists[roleKey][position];
+        slotRoles[roleKey] = position + 1;
+        if (color) return color;
+      }
+      return fallback[slotIndex];
+    });
+  }
+
+  function resolveGroupPaletteEntry(group, entry) {
+    if (Array.isArray(entry)) return entry;
+    if (entry && typeof entry === 'object') {
+      const roleLists = collectRoleLists(entry);
+      const flat = extractFlatPalette(entry);
+      if (Object.keys(roleLists).length) {
+        return buildRolePaletteSlots(group, roleLists, flat);
+      }
+      if (flat && flat.length) {
+        return flat;
+      }
+    }
+    return [];
   }
 
   function cloneGroupPalettes(source) {
@@ -163,11 +267,12 @@
     if (!target || typeof target !== 'object' || !source || typeof source !== 'object') {
       return;
     }
-    const normalizedSource = cloneGroupPalettes(source);
     COLOR_GROUP_IDS.forEach(groupId => {
       const limit = GROUP_SLOT_COUNTS[groupId] || 0;
       if (!limit) return;
-      const incoming = sanitizeGroupPalette(normalizedSource[groupId], limit);
+      const group = GROUPS_BY_ID.get(groupId);
+      const entry = resolveGroupPaletteEntry(group, source[groupId]);
+      const incoming = sanitizeGroupPalette(entry, limit);
       if (!incoming.length) return;
       const existing = Array.isArray(target[groupId]) ? target[groupId].slice() : [];
       const merged = [];
@@ -240,7 +345,7 @@
         ? sanitizeGroupPalette(source[normalized], limit)
         : [];
       values.forEach(color => {
-        if (flattened.length < MAX_COLORS) {
+        if (flattened.length < MAX_COLORS && typeof color === 'string' && color) {
           flattened.push(color);
         }
       });
@@ -361,29 +466,6 @@
     const settingsObject = settings && typeof settings === 'object' ? settings : null;
     if (!settingsObject) return [];
 
-    function extractPalette(entry) {
-      if (!entry) return null;
-      if (Array.isArray(entry)) return entry;
-      if (entry && typeof entry === 'object') {
-        if (Array.isArray(entry.colors)) return entry.colors;
-        if (Array.isArray(entry.palette)) return entry.palette;
-        if (Array.isArray(entry.values)) return entry.values;
-        if (entry.default != null) {
-          const defaultPalette = extractPalette(entry.default);
-          if (defaultPalette && defaultPalette.length) {
-            return defaultPalette;
-          }
-        }
-        if (entry.fallback != null) {
-          const fallbackPalette = extractPalette(entry.fallback);
-          if (fallbackPalette && fallbackPalette.length) {
-            return fallbackPalette;
-          }
-        }
-      }
-      return null;
-    }
-
     const rootGroups =
       settingsObject.groupPalettes ||
       (settingsObject.palettes && settingsObject.palettes.groups) ||
@@ -391,7 +473,8 @@
       null;
     if (rootGroups && typeof rootGroups === 'object') {
       const groupEntry = rootGroups[groupId] || rootGroups.default || null;
-      const palette = extractPalette(groupEntry);
+      const group = GROUPS_BY_ID.get(groupId);
+      const palette = resolveGroupPaletteEntry(group, groupEntry);
       if (palette && palette.length) {
         return sanitizeColorList(palette);
       }

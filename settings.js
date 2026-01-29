@@ -352,6 +352,119 @@
     return result;
   }
 
+  function normalizeRoleKey(value) {
+    if (typeof value !== 'string') return '';
+    const trimmed = value.trim().toLowerCase();
+    if (!trimmed) return '';
+    if (trimmed.startsWith('fill')) return 'fills';
+    if (trimmed.startsWith('line')) return 'lines';
+    if (trimmed.startsWith('edge') || trimmed.startsWith('kant')) return 'edges';
+    if (trimmed.startsWith('angle') || trimmed.startsWith('vinkel')) return 'angles';
+    return '';
+  }
+
+  function resolveSlotRole(slot) {
+    const label = slot && typeof slot.label === 'string' ? slot.label.trim().toLowerCase() : '';
+    if (!label) return '';
+    if (label.includes('fyll')) return 'fills';
+    if (label.includes('linje')) return 'lines';
+    if (label.includes('kant')) return 'edges';
+    if (label.includes('vinkel')) return 'angles';
+    return '';
+  }
+
+  function extractFlatPalette(entry) {
+    if (!entry) return null;
+    if (Array.isArray(entry)) return entry;
+    if (entry && typeof entry === 'object') {
+      if (Array.isArray(entry.colors)) return entry.colors;
+      if (Array.isArray(entry.palette)) return entry.palette;
+      if (Array.isArray(entry.values)) return entry.values;
+      if (entry.default != null) {
+        const nested = extractFlatPalette(entry.default);
+        if (nested && nested.length) return nested;
+      }
+      if (entry.fallback != null) {
+        const nested = extractFlatPalette(entry.fallback);
+        if (nested && nested.length) return nested;
+      }
+    }
+    return null;
+  }
+
+  function collectRoleLists(entry) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return {};
+    const roles = {};
+    Object.keys(entry).forEach(key => {
+      const roleKey = normalizeRoleKey(key);
+      if (!roleKey) return;
+      const values = sanitizeColorList(entry[key], MAX_COLORS);
+      if (values.length) {
+        roles[roleKey] = values;
+      }
+    });
+    return roles;
+  }
+
+  function buildRolePaletteSlots(group, roleLists, fallbackList) {
+    const slotRoles = {};
+    const fallback = Array.isArray(fallbackList) ? fallbackList : [];
+    return group.slots.map((slot, slotIndex) => {
+      const roleKey = resolveSlotRole(slot);
+      if (roleKey && Array.isArray(roleLists[roleKey])) {
+        const position = Number.isInteger(slotRoles[roleKey]) ? slotRoles[roleKey] : 0;
+        const color = roleLists[roleKey][position];
+        slotRoles[roleKey] = position + 1;
+        if (color) return color;
+      }
+      return fallback[slotIndex];
+    });
+  }
+
+  function resolveGroupPaletteEntry(group, entry) {
+    if (Array.isArray(entry)) return entry;
+    if (entry && typeof entry === 'object') {
+      const roleLists = collectRoleLists(entry);
+      const flat = extractFlatPalette(entry);
+      if (Object.keys(roleLists).length) {
+        return buildRolePaletteSlots(group, roleLists, flat);
+      }
+      if (flat && flat.length) {
+        return flat;
+      }
+    }
+    return [];
+  }
+
+  function buildRolePayloadForGroup(group, colors) {
+    const lists = {};
+    let hasRoles = false;
+    let hasUnmatched = false;
+    group.slots.forEach((slot, slotIndex) => {
+      const roleKey = resolveSlotRole(slot);
+      const color = colors[slotIndex];
+      if (roleKey) {
+        hasRoles = true;
+        if (!lists[roleKey]) {
+          lists[roleKey] = [];
+        }
+        lists[roleKey].push(color);
+      } else if (color) {
+        hasUnmatched = true;
+      }
+    });
+    if (!hasRoles || hasUnmatched) return null;
+    Object.keys(lists).forEach(key => {
+      const values = sanitizeColorList(lists[key], MAX_COLORS);
+      if (values.length) {
+        lists[key] = values;
+      } else {
+        delete lists[key];
+      }
+    });
+    return Object.keys(lists).length ? lists : null;
+  }
+
   const CONTRAST_THRESHOLD_NORMAL_TEXT = 4.5;
   const CONTRAST_THRESHOLD_NON_TEXT = 3.0;
 
@@ -577,8 +690,10 @@
   function ensurePaletteShape(palette) {
     const shaped = {};
     const source = palette && typeof palette === 'object' ? palette : {};
-    GROUP_IDS.forEach(groupId => {
-      shaped[groupId] = Array.isArray(source[groupId]) ? source[groupId] : [];
+    COLOR_SLOT_GROUPS.forEach(group => {
+      const groupId = group.groupId;
+      const entry = source[groupId];
+      shaped[groupId] = Array.isArray(entry) ? entry : resolveGroupPaletteEntry(group, entry);
     });
     return shaped;
   }
@@ -1157,7 +1272,12 @@
 
   function buildPayload(palette) {
     const normalizedPalette = normalizePalette(palette || state.palette || getFallbackPalette());
-    const groupPalettes = cloneProjectPalette(normalizedPalette);
+    const groupPalettes = {};
+    COLOR_SLOT_GROUPS.forEach(group => {
+      const colors = Array.isArray(normalizedPalette[group.groupId]) ? normalizedPalette[group.groupId] : [];
+      const rolePayload = buildRolePayloadForGroup(group, colors);
+      groupPalettes[group.groupId] = rolePayload || colors.slice(0, MAX_COLORS);
+    });
     return {
       groupPalettes,
       defaultColors: flattenPalette(groupPalettes, MIN_COLOR_SLOTS)

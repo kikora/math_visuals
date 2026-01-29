@@ -29,6 +29,7 @@ const COLOR_SLOT_GROUPS = Array.isArray(paletteConfig.COLOR_SLOT_GROUPS)
       slots: Array.isArray(group.slots)
         ? group.slots.map((slot, slotIndex) => ({
             index: Number.isInteger(slot && slot.index) ? Number(slot.index) : slotIndex,
+            label: slot && typeof slot.label === 'string' ? slot.label : '',
             groupId:
               slot && typeof slot.groupId === 'string'
                 ? slot.groupId.trim().toLowerCase()
@@ -40,6 +41,12 @@ const COLOR_SLOT_GROUPS = Array.isArray(paletteConfig.COLOR_SLOT_GROUPS)
         : []
     }))
   : COLOR_GROUP_IDS.map(groupId => ({ groupId, slots: [] }));
+const GROUPS_BY_ID = new Map();
+COLOR_SLOT_GROUPS.forEach(group => {
+  if (group && group.groupId) {
+    GROUPS_BY_ID.set(group.groupId, group);
+  }
+});
 const GROUP_SLOT_INDICES = paletteConfig.GROUP_SLOT_INDICES && typeof paletteConfig.GROUP_SLOT_INDICES === 'object'
   ? paletteConfig.GROUP_SLOT_INDICES
   : {};
@@ -129,6 +136,121 @@ function sanitizeColorList(values) {
     }
   }
   return out;
+}
+
+function normalizeRoleKey(value) {
+  if (typeof value !== 'string') return '';
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) return '';
+  if (trimmed.startsWith('fill')) return 'fills';
+  if (trimmed.startsWith('line')) return 'lines';
+  if (trimmed.startsWith('edge') || trimmed.startsWith('kant')) return 'edges';
+  if (trimmed.startsWith('angle') || trimmed.startsWith('vinkel')) return 'angles';
+  return '';
+}
+
+function resolveSlotRole(slot) {
+  const label = slot && typeof slot.label === 'string' ? slot.label.trim().toLowerCase() : '';
+  if (!label) return '';
+  if (label.includes('fyll')) return 'fills';
+  if (label.includes('linje')) return 'lines';
+  if (label.includes('kant')) return 'edges';
+  if (label.includes('vinkel')) return 'angles';
+  return '';
+}
+
+function extractFlatPalette(entry) {
+  if (!entry) return null;
+  if (Array.isArray(entry)) return entry;
+  if (entry && typeof entry === 'object') {
+    if (Array.isArray(entry.colors)) return entry.colors;
+    if (Array.isArray(entry.palette)) return entry.palette;
+    if (Array.isArray(entry.values)) return entry.values;
+    if (entry.default != null) {
+      const nested = extractFlatPalette(entry.default);
+      if (nested && nested.length) return nested;
+    }
+    if (entry.fallback != null) {
+      const nested = extractFlatPalette(entry.fallback);
+      if (nested && nested.length) return nested;
+    }
+  }
+  return null;
+}
+
+function collectRoleLists(entry) {
+  if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return {};
+  const roles = {};
+  Object.keys(entry).forEach(key => {
+    const roleKey = normalizeRoleKey(key);
+    if (!roleKey) return;
+    const values = sanitizeColorList(entry[key]);
+    if (values.length) {
+      roles[roleKey] = values;
+    }
+  });
+  return roles;
+}
+
+function buildRolePaletteSlots(group, roleLists, fallbackList) {
+  const slotRoles = {};
+  const fallback = Array.isArray(fallbackList) ? fallbackList : [];
+  const slots = group && Array.isArray(group.slots) ? group.slots : [];
+  return slots.map((slot, slotIndex) => {
+    const roleKey = resolveSlotRole(slot);
+    if (roleKey && Array.isArray(roleLists[roleKey])) {
+      const position = Number.isInteger(slotRoles[roleKey]) ? slotRoles[roleKey] : 0;
+      const color = roleLists[roleKey][position];
+      slotRoles[roleKey] = position + 1;
+      if (color) return color;
+    }
+    return fallback[slotIndex];
+  });
+}
+
+function resolveGroupPaletteEntry(group, entry) {
+  if (Array.isArray(entry)) return entry;
+  if (entry && typeof entry === 'object') {
+    const roleLists = collectRoleLists(entry);
+    const flat = extractFlatPalette(entry);
+    if (Object.keys(roleLists).length) {
+      return buildRolePaletteSlots(group, roleLists, flat);
+    }
+    if (flat && flat.length) {
+      return flat;
+    }
+  }
+  return [];
+}
+
+function buildRolePayloadForGroup(group, colors) {
+  const lists = {};
+  let hasRoles = false;
+  let hasUnmatched = false;
+  const slots = group && Array.isArray(group.slots) ? group.slots : [];
+  slots.forEach((slot, slotIndex) => {
+    const roleKey = resolveSlotRole(slot);
+    const color = colors[slotIndex];
+    if (roleKey) {
+      hasRoles = true;
+      if (!lists[roleKey]) {
+        lists[roleKey] = [];
+      }
+      lists[roleKey].push(color);
+    } else if (color) {
+      hasUnmatched = true;
+    }
+  });
+  if (!hasRoles || hasUnmatched) return null;
+  Object.keys(lists).forEach(key => {
+    const values = sanitizeColorList(lists[key]);
+    if (values.length) {
+      lists[key] = values;
+    } else {
+      delete lists[key];
+    }
+  });
+  return Object.keys(lists).length ? lists : null;
 }
 
 function normalizeProjectKey(value) {
@@ -229,14 +351,9 @@ function sanitizeGroupPaletteList(values, limit) {
   if (!Array.isArray(values)) return [];
   const maxSize = Number.isInteger(limit) && limit >= 0 ? limit : MAX_COLORS;
   const sanitized = [];
-  for (const value of values) {
-    const clean = sanitizeColor(value);
-    if (clean) {
-      sanitized.push(clean);
-      if (sanitized.length >= maxSize) {
-        break;
-      }
-    }
+  for (let index = 0; index < maxSize; index += 1) {
+    const clean = sanitizeColor(values[index]);
+    sanitized[index] = clean || null;
   }
   return sanitized;
 }
@@ -290,7 +407,9 @@ function applyGroupPaletteOverlay(target, source) {
   COLOR_GROUP_IDS.forEach(groupId => {
     const limit = GROUP_SLOT_COUNTS[groupId] || 0;
     if (!limit) return;
-    const incoming = sanitizeGroupPaletteList(normalizedSource[groupId], limit);
+    const group = GROUPS_BY_ID.get(groupId);
+    const entry = resolveGroupPaletteEntry(group, normalizedSource[groupId]);
+    const incoming = sanitizeGroupPaletteList(entry, limit);
     if (!incoming.length) return;
     const existing = Array.isArray(target[groupId]) ? target[groupId].slice() : [];
     const merged = [];
@@ -448,10 +567,17 @@ function normalizeSettings(value) {
   }
 
   const clonedGroupPalettes = cloneGroupPalettes(groupPalettes);
+  const serializedGroupPalettes = {};
+  COLOR_SLOT_GROUPS.forEach(group => {
+    if (!group || !group.groupId) return;
+    const colors = Array.isArray(clonedGroupPalettes[group.groupId]) ? clonedGroupPalettes[group.groupId] : [];
+    const rolePayload = buildRolePayloadForGroup(group, colors);
+    serializedGroupPalettes[group.groupId] = rolePayload || colors.slice(0, MAX_COLORS);
+  });
   const defaultColors = expandPalette(DEFAULT_PROJECT, { groupPalettes: clonedGroupPalettes });
   return {
     version: 1,
-    groupPalettes: clonedGroupPalettes,
+    groupPalettes: serializedGroupPalettes,
     defaultColors,
     updatedAt: new Date().toISOString()
   };

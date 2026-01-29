@@ -71,6 +71,15 @@
     return trimmed || '';
   }
 
+  function resolveSlotRoleLabel(slot) {
+    if (!slot || typeof slot !== 'object') return '';
+    const label = typeof slot.label === 'string' ? slot.label.toLowerCase() : '';
+    if (!label) return '';
+    if (label.includes('fyll')) return 'fill';
+    if (label.includes('linje')) return 'line';
+    return '';
+  }
+
   function buildSequentialPairs(pairCount) {
     const total = Number.isFinite(pairCount) && pairCount > 0 ? Math.trunc(pairCount) : 0;
     const pairs = [];
@@ -132,6 +141,30 @@
     }
     if (pairs.length) {
       return pairs;
+    }
+    const labeledFills = [];
+    const labeledLines = [];
+    if (slots.length) {
+      slots.forEach((slot, slotIndex) => {
+        const role = resolveSlotRoleLabel(slot);
+        if (role === 'fill') {
+          labeledFills.push(slotIndex);
+        } else if (role === 'line') {
+          labeledLines.push(slotIndex);
+        }
+      });
+    }
+    if (labeledFills.length && labeledLines.length) {
+      const limit = Math.min(labeledFills.length, labeledLines.length);
+      for (let index = 0; index < limit; index += 1) {
+        pairs.push({
+          fillSlotIndex: labeledFills[index],
+          lineSlotIndex: labeledLines[index]
+        });
+      }
+      if (pairs.length) {
+        return pairs;
+      }
     }
     if (slots.length >= 2) {
       return buildSequentialPairs(Math.floor(slots.length / 2));
