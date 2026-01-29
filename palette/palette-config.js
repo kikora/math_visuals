@@ -133,6 +133,12 @@ function buildLegacyPaletteConfig() {
       description:
         'Farger som brukes av graftegner, diagram, brøksirkler, brøkfigurer, tallfigurer, kvikkbilder, tenkeblokker, brøkvegg og 3D-figurer.',
       colorRoles: [
+        { fillIndex: 0, lineIndex: 1 },
+        { fillIndex: 3, lineIndex: 4 },
+        { fillIndex: 6, lineIndex: 7 },
+        { fillIndex: 9, lineIndex: 10 },
+        { fillIndex: 12, lineIndex: 13 },
+        { fillIndex: 15, lineIndex: 16 },
         { lineIndex: 2 },
         { lineIndex: 5 },
         { lineIndex: 8 },

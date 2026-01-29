@@ -280,7 +280,7 @@ function isValidColor(value) {
   function getGraftegnerRoleSlotPairs() {
     const config = getPaletteConfig();
     if (colorPickerHelper && typeof colorPickerHelper.resolveRoleSlotPairs === 'function') {
-      return colorPickerHelper.resolveRoleSlotPairs(config, SHARED_GROUP_ID, DEFAULT_GRAFTEGNER_COLOR_ROLES);
+      return colorPickerHelper.resolveRoleSlotPairs(config, SHARED_GROUP_ID, DEFAULT_GRAFTEGNER_COLOR_ROLES, 'fill');
     }
     const pairs = [];
     for (let index = 0; index < FILL_COLOR_COUNT; index += 1) {
