@@ -148,12 +148,52 @@ function isValidColor(value) {
     colorInputs.push(inp);
   }
   const LEGACY_COLOR_PALETTE = ['#B25FE3', '#6C1BA2', '#534477', '#873E79', '#E3B660', '#2C395B'];
-  const SHARED_GROUP_ID = 'figurtall';
+  const SHARED_GROUP_ID = 'graftegner';
+  const DEFAULT_GRAFTEGNER_COLOR_ROLES = [
+    { fillIndex: 0, lineIndex: 1 },
+    { fillIndex: 2, lineIndex: 3 },
+    { fillIndex: 4, lineIndex: 5 },
+    { fillIndex: 6, lineIndex: 7 },
+    { fillIndex: 8, lineIndex: 9 },
+    { fillIndex: 10, lineIndex: 11 }
+  ];
   let activeFillColorIndex = sanitizeFillIndex(STATE.activeFillColorIndex, FILL_COLOR_COUNT);
   STATE.activeFillColorIndex = activeFillColorIndex;
   function getThemeApi() {
     const theme = typeof window !== 'undefined' ? window.MathVisualsTheme : null;
     return theme && typeof theme === 'object' ? theme : null;
+  }
+  function resolvePaletteConfig() {
+    const scopes = [
+      typeof window !== 'undefined' ? window : null,
+      typeof globalThis !== 'undefined' ? globalThis : null,
+      typeof global !== 'undefined' ? global : null
+    ];
+    for (const scope of scopes) {
+      if (!scope || typeof scope !== 'object') continue;
+      const config = scope.MathVisualsPaletteConfig;
+      if (config && typeof config === 'object') {
+        return config;
+      }
+    }
+    if (typeof require === 'function') {
+      try {
+        const mod = require('./palette/palette-config.js');
+        if (mod && typeof mod === 'object') {
+          return mod;
+        }
+      } catch (_) {}
+    }
+    return null;
+  }
+  let paletteConfigResolved = false;
+  let paletteConfigCache = null;
+  function getPaletteConfig() {
+    if (!paletteConfigResolved) {
+      paletteConfigResolved = true;
+      paletteConfigCache = resolvePaletteConfig();
+    }
+    return paletteConfigCache;
   }
   function applyThemeToDocument() {
     const theme = getThemeApi();
@@ -205,8 +245,17 @@ function isValidColor(value) {
     return normalizePaletteToCount(palette, targetCount, LEGACY_COLOR_PALETTE);
   }
   function getFillPalette() {
-    const palette = getPaletteFromTheme(FILL_COLOR_COUNT);
-    return Array.isArray(palette) ? palette.slice(0, FILL_COLOR_COUNT) : [];
+    const roleSlots = getGraftegnerRoleSlotPairs();
+    const fillIndices = roleSlots
+      .map(role => (Number.isInteger(role?.fillIndex) ? role.fillIndex : role?.fillSlotIndex))
+      .filter(index => Number.isInteger(index) && index >= 0);
+    const targetCount = fillIndices.length ? Math.max(...fillIndices) + 1 : FILL_COLOR_COUNT;
+    const palette = getPaletteFromTheme(targetCount);
+    if (!Array.isArray(palette)) return [];
+    if (!fillIndices.length) {
+      return palette.slice(0, FILL_COLOR_COUNT);
+    }
+    return fillIndices.map(index => palette[index]).filter(isValidColor).slice(0, FILL_COLOR_COUNT);
   }
   function sanitizeFillIndex(value, paletteLength) {
     const numeric = Number.parseInt(value, 10);
@@ -227,6 +276,20 @@ function isValidColor(value) {
       element.style.setProperty('--swatch-fill', color);
       element.style.setProperty('--swatch-line', color);
     }
+  }
+  function getGraftegnerRoleSlotPairs() {
+    const config = getPaletteConfig();
+    if (colorPickerHelper && typeof colorPickerHelper.resolveRoleSlotPairs === 'function') {
+      return colorPickerHelper.resolveRoleSlotPairs(config, SHARED_GROUP_ID, DEFAULT_GRAFTEGNER_COLOR_ROLES);
+    }
+    const pairs = [];
+    for (let index = 0; index < FILL_COLOR_COUNT; index += 1) {
+      pairs.push({
+        fillSlotIndex: index * 2,
+        lineSlotIndex: index * 2 + 1
+      });
+    }
+    return pairs;
   }
   function buildFillColorSlots(colors) {
     return colors.map((color, index) => ({
