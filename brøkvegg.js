@@ -74,7 +74,7 @@ const paletteService = typeof require === 'function'
   };
   const DEFAULT_DENOMS = [1, 2, 3, 4, 5, 6, 8, 9, 10, 12];
   const LEGACY_COLOR_PALETTE = ['#B25FE3', '#6C1BA2', '#534477', '#873E79', '#BF4474', '#E31C3D'];
-  const SHARED_GROUP_ID = 'graftegner';
+  const SHARED_GROUP_ID = 'fellesfarger';
 
   function sanitizePaletteList(values) {
     if (!Array.isArray(values)) return [];

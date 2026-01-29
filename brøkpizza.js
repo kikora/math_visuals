@@ -135,7 +135,7 @@ const LEGACY_PIZZA_COLORS = {
   handle: '#e9e6f7',
   handleStroke: '#333333'
 };
-const SHARED_GROUP_ID = 'graftegner';
+const SHARED_GROUP_ID = 'fellesfarger';
 const FILL_COLOR_COUNT = 6;
 const DEFAULT_GRAFTEGNER_COLOR_ROLES = [
   { fillIndex: 0, lineIndex: 1 },
@@ -363,7 +363,7 @@ function getGroupSlotIndices(config, groupId) {
 function getGraftegnerRoleSlotPairs() {
   const config = getPaletteConfig();
   if (colorPickerHelper && typeof colorPickerHelper.resolveRoleSlotPairs === 'function') {
-    return colorPickerHelper.resolveRoleSlotPairs(config, 'graftegner', DEFAULT_GRAFTEGNER_COLOR_ROLES);
+    return colorPickerHelper.resolveRoleSlotPairs(config, 'fellesfarger', DEFAULT_GRAFTEGNER_COLOR_ROLES);
   }
   const pairs = [];
   for (let index = 0; index < FILL_COLOR_COUNT; index += 1) {

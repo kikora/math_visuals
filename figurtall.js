@@ -148,7 +148,7 @@ function isValidColor(value) {
     colorInputs.push(inp);
   }
   const LEGACY_COLOR_PALETTE = ['#B25FE3', '#6C1BA2', '#534477', '#873E79', '#E3B660', '#2C395B'];
-  const SHARED_GROUP_ID = 'graftegner';
+  const SHARED_GROUP_ID = 'fellesfarger';
   const DEFAULT_GRAFTEGNER_COLOR_ROLES = [
     { fillIndex: 0, lineIndex: 1 },
     { fillIndex: 2, lineIndex: 3 },

@@ -26,7 +26,7 @@ const PROJECT_FALLBACKS = deepFreeze({
 
 const RAW_COLOR_SLOT_GROUPS = [
   {
-    groupId: 'graftegner',
+    groupId: 'fellesfarger',
     title: 'Felles farger',
     description:
       'Farger som brukes av graftegner, diagram, brøksirkler, brøkfigurer, tallfigurer, kvikkbilder, tenkeblokker, brøkvegg og 3D-figurer.',
@@ -206,6 +206,15 @@ function normalizeIdentifier(value) {
   return trimmed || '';
 }
 
+const GROUP_ID_ALIASES = deepFreeze({
+  graftegner: 'fellesfarger'
+});
+
+function normalizeGroupId(value) {
+  const normalized = normalizeIdentifier(value);
+  return GROUP_ID_ALIASES[normalized] || normalized;
+}
+
 function sanitizeColor(value) {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
@@ -368,7 +377,7 @@ function createPaletteService(options = {}) {
           ? profileValue.groups || profileValue.groupPalettes || {}
           : {};
       Object.entries(rawGroups).forEach(([groupKey, colors]) => {
-        const normalizedGroupId = normalizeIdentifier(groupKey);
+        const normalizedGroupId = normalizeGroupId(groupKey);
         if (!normalizedGroupId || !groupIds.includes(normalizedGroupId)) return;
         const limit = (groupSlotIndexMap[normalizedGroupId] || []).length || maxColors;
         const sanitized = sanitizePalette(colors, limit);
@@ -395,7 +404,7 @@ function createPaletteService(options = {}) {
           ? profileValue.fallbacks || profileValue.groupFallbacks || {}
           : {};
       Object.entries(rawFallbacks).forEach(([groupKey, kinds]) => {
-        const normalizedGroupId = normalizeIdentifier(groupKey) || groupKey;
+        const normalizedGroupId = normalizeGroupId(groupKey) || groupKey;
         if (!normalizedGroupId) return;
         const normalizedKinds = Array.isArray(kinds)
           ? kinds.map(normalizeIdentifier).filter(Boolean)
@@ -417,7 +426,7 @@ function createPaletteService(options = {}) {
   const groupFallbacks = {};
   if (options && typeof options.groupFallbacks === 'object' && options.groupFallbacks) {
     Object.entries(options.groupFallbacks).forEach(([groupKey, kinds]) => {
-      const normalizedGroupId = normalizeIdentifier(groupKey) || groupKey;
+      const normalizedGroupId = normalizeGroupId(groupKey) || groupKey;
       if (!normalizedGroupId) return;
       const normalizedKinds = Array.isArray(kinds)
         ? kinds.map(normalizeIdentifier).filter(Boolean)
@@ -545,7 +554,7 @@ function createPaletteService(options = {}) {
 
   function resolveGroupPalette(options = {}) {
     const opts = options && typeof options === 'object' ? options : {};
-    const groupId = normalizeIdentifier(opts.groupId || opts.group);
+    const groupId = normalizeGroupId(opts.groupId || opts.group);
     const count = Number.isFinite(opts.count) && opts.count > 0 ? Math.trunc(opts.count) : undefined;
     const project = typeof opts.project === 'string' && opts.project ? opts.project : undefined;
     const explicitFallback = Array.isArray(opts.fallback) ? sanitizePalette(opts.fallback, count || maxColors) : [];
@@ -656,7 +665,7 @@ function createPaletteService(options = {}) {
       const fallbackKinds = Array.isArray(opts.fallbackKinds)
         ? opts.fallbackKinds.map(normalizeIdentifier).filter(Boolean)
         : undefined;
-      const palette = selectProfilePalette(profileId, normalizeIdentifier(groupId), fallbackKinds);
+      const palette = selectProfilePalette(profileId, normalizeGroupId(groupId), fallbackKinds);
       return Array.isArray(palette) ? palette.slice() : [];
     }
   };

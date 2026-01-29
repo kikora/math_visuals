@@ -67,7 +67,7 @@
       groupIndex: slot.groupIndex
     }))
   }));
-  const DEFAULT_GRAFTEGNER_GROUP_ID = 'graftegner';
+  const DEFAULT_GRAFTEGNER_GROUP_ID = 'fellesfarger';
   const GRAFTEGNER_GROUP_ID = (() => {
     for (const group of COLOR_SLOT_GROUPS) {
       if (!group || typeof group.groupId !== 'string') continue;
@@ -530,7 +530,7 @@
 
   function buildContrastStatus(groupId, palette) {
     if (!groupId || !palette || typeof palette !== 'object') return null;
-    if (groupId === 'graftegner') {
+    if (groupId === DEFAULT_GRAFTEGNER_GROUP_ID) {
       const colors = Array.isArray(palette[groupId]) ? palette[groupId] : [];
       const evaluation = evaluateContrastForSlot(colors[0]);
       if (!evaluation) {
@@ -1180,7 +1180,7 @@
       if (normalizedGroupId) {
         table.dataset.groupId = normalizedGroupId;
       }
-      if (normalizedGroupId === 'graftegner') {
+      if (normalizedGroupId === DEFAULT_GRAFTEGNER_GROUP_ID) {
         graftegnerContrastRows.length = 0;
         const triples = resolveGraftegnerRoleTriples(group);
         if (triples.length) {

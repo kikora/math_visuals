@@ -391,7 +391,7 @@ function isValidColor(value) {
     colorInputs.push(inp);
   }
   const LEGACY_COLOR_PALETTE = ['#B25FE3', '#6C1BA2', '#534477', '#873E79', '#BF4474', '#E31C3D'];
-  const SHARED_GROUP_ID = 'graftegner';
+  const SHARED_GROUP_ID = 'fellesfarger';
   const PALETTE_PAIR_COUNT = 6;
   const PALETTE_SLOT_COUNT = PALETTE_PAIR_COUNT * 2;
   const FILL_COLOR_COUNT = PALETTE_PAIR_COUNT;
@@ -509,7 +509,7 @@ const fillColorPickerInstances = new WeakMap();
   function getGraftegnerRoleSlotPairs() {
     const config = getPaletteConfig();
     if (colorPickerHelper && typeof colorPickerHelper.resolveRoleSlotPairs === 'function') {
-      return colorPickerHelper.resolveRoleSlotPairs(config, 'graftegner', DEFAULT_GRAFTEGNER_COLOR_ROLES);
+      return colorPickerHelper.resolveRoleSlotPairs(config, 'fellesfarger', DEFAULT_GRAFTEGNER_COLOR_ROLES);
     }
     const pairs = [];
     for (let index = 0; index < PALETTE_PAIR_COUNT; index += 1) {

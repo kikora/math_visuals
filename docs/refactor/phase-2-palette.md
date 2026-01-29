@@ -6,7 +6,7 @@ Andre steg i palettrefaktoreringen flytter all fargemetadatas til en dedikert pa
 
 Hovedpunkter:
 
-- `packages/palette/src/index.js` er ny kilde til sannhet for `PROJECT_FALLBACKS`, slot-grupper, graftegner-aksene og `ensure/resolve`-logikken.
+- `packages/palette/src/index.js` er ny kilde til sannhet for `PROJECT_FALLBACKS`, slot-grupper, fellesfarger-aksene og `ensure/resolve`-logikken.
 - `createPaletteService()` gir et eksplisitt API for å hente paletter basert på gruppe, profil og legacy-id-er.
 - `palette/palette-config.js` og `palette/group-palette.js` er beholdt som tynne wrappers som laster pakken og eksponerer de gamle `window.MathVisualsPalette*`-feltene for bakoverkompatibilitet.
 - Pakken leverer CommonJS, ESM og global (IIFE) build slik at eksisterende `<script>`-referanser fortsatt virker.
@@ -23,7 +23,7 @@ const service = createPaletteService({
   profiles: {
     campus: {
       groups: {
-        graftegner: ['#111111', '#222222']
+        fellesfarger: ['#111111', '#222222']
       },
       palettes: {
         fractions: ['#DBE3FF', '#2C395B']
@@ -31,7 +31,7 @@ const service = createPaletteService({
     }
   },
   groupFallbacks: {
-    graftegner: ['fractions']
+    fellesfarger: ['fractions']
   },
   legacyPalettes: {
     figures: ['#B25FE3', '#6C1BA2']
@@ -39,12 +39,14 @@ const service = createPaletteService({
 });
 
 const colors = service.resolveGroupPalette({
-  groupId: 'graftegner',
+  groupId: 'fellesfarger',
   profile: 'campus',
   legacyPaletteId: 'figures',
   count: 4
 });
 ```
+
+**Navnebytte:** Gruppe-id-en `graftegner` er erstattet av `fellesfarger`. Oppdater integrasjoner til å bruke `fellesfarger` i nye kall; aliaset er kun ment for midlertidig bakoverkompatibilitet og skal fjernes når alle klienter er migrert.
 
 ### Viktige opsjoner
 

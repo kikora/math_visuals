@@ -110,7 +110,7 @@ function whenJXGReady(callback) {
   scheduleJXGCheck();
 }
 const SETTINGS_STORAGE_KEY = 'mathVisuals:settings';
-const GRAFTEGNER_GROUP_ID = 'graftegner';
+const GRAFTEGNER_GROUP_ID = 'fellesfarger';
 const GRAFTEGNER_FALLBACK_PALETTE = ['#c14f30', '#155eef', '#027a48', '#b8325d', '#b8325d', '#674d96'];
 const DEFAULT_LINE_THICKNESS = 3;
 const AUTO_SPAN_SAFETY_MULTIPLIER = 200;

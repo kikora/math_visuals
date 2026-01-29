@@ -124,14 +124,14 @@
     return colors;
   }
   const GROUP_FALLBACKS = {
-    graftegner: ['fractions', 'figures'],
+    fellesfarger: ['fractions', 'figures'],
     nkant: ['figures', 'fractions'],
     arealmodell: ['fractions', 'figures'],
     default: ['fractions', 'figures']
   };
   const DEFAULT_PALETTE_GROUPS = Array.isArray(paletteConfig.DEFAULT_GROUP_ORDER)
     ? paletteConfig.DEFAULT_GROUP_ORDER.slice()
-    : ['graftegner', 'nkant', 'arealmodell', 'extra'];
+    : ['fellesfarger', 'nkant', 'arealmodell', 'extra'];
   const fallbackPaletteColors = Array.isArray(paletteConfig.PROJECT_FALLBACKS && paletteConfig.PROJECT_FALLBACKS.default)
     ? paletteConfig.PROJECT_FALLBACKS.default.slice()
     : [];
@@ -366,7 +366,7 @@
       return null;
     }
     try {
-      const palette = paletteHelper.getGroupPalette('graftegner', { count: 2 });
+      const palette = paletteHelper.getGroupPalette('fellesfarger', { count: 2 });
       if (Array.isArray(palette) && palette.length > 1) {
         const color = sanitizeUserColor(palette[1]);
         if (color) {

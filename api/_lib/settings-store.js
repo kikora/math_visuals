@@ -73,7 +73,7 @@ COLOR_SLOT_GROUPS.forEach(group => {
   });
 });
 
-const DEFAULT_GRAFTEGNER_GROUP_ID = 'graftegner';
+const DEFAULT_GRAFTEGNER_GROUP_ID = 'fellesfarger';
 const GRAFTEGNER_GROUP_ID = (() => {
   for (const group of COLOR_SLOT_GROUPS) {
     if (!group || !group.groupId) continue;

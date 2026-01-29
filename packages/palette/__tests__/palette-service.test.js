@@ -15,7 +15,7 @@ test('ensurePalette fills gaps using fallback colors', () => {
 
 test('service resolves project fallback palette when no sources available', () => {
   const service = createPaletteService();
-  const palette = service.resolveGroupPalette({ groupId: 'graftegner', project: 'default', count: 3 });
+  const palette = service.resolveGroupPalette({ groupId: 'fellesfarger', project: 'default', count: 3 });
   const expected = ensurePalette([], PROJECT_FALLBACKS.default, 3);
   assert.deepStrictEqual(palette, expected);
 });
@@ -27,7 +27,7 @@ test('profile group palette is preferred over fallbacks', () => {
       campus: {
         id: 'campus',
         groups: {
-          graftegner: ['#111111', '#222222']
+          fellesfarger: ['#111111', '#222222']
         },
         palettes: {
           fractions: PROJECT_FALLBACKS.default
@@ -38,7 +38,7 @@ test('profile group palette is preferred over fallbacks', () => {
       default: ['fractions']
     }
   });
-  const palette = service.resolveGroupPalette({ groupId: 'graftegner', profile: 'campus', count: 2 });
+  const palette = service.resolveGroupPalette({ groupId: 'fellesfarger', profile: 'campus', count: 2 });
   assert.deepStrictEqual(palette, ['#111111', '#222222']);
 });
 
@@ -68,7 +68,7 @@ test('legacy palettes are used as final fallback', () => {
     }
   });
   const palette = service.resolveGroupPalette({
-    groupId: 'graftegner',
+    groupId: 'fellesfarger',
     legacyPaletteId: 'figures',
     count: 3
   });
@@ -76,7 +76,14 @@ test('legacy palettes are used as final fallback', () => {
 });
 
 test('default resolveGroupPalette helper uses configured fallbacks', () => {
-  const palette = resolveGroupPalette({ groupId: 'graftegner', project: 'default', count: 2 });
+  const palette = resolveGroupPalette({ groupId: 'fellesfarger', project: 'default', count: 2 });
+  const expected = ensurePalette([], PROJECT_FALLBACKS.default, 2);
+  assert.deepStrictEqual(palette, expected);
+});
+
+test('legacy graftegner group id maps to fellesfarger', () => {
+  const service = createPaletteService();
+  const palette = service.resolveGroupPalette({ groupId: 'graftegner', project: 'default', count: 2 });
   const expected = ensurePalette([], PROJECT_FALLBACKS.default, 2);
   assert.deepStrictEqual(palette, expected);
 });
