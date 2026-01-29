@@ -49,6 +49,17 @@ function buildGroupedPalette(overrides = {}) {
   return base;
 }
 
+function getRolePalette(group, roleKey) {
+  if (Array.isArray(group)) {
+    return group;
+  }
+  if (group && typeof group === 'object') {
+    const list = group[roleKey];
+    return Array.isArray(list) ? list : [];
+  }
+  return [];
+}
+
 test.describe('settings-store palette handling', () => {
   test('stores grouped palettes and retrieves consistent hex colors', async () => {
     const basePalette = buildGroupedPalette();
@@ -60,14 +71,18 @@ test.describe('settings-store palette handling', () => {
     const expectedDefault = expandPalette('campus', basePalette);
 
     expect(saved.groupPalettes).toBeDefined();
-    expect(saved.groupPalettes.graftegner[0]).toBe('#123456');
-    expect(saved.groupPalettes.graftegner[1]).toBe('#654321');
+    const savedFills = getRolePalette(saved.groupPalettes.graftegner, 'fills');
+    const savedEdges = getRolePalette(saved.groupPalettes.graftegner, 'edges');
+    expect(savedFills[0]).toBe('#123456');
+    expect(savedEdges[0]).toBe('#654321');
     expect(saved.defaultColors[0]).toBe(expectedDefault[0]);
 
     const retrieved = await getSettings();
 
-    expect(retrieved.groupPalettes.graftegner[0]).toBe('#123456');
-    expect(retrieved.groupPalettes.graftegner[1]).toBe('#654321');
+    const retrievedFills = getRolePalette(retrieved.groupPalettes.graftegner, 'fills');
+    const retrievedEdges = getRolePalette(retrieved.groupPalettes.graftegner, 'edges');
+    expect(retrievedFills[0]).toBe('#123456');
+    expect(retrievedEdges[0]).toBe('#654321');
     expect(retrieved.defaultColors[0]).toBe(expectedDefault[0]);
 
     expect(saved.groupPalettes.ukjent).toBeUndefined();

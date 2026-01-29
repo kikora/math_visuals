@@ -37,6 +37,17 @@ const ORIGINAL_GLOBALS = {
   localStorage: global.localStorage
 };
 
+function getRolePalette(group, roleKey) {
+  if (Array.isArray(group)) {
+    return group;
+  }
+  if (group && typeof group === 'object') {
+    const list = group[roleKey];
+    return Array.isArray(list) ? list : [];
+  }
+  return [];
+}
+
 test.afterEach(() => {
   delete global.MathVisualsSettings;
   delete global.MathVisualsPalette;
@@ -1088,7 +1099,8 @@ test.describe('MathVisualsSettings palette formats', () => {
     expect(settings.groupPalettes.graftegner).toBeTruthy();
     expect(Array.isArray(settings.defaultColors)).toBe(true);
     expect(settings.defaultColors[0]).toBeDefined();
-    const firstGroupColor = settings.groupPalettes.graftegner && settings.groupPalettes.graftegner[0];
+    const graftegnerFills = getRolePalette(settings.groupPalettes.graftegner, 'fills');
+    const firstGroupColor = graftegnerFills[0];
     if (firstGroupColor) {
       expect(settings.defaultColors[0]).toBe(firstGroupColor);
     }
@@ -1104,13 +1116,15 @@ test.describe('MathVisualsSettings palette formats', () => {
       }
     });
 
-    expect(update.groupPalettes.graftegner[0]).toBe('#111111');
+    const updateFills = getRolePalette(update.groupPalettes.graftegner, 'fills');
+    expect(updateFills[0]).toBe('#111111');
     expect(update.defaultColors[0]).toBe('#111111');
     expect(update.groupPalettes.ukjent).toBeUndefined();
     expect(update.defaultColors).not.toEqual(expect.arrayContaining(['#222222']));
 
     const settings = api.getSettings();
-    expect(settings.groupPalettes.graftegner[0]).toBe('#111111');
+    const settingsFills = getRolePalette(settings.groupPalettes.graftegner, 'fills');
+    expect(settingsFills[0]).toBe('#111111');
     expect(settings.defaultColors[0]).toBe('#111111');
     expect(settings.groupPalettes.ukjent).toBeUndefined();
     expect(settings.defaultColors).not.toEqual(expect.arrayContaining(['#222222']));
@@ -1126,12 +1140,18 @@ test.describe('MathVisualsSettings palette formats', () => {
       }
     });
 
-    expect(update.groupPalettes.graftegner).toEqual(['#010101', '#020202']);
+    const updateFills = getRolePalette(update.groupPalettes.graftegner, 'fills');
+    const updateEdges = getRolePalette(update.groupPalettes.graftegner, 'edges');
+    expect(updateFills[0]).toBe('#010101');
+    expect(updateEdges[0]).toBe('#020202');
     expect(update.defaultColors[0]).toBe('#010101');
     expect(update.groupPalettes.ukjent).toBeUndefined();
 
     const persisted = api.getSettings();
-    expect(persisted.groupPalettes.graftegner).toEqual(['#010101', '#020202']);
+    const persistedFills = getRolePalette(persisted.groupPalettes.graftegner, 'fills');
+    const persistedEdges = getRolePalette(persisted.groupPalettes.graftegner, 'edges');
+    expect(persistedFills[0]).toBe('#010101');
+    expect(persistedEdges[0]).toBe('#020202');
     expect(persisted.defaultColors[0]).toBe('#010101');
     expect(persisted.groupPalettes.ukjent).toBeUndefined();
   });
