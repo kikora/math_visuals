@@ -181,7 +181,7 @@ const UNION_BRACE_BOUNDS = Object.freeze({
 });
 const UNION_BRACE_INNER_WIDTH = UNION_BRACE_BOUNDS.right - UNION_BRACE_BOUNDS.left;
 const UNION_BRACE_INNER_HEIGHT = UNION_BRACE_BOUNDS.bottom - UNION_BRACE_BOUNDS.top;
-const SHARED_GROUP_ID = 'graftegner';
+const SHARED_GROUP_ID = 'fractions';
 const FILL_COLOR_COUNT = 6;
 const DEFAULT_GRAFTEGNER_COLOR_ROLES = [
   { fillIndex: 0, lineIndex: 1 },
