@@ -2762,6 +2762,15 @@ const fillColorPickerInstances = new WeakMap();
       if (division === 'diagonal') {
         const c = [width / 2, 0.5];
         const corners = [[0, 0], [width, 0], [width, 1], [0, 1]];
+        const diagonalStrokeWidth = 2;
+        const diagonalInset = diagonalStrokeWidth / 2;
+        const insetCorner = corner => {
+          const dx = c[0] - corner[0];
+          const dy = c[1] - corner[1];
+          const length = Math.hypot(dx, dy);
+          if (!(length > 0)) return corner.slice();
+          return [corner[0] + dx / length * diagonalInset, corner[1] + dy / length * diagonalInset];
+        };
         for (let i = 0; i < 4; i++) {
           const pts = [corners[i], corners[(i + 1) % 4], c];
           const poly = board.create('polygon', pts, {
@@ -2787,8 +2796,9 @@ const fillColorPickerInstances = new WeakMap();
           registerFillNodes(poly);
           attachToggleHandler(poly, i);
           markPolygonBorders(poly);
-          createDivisionSegment(c, corners[i], {
-            linecap: 'butt'
+          createDivisionSegment(c, insetCorner(corners[i]), {
+            linecap: 'butt',
+            strokeWidth: diagonalStrokeWidth
           }, false);
         }
       } else if (division === 'grid') {
