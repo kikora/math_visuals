@@ -164,16 +164,16 @@ function buildLegacyPaletteConfig() {
     {
       groupId: 'nkant',
       title: 'nKant',
-      description: 'Farger for linjer, vinkler og fyll i nKant.',
+      description: 'Farger for kanter, vinkler og fyll i nKant.',
       slots: [
         { index: 30, label: 'Fyll 1', description: 'Fyllfarge til fargesett 1.' },
-        { index: 31, label: 'Linje 1', description: 'Linjefarge til fargesett 1.' },
+        { index: 31, label: 'Kant 1', description: 'Kantfarge til fargesett 1.' },
         { index: 32, label: 'Vinkel 1', description: 'Vinkelfarge til fargesett 1.' },
         { index: 33, label: 'Fyll 2', description: 'Fyllfarge til fargesett 2.' },
-        { index: 34, label: 'Linje 2', description: 'Linjefarge til fargesett 2.' },
+        { index: 34, label: 'Kant 2', description: 'Kantfarge til fargesett 2.' },
         { index: 35, label: 'Vinkel 2', description: 'Vinkelfarge til fargesett 2.' },
         { index: 36, label: 'Fyll 3', description: 'Fyllfarge til fargesett 3.' },
-        { index: 37, label: 'Linje 3', description: 'Linjefarge til fargesett 3.' },
+        { index: 37, label: 'Kant 3', description: 'Kantfarge til fargesett 3.' },
         { index: 38, label: 'Vinkel 3', description: 'Vinkelfarge til fargesett 3.' }
       ]
     },
