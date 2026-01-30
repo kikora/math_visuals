@@ -25,18 +25,27 @@ const COLOR_GROUP_IDS = Array.isArray(paletteConfig.COLOR_GROUP_IDS)
   : GROUPED_PALETTE_ORDER.slice();
 const COLOR_SLOT_GROUPS = Array.isArray(paletteConfig.COLOR_SLOT_GROUPS)
   ? paletteConfig.COLOR_SLOT_GROUPS.map(group => ({
-      groupId: typeof group.groupId === 'string' ? group.groupId.trim().toLowerCase() : '',
+      groupId: group.groupId,
+      title: group.title,
+      description: group.description,
+      groupIndex: Number.isInteger(group.groupIndex) ? group.groupIndex : undefined,
+      colorRoles: Array.isArray(group.colorRoles)
+        ? group.colorRoles.map(role => ({
+            fillIndex: role && role.fillIndex,
+            textIndex: role && role.textIndex,
+            lineIndex: role && role.lineIndex
+          }))
+        : null,
       slots: Array.isArray(group.slots)
-        ? group.slots.map((slot, slotIndex) => ({
-            index: Number.isInteger(slot && slot.index) ? Number(slot.index) : slotIndex,
-            label: slot && typeof slot.label === 'string' ? slot.label : '',
+        ? group.slots.map(slot => ({
+            index: slot && slot.index,
+            label: slot && slot.label,
+            description: slot && slot.description,
             groupId:
               slot && typeof slot.groupId === 'string'
-                ? slot.groupId.trim().toLowerCase()
-                : typeof group.groupId === 'string'
-                ? group.groupId.trim().toLowerCase()
-                : '',
-            groupIndex: Number.isInteger(slot && slot.groupIndex) ? Number(slot.groupIndex) : slotIndex
+                ? slot.groupId
+                : group.groupId,
+            groupIndex: slot && slot.groupIndex
           }))
         : []
     }))
