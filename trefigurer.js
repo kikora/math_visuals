@@ -1332,7 +1332,7 @@
   function getGraftegnerRoleSlotPairs() {
     const config = getPaletteConfig();
     if (colorPickerHelper && typeof colorPickerHelper.resolveRoleSlotPairs === 'function') {
-      return colorPickerHelper.resolveRoleSlotPairs(config, 'graftegner', DEFAULT_GRAFTEGNER_COLOR_ROLES);
+      return colorPickerHelper.resolveRoleSlotPairs(config, 'fellesfarger', DEFAULT_GRAFTEGNER_COLOR_ROLES);
     }
     const pairs = [];
     for (let index = 0; index < FALLBACK_COLOR_OPTIONS.length; index += 1) {
@@ -1348,7 +1348,7 @@
     let colors = [];
     if (paletteApi) {
       try {
-        colors = paletteApi.getGroupPalette('graftegner', { count: 12 });
+        colors = paletteApi.getGroupPalette('fellesfarger', { count: 12 });
       } catch (_) {
         colors = [];
       }

@@ -391,9 +391,9 @@ function isValidColor(value) {
     colorInputs.push(inp);
   }
   const LEGACY_COLOR_PALETTE = ['#B25FE3', '#6C1BA2', '#534477', '#873E79', '#BF4474', '#E31C3D'];
-  const SHARED_GROUP_ID = 'graftegner';
+  const SHARED_GROUP_ID = 'fellesfarger';
   const PALETTE_PAIR_COUNT = 6;
-  const PALETTE_SLOT_COUNT = PALETTE_PAIR_COUNT * 2;
+  const PALETTE_SLOT_COUNT = PALETTE_PAIR_COUNT * 3;
   const FILL_COLOR_COUNT = PALETTE_PAIR_COUNT;
 const DEFAULT_GRAFTEGNER_COLOR_ROLES = [
   { fillIndex: 0, lineIndex: 1 },
@@ -509,13 +509,13 @@ const fillColorPickerInstances = new WeakMap();
   function getGraftegnerRoleSlotPairs() {
     const config = getPaletteConfig();
     if (colorPickerHelper && typeof colorPickerHelper.resolveRoleSlotPairs === 'function') {
-      return colorPickerHelper.resolveRoleSlotPairs(config, 'graftegner', DEFAULT_GRAFTEGNER_COLOR_ROLES);
+      return colorPickerHelper.resolveRoleSlotPairs(config, 'fellesfarger', DEFAULT_GRAFTEGNER_COLOR_ROLES);
     }
     const pairs = [];
     for (let index = 0; index < PALETTE_PAIR_COUNT; index += 1) {
       pairs.push({
-        fillSlotIndex: index * 2,
-        lineSlotIndex: index * 2 + 1
+        fillSlotIndex: index * 3,
+        lineSlotIndex: index * 3 + 1
       });
     }
     return pairs;
@@ -784,7 +784,7 @@ const fillColorPickerInstances = new WeakMap();
     }
 
     if (theme && typeof theme.getPalette === 'function') {
-      const palette = tryResolvePalette(() => theme.getPalette('graftegner', target || fallback.length));
+      const palette = tryResolvePalette(() => theme.getPalette('fellesfarger', target || fallback.length));
       if (palette && palette.length) {
         return ensurePaletteSize(palette, fallback, target);
       }
@@ -817,7 +817,7 @@ const fillColorPickerInstances = new WeakMap();
         lineColors.push(line || fill || '#000');
       });
     } else {
-      for (let index = 0; index < palette.length; index += 2) {
+      for (let index = 0; index < palette.length; index += 3) {
         fillColors.push(palette[index] || palette[index + 1] || '#fff');
         lineColors.push(palette[index + 1] || palette[index] || '#000');
       }

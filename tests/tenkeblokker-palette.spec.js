@@ -117,11 +117,11 @@ test.describe('tenkeblokker fraction palette fallbacks', () => {
         default: defaultFallback
       },
       GROUP_SLOT_INDICES: {
-        graftegner: [4, 5]
+        fellesfarger: [4, 5]
       },
       COLOR_SLOT_GROUPS: [
         {
-          groupId: 'graftegner',
+          groupId: 'fellesfarger',
           slots: [{ index: 4 }, { index: 5 }]
         }
       ]

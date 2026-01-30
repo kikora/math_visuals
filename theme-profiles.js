@@ -124,20 +124,20 @@
     return colors;
   }
   const GROUP_FALLBACKS = {
-    graftegner: ['figures', 'default'],
-    nkant: ['graftegner', 'default'],
-    arealmodell: ['graftegner', 'default'],
-    default: ['graftegner', 'default']
+    fellesfarger: ['figures', 'default'],
+    nkant: ['fellesfarger', 'default'],
+    arealmodell: ['fellesfarger', 'default'],
+    default: ['fellesfarger', 'default']
   };
   const DEFAULT_PALETTE_GROUPS = Array.isArray(paletteConfig.DEFAULT_GROUP_ORDER)
     ? paletteConfig.DEFAULT_GROUP_ORDER.slice()
-    : ['graftegner', 'nkant', 'arealmodell', 'extra'];
+    : ['fellesfarger', 'nkant', 'arealmodell', 'extra'];
   const fallbackPaletteColors = Array.isArray(paletteConfig.PROJECT_FALLBACKS && paletteConfig.PROJECT_FALLBACKS.default)
     ? paletteConfig.PROJECT_FALLBACKS.default.slice()
     : [];
   const campusProfileBase = {
     palettes: {
-      graftegner: fallbackPaletteColors.slice(),
+      fellesfarger: fallbackPaletteColors.slice(),
       figures: fallbackPaletteColors.slice()
     },
     colors: {
@@ -181,7 +181,7 @@
   };
   const annetProfileBase = {
     palettes: {
-      graftegner: fallbackPaletteColors.slice(),
+      fellesfarger: fallbackPaletteColors.slice(),
       figures: fallbackPaletteColors.slice()
     },
     colors: {
@@ -366,7 +366,7 @@
       return null;
     }
     try {
-      const palette = paletteHelper.getGroupPalette('graftegner', { count: 2 });
+      const palette = paletteHelper.getGroupPalette('fellesfarger', { count: 2 });
       if (Array.isArray(palette) && palette.length > 1) {
         const color = sanitizeUserColor(palette[1]);
         if (color) {
@@ -383,10 +383,10 @@
     if (userPalette && userPalette.length) {
       return ensurePalette(userPalette, count);
     }
-    const requested = typeof kind === 'string' ? kind : 'graftegner';
+    const requested = typeof kind === 'string' ? kind : 'fellesfarger';
     const fallbackKinds = Array.isArray(opts && opts.fallbackKinds) ? opts.fallbackKinds : [];
     const seen = new Set();
-    const queue = [requested, ...fallbackKinds, 'figures', 'graftegner', 'default'];
+    const queue = [requested, ...fallbackKinds, 'figures', 'fellesfarger', 'default'];
     for (const item of queue) {
       if (typeof item !== 'string') continue;
       const key = item.toLowerCase();
@@ -458,7 +458,7 @@
         ...fallbackList
       ])
     );
-    return buildPalette(normalizedId || 'graftegner', count, { ...opts, fallbackKinds: dedupedFallbacks });
+    return buildPalette(normalizedId || 'fellesfarger', count, { ...opts, fallbackKinds: dedupedFallbacks });
   }
   function getColor(token, fallback) {
     if (token === 'graphs.axis') {

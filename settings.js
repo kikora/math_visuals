@@ -67,7 +67,7 @@
       groupIndex: slot.groupIndex
     }))
   }));
-  const DEFAULT_GRAFTEGNER_GROUP_ID = 'graftegner';
+  const DEFAULT_GRAFTEGNER_GROUP_ID = 'fellesfarger';
   const GRAFTEGNER_GROUP_ID = (() => {
     for (const group of COLOR_SLOT_GROUPS) {
       if (!group || typeof group.groupId !== 'string') continue;
@@ -89,7 +89,13 @@
     }
     return DEFAULT_NKANT_GROUP_ID;
   })();
-  const HIDDEN_COLOR_GROUP_IDS = new Set(['fractions', 'figurtall']);
+  const HIDDEN_COLOR_GROUP_IDS = new Set([
+    'fractions',
+    'figurtall',
+    'brokfigurer',
+    'brokpizza',
+    'tenkeblokker'
+  ]);
   const LEGACY_NKANT_SLOT_INDICES = [1, 2, 3, 4, 5, 6, 7, 8, 9];
   const GROUP_IDS = Array.isArray(paletteConfig.COLOR_GROUP_IDS)
     ? paletteConfig.COLOR_GROUP_IDS.slice()
@@ -531,7 +537,7 @@
 
   function buildContrastStatus(groupId, palette) {
     if (!groupId || !palette || typeof palette !== 'object') return null;
-    if (groupId === 'graftegner') {
+    if (groupId === 'fellesfarger') {
       const colors = Array.isArray(palette[groupId]) ? palette[groupId] : [];
       const evaluation = evaluateContrastForSlot(colors[0]);
       if (!evaluation) {
@@ -1184,7 +1190,7 @@
       if (normalizedGroupId) {
         table.dataset.groupId = normalizedGroupId;
       }
-      if (normalizedGroupId === 'graftegner') {
+      if (normalizedGroupId === 'fellesfarger') {
         graftegnerContrastRows.length = 0;
         const triples = resolveGraftegnerRoleTriples(group);
         if (triples.length) {

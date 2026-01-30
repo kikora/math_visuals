@@ -181,11 +181,11 @@
     if (theme && typeof theme.getGroupPalette === 'function') {
       let palette = null;
       try {
-        palette = theme.getGroupPalette('graftegner', { count: target });
+        palette = theme.getGroupPalette('fellesfarger', { count: target });
       } catch (_) {}
       if ((!palette || palette.length < target) && theme.getGroupPalette.length >= 2) {
         try {
-          palette = theme.getGroupPalette('graftegner', target);
+          palette = theme.getGroupPalette('fellesfarger', target);
         } catch (_) {
           palette = null;
         }
@@ -197,7 +197,7 @@
     if (theme && typeof theme.getPalette === 'function') {
       let palette = null;
       try {
-        palette = theme.getPalette('graftegner', target);
+        palette = theme.getPalette('fellesfarger', target);
       } catch (_) {
         palette = null;
       }
@@ -210,7 +210,7 @@
   function getGraftegnerRoleSlotPairs() {
     const config = getPaletteConfig();
     if (colorPickerHelper && typeof colorPickerHelper.resolveRoleSlotPairs === 'function') {
-      return colorPickerHelper.resolveRoleSlotPairs(config, 'graftegner', DEFAULT_GRAFTEGNER_COLOR_ROLES);
+      return colorPickerHelper.resolveRoleSlotPairs(config, 'fellesfarger', DEFAULT_GRAFTEGNER_COLOR_ROLES);
     }
     const pairs = [];
     for (let index = 0; index < FILL_COLOR_COUNT; index += 1) {
@@ -478,7 +478,7 @@
     const theme = getThemeApi();
     if (theme && typeof theme.getGroupPalette === 'function') {
       try {
-        const palette = theme.getGroupPalette('graftegner', { count: 1 });
+        const palette = theme.getGroupPalette('fellesfarger', { count: 1 });
         if (Array.isArray(palette) && palette.length) {
           const normalized = normalizeHexColor(palette[0]);
           if (normalized) return normalized;

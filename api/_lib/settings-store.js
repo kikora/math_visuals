@@ -17,7 +17,7 @@ const MIN_COLOR_SLOTS = paletteConfig.MIN_COLOR_SLOTS;
 const DEFAULT_PROJECT = typeof paletteConfig.DEFAULT_PROJECT === 'string' ? paletteConfig.DEFAULT_PROJECT : 'campus';
 const GROUPED_PALETTE_ORDER = (Array.isArray(paletteConfig.DEFAULT_GROUP_ORDER)
   ? paletteConfig.DEFAULT_GROUP_ORDER
-  : ['graftegner', 'nkant', 'arealmodell'])
+  : ['fellesfarger', 'nkant', 'arealmodell'])
   .map(value => (typeof value === 'string' ? value.trim().toLowerCase() : ''))
   .filter(Boolean);
 const COLOR_GROUP_IDS = Array.isArray(paletteConfig.COLOR_GROUP_IDS)
@@ -73,7 +73,7 @@ COLOR_SLOT_GROUPS.forEach(group => {
   });
 });
 
-const DEFAULT_GRAFTEGNER_GROUP_ID = 'graftegner';
+const DEFAULT_GRAFTEGNER_GROUP_ID = 'fellesfarger';
 const GRAFTEGNER_GROUP_ID = (() => {
   for (const group of COLOR_SLOT_GROUPS) {
     if (!group || !group.groupId) continue;

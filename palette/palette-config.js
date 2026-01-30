@@ -128,7 +128,7 @@ function buildLegacyPaletteConfig() {
   };
   const RAW_COLOR_SLOT_GROUPS = [
     {
-      groupId: 'graftegner',
+      groupId: 'fellesfarger',
       title: 'Felles farger',
       description:
         'Farger som brukes av graftegner, diagram, brøksirkler, brøkfigurer, tallfigurer, kvikkbilder, tenkeblokker, brøkvegg og 3D-figurer. Hvert fargesett har Fyll/Kant/Linje.',
@@ -138,13 +138,7 @@ function buildLegacyPaletteConfig() {
         { fillIndex: 6, lineIndex: 7 },
         { fillIndex: 9, lineIndex: 10 },
         { fillIndex: 12, lineIndex: 13 },
-        { fillIndex: 15, lineIndex: 16 },
-        { lineIndex: 2 },
-        { lineIndex: 5 },
-        { lineIndex: 8 },
-        { lineIndex: 11 },
-        { lineIndex: 14 },
-        { lineIndex: 17 }
+        { fillIndex: 15, lineIndex: 16 }
       ],
       slots: [
         { index: 0, label: 'Fyll 1', description: 'Fyllfarge til fargesett 1.' },
