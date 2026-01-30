@@ -278,11 +278,7 @@
       const snapshot = await persistSettings('PUT', payload);
       applySettings(snapshot || {});
       restoreUnsavedChanges(unsavedChanges);
-      if (settingsApi && typeof settingsApi.refresh === 'function') {
-        try {
-          settingsApi.refresh({ force: true, notify: true });
-        } catch (_) {}
-      }
+      maybeRefreshSettingsApi(resolveApiUrl());
       const contrastStatus = buildContrastStatus(normalizedId, colorsForSave);
       const successMessage = `Fargene for ${label} er lagret.`;
       const contrastMessage = contrastStatus && contrastStatus.message ? ` ${contrastStatus.message}` : '';
@@ -1244,6 +1240,39 @@
     renderColors();
   }
 
+  function normalizeApiUrl(value) {
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    return trimmed ? trimmed : null;
+  }
+
+  function getSettingsApiUrl() {
+    if (settingsApi && typeof settingsApi.getApiUrl === 'function') {
+      try {
+        return normalizeApiUrl(settingsApi.getApiUrl());
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  function shouldRefreshSettingsApi(sourceUrl) {
+    if (!settingsApi || typeof settingsApi.refresh !== 'function') return false;
+    const settingsApiUrl = getSettingsApiUrl();
+    const normalizedSource = normalizeApiUrl(sourceUrl);
+    if (!settingsApiUrl) {
+      return !normalizedSource;
+    }
+    if (!normalizedSource) return true;
+    return settingsApiUrl !== normalizedSource;
+  }
+
+  function maybeRefreshSettingsApi(sourceUrl) {
+    if (!shouldRefreshSettingsApi(sourceUrl)) return;
+    try {
+      settingsApi.refresh({ force: true, notify: true });
+    } catch (_) {}
+  }
+
   async function loadSettings() {
     const url = resolveApiUrl();
     if (!url) {
@@ -1262,11 +1291,7 @@
       const snapshot = payload && typeof payload === 'object' && payload.settings ? payload.settings : payload;
       applySettings(snapshot || {});
       setStatus('Innstillingene er lastet.', 'info');
-      if (settingsApi && typeof settingsApi.refresh === 'function') {
-        try {
-          settingsApi.refresh({ force: true, notify: true });
-        } catch (_) {}
-      }
+      maybeRefreshSettingsApi(url);
     } catch (error) {
       console.error(error);
       setStatus('Kunne ikke laste innstillingene.', 'error');
