@@ -1526,6 +1526,7 @@ const fillColorPickerInstances = new WeakMap();
     }
     pruneObservedBoxes();
     scheduleFigureBoardResize();
+    scheduleFigureSizeUpdate();
   }
   function joinWithOg(items) {
     if (!Array.isArray(items)) return '';
@@ -1943,7 +1944,7 @@ const fillColorPickerInstances = new WeakMap();
       });
     }
     function resizeBoard() {
-      if (!board || !board.containerObj || typeof board.resizeContainer !== 'function') return;
+      if (!board || !board.containerObj || !board.renderer || typeof board.resizeContainer !== 'function') return;
       const width = board.containerObj.clientWidth;
       const height = board.containerObj.clientHeight;
       if (!width || !height) return;
