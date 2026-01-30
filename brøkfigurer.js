@@ -732,11 +732,14 @@ const fillColorPickerInstances = new WeakMap();
     const groupFallback = getGroupFallbackPalette(SHARED_GROUP_ID, LEGACY_COLOR_PALETTE);
     const fallback = groupFallback.length ? groupFallback : legacyFallback;
     const target = Number.isFinite(count) && count > 0 ? Math.trunc(count) : fallback.length || legacyFallback.length;
+    const settingsSource =
+      settings && typeof settings.getSettings === 'function' ? settings.getSettings() : settings || undefined;
 
     if (paletteApi) {
       const palette = tryResolvePalette(() =>
         paletteApi.getGroupPalette(SHARED_GROUP_ID, {
-          count: target || undefined
+          count: target || undefined,
+          settings: settingsSource
         })
       );
       if (palette && palette.length) {
