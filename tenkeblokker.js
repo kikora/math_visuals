@@ -181,7 +181,7 @@ const UNION_BRACE_BOUNDS = Object.freeze({
 });
 const UNION_BRACE_INNER_WIDTH = UNION_BRACE_BOUNDS.right - UNION_BRACE_BOUNDS.left;
 const UNION_BRACE_INNER_HEIGHT = UNION_BRACE_BOUNDS.bottom - UNION_BRACE_BOUNDS.top;
-const SHARED_GROUP_ID = 'graftegner';
+const SHARED_GROUP_ID = 'fellesfarger';
 const FILL_COLOR_COUNT = 6;
 const DEFAULT_GRAFTEGNER_COLOR_ROLES = [
   { fillIndex: 0, lineIndex: 1 },
@@ -263,13 +263,13 @@ function sanitizeFillIndex(value, paletteLength) {
 function getGraftegnerRoleSlotPairs() {
   const config = getPaletteConfig();
   if (colorPickerHelper && typeof colorPickerHelper.resolveRoleSlotPairs === 'function') {
-    return colorPickerHelper.resolveRoleSlotPairs(config, 'graftegner', DEFAULT_GRAFTEGNER_COLOR_ROLES);
+    return colorPickerHelper.resolveRoleSlotPairs(config, 'fellesfarger', DEFAULT_GRAFTEGNER_COLOR_ROLES);
   }
   const pairs = [];
   for (let index = 0; index < FILL_COLOR_COUNT; index += 1) {
     pairs.push({
-      fillSlotIndex: index * 2,
-      lineSlotIndex: index * 2 + 1
+      fillSlotIndex: index * 3,
+      lineSlotIndex: index * 3 + 1
     });
   }
   return pairs;
@@ -317,7 +317,18 @@ function getLinePalette() {
 }
 
 function getLineFillPalettes() {
-  const targetCount = FILL_COLOR_COUNT * 2;
+  const roleSlots = getGraftegnerRoleSlotPairs();
+  let maxIndex = -1;
+  roleSlots.forEach(role => {
+    if (!role || typeof role !== 'object') return;
+    if (Number.isInteger(role.fillSlotIndex)) {
+      maxIndex = Math.max(maxIndex, role.fillSlotIndex);
+    }
+    if (Number.isInteger(role.lineSlotIndex)) {
+      maxIndex = Math.max(maxIndex, role.lineSlotIndex);
+    }
+  });
+  const targetCount = maxIndex >= 0 ? maxIndex + 1 : FILL_COLOR_COUNT * 2;
   const palette = resolveFractionPalette(targetCount);
   const fallbackPalette = resolveFractionFallbackPalette();
   const fallback =
@@ -325,7 +336,6 @@ function getLineFillPalettes() {
   const normalized = ensurePaletteCount(palette, fallback, targetCount);
   const fillColors = [];
   const lineColors = [];
-  const roleSlots = getGraftegnerRoleSlotPairs();
   if (roleSlots.length) {
     roleSlots.forEach(role => {
       const fill = normalized[role.fillSlotIndex];
@@ -334,7 +344,7 @@ function getLineFillPalettes() {
       lineColors.push(line || fill || '#000000');
     });
   } else {
-    for (let index = 0; index < targetCount; index += 2) {
+    for (let index = 0; index < targetCount; index += 3) {
       const fill = normalized[index];
       const line = normalized[index + 1];
       fillColors.push(fill || line || FRACTION_FALLBACK_COLORS[0]);
@@ -729,7 +739,7 @@ function resolveFractionPalette(count = 2) {
     }
   }
   if (theme && typeof theme.getPalette === 'function') {
-    const palette = tryResolvePalette(() => theme.getPalette('graftegner', target || fallback.length));
+    const palette = tryResolvePalette(() => theme.getPalette('fellesfarger', target || fallback.length));
     if (palette && palette.length) {
       return ensurePaletteCount(palette, fallback, target);
     }

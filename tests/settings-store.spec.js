@@ -39,7 +39,7 @@ test.beforeEach(async () => {
 
 function buildGroupedPalette(overrides = {}) {
   const base = {
-    graftegner: ['#123456', '#654321'],
+    fellesfarger: ['#123456', '#654321'],
     nkant: ['#234567', '#345678', '#456789'],
     arealmodell: ['#ef0123', '#f01234', '#012345', '#123456']
   };
@@ -71,16 +71,16 @@ test.describe('settings-store palette handling', () => {
     const expectedDefault = expandPalette('campus', basePalette);
 
     expect(saved.groupPalettes).toBeDefined();
-    const savedFills = getRolePalette(saved.groupPalettes.graftegner, 'fills');
-    const savedEdges = getRolePalette(saved.groupPalettes.graftegner, 'edges');
+    const savedFills = getRolePalette(saved.groupPalettes.fellesfarger, 'fills');
+    const savedEdges = getRolePalette(saved.groupPalettes.fellesfarger, 'edges');
     expect(savedFills[0]).toBe('#123456');
     expect(savedEdges[0]).toBe('#654321');
     expect(saved.defaultColors[0]).toBe(expectedDefault[0]);
 
     const retrieved = await getSettings();
 
-    const retrievedFills = getRolePalette(retrieved.groupPalettes.graftegner, 'fills');
-    const retrievedEdges = getRolePalette(retrieved.groupPalettes.graftegner, 'edges');
+    const retrievedFills = getRolePalette(retrieved.groupPalettes.fellesfarger, 'fills');
+    const retrievedEdges = getRolePalette(retrieved.groupPalettes.fellesfarger, 'edges');
     expect(retrievedFills[0]).toBe('#123456');
     expect(retrievedEdges[0]).toBe('#654321');
     expect(retrieved.defaultColors[0]).toBe(expectedDefault[0]);

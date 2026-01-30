@@ -110,7 +110,7 @@ function whenJXGReady(callback) {
   scheduleJXGCheck();
 }
 const SETTINGS_STORAGE_KEY = 'mathVisuals:settings';
-const GRAFTEGNER_GROUP_ID = 'graftegner';
+const GRAFTEGNER_GROUP_ID = 'fellesfarger';
 const GRAFTEGNER_FALLBACK_PALETTE = ['#c14f30', '#155eef', '#027a48', '#b8325d', '#b8325d', '#674d96'];
 const DEFAULT_LINE_THICKNESS = 3;
 const AUTO_SPAN_SAFETY_MULTIPLIER = 200;
@@ -132,6 +132,14 @@ const DEFAULT_POINT_COLORS = {
   domainMarker: '#6b7280',
   guideStroke: '#64748b'
 };
+const DEFAULT_GRAFTEGNER_LINE_ROLES = [
+  { lineIndex: 2 },
+  { lineIndex: 5 },
+  { lineIndex: 8 },
+  { lineIndex: 11 },
+  { lineIndex: 14 },
+  { lineIndex: 17 }
+];
 const DEFAULT_FUNCTION_EXPRESSION = 'f(x)=x^2-2';
 const DEFAULT_SCREEN_BOUNDS = [-5, 5, -5, 5];
 
@@ -579,6 +587,25 @@ function resolveGraftegnerLineSlotPositions() {
     };
   }
   const config = getPaletteConfig();
+  if (config && colorPickerHelper && typeof colorPickerHelper.resolveRoleSlotPairs === 'function') {
+    const roleSlots = colorPickerHelper.resolveRoleSlotPairs(config, GRAFTEGNER_GROUP_ID, DEFAULT_GRAFTEGNER_LINE_ROLES, 'line');
+    const positions = roleSlots
+      .map(role => {
+        if (!role || typeof role !== 'object') return null;
+        if (Number.isInteger(role.lineSlotIndex)) return role.lineSlotIndex;
+        if (Number.isInteger(role.lineIndex)) return role.lineIndex;
+        return null;
+      })
+      .filter(position => Number.isInteger(position) && position >= 0);
+    if (positions.length) {
+      graftegnerFillSlotPositions = positions;
+      graftegnerUsePaletteOrder = false;
+      return {
+        positions: graftegnerFillSlotPositions.slice(),
+        usePaletteOrder: graftegnerUsePaletteOrder
+      };
+    }
+  }
   if (config && Array.isArray(config.COLOR_SLOT_GROUPS)) {
     const group = config.COLOR_SLOT_GROUPS.find(entry => {
       const id = entry && typeof entry.groupId === 'string' ? entry.groupId.trim().toLowerCase() : '';
@@ -609,10 +636,12 @@ function resolveGraftegnerLineSlotPositions() {
       }
     }
   }
-  graftegnerFillSlotPositions = [];
+  graftegnerFillSlotPositions = DEFAULT_GRAFTEGNER_LINE_ROLES
+    .map(role => (Number.isInteger(role.lineIndex) ? role.lineIndex : null))
+    .filter(position => Number.isInteger(position) && position >= 0);
   graftegnerUsePaletteOrder = false;
   return {
-    positions: [],
+    positions: graftegnerFillSlotPositions.slice(),
     usePaletteOrder: graftegnerUsePaletteOrder
   };
 }
@@ -715,7 +744,7 @@ function fetchGraftegnerPalette(count) {
   }
   if (theme && typeof theme.getPalette === 'function') {
     const palette = tryResolveGroupPalette(() =>
-      theme.getPalette('graftegner', targetCount || DEFAULT_FUNCTION_COLORS.fallback.length)
+      theme.getPalette('fellesfarger', targetCount || DEFAULT_FUNCTION_COLORS.fallback.length)
     );
     if (palette) return palette;
   }

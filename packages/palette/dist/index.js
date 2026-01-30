@@ -26,7 +26,7 @@ const PROJECT_FALLBACKS = deepFreeze({
 
 const RAW_COLOR_SLOT_GROUPS = [
   {
-    groupId: 'graftegner',
+    groupId: 'fellesfarger',
     title: 'Felles farger',
     description:
       'Farger som brukes av graftegner, diagram, brøksirkler, brøkfigurer, tallfigurer, kvikkbilder, tenkeblokker, brøkvegg og 3D-figurer. Hvert fargesett har Fyll/Kant/Linje.',

@@ -20,7 +20,7 @@ const AXIS_SLOT = (() => {
   for (const group of paletteConfig.COLOR_SLOT_GROUPS) {
     if (!group || !Array.isArray(group.slots)) continue;
     const groupId = typeof group.groupId === 'string' ? group.groupId : String(group.groupId || '');
-    if (groupId !== 'graftegner') continue;
+    if (groupId !== 'fellesfarger') continue;
     const slot = group.slots[1];
     if (!slot || !Number.isInteger(slot.index)) continue;
     const groupIndex = Number.isInteger(slot.groupIndex) ? slot.groupIndex : 1;
@@ -771,7 +771,7 @@ test.describe('brøkfigurer palette fallback', () => {
       const colors = windowStub.STATE.colors || [];
       expect(colors.length).toBeGreaterThan(0);
 
-      const fallbackPalette = resolveGroupFallbackPaletteForTest('graftegner');
+      const fallbackPalette = resolveGroupFallbackPaletteForTest('fellesfarger');
       expect(fallbackPalette.length).toBeGreaterThan(0);
 
       const expected = Array.from({ length: colors.length }, (_, index) => {
@@ -962,12 +962,12 @@ test.describe('MathVisualsSettings.getGroupPalette', () => {
   test('ignores project override with legacy signature', () => {
     const { api, paletteCalls } = loadSettingsWithPaletteSpy(() => ['#abcdef']);
 
-    const palette = api.getGroupPalette('graftegner', 4, { project: 'annet' });
+    const palette = api.getGroupPalette('fellesfarger', 4, { project: 'annet' });
 
     expect(palette).toEqual(['#abcdef']);
     expect(paletteCalls).toHaveLength(1);
     const [{ groupId, options }] = paletteCalls;
-    expect(groupId).toBe('graftegner');
+    expect(groupId).toBe('fellesfarger');
     expect(options.project).toBeUndefined();
     expect(options.count).toBe(4);
   });
@@ -975,12 +975,12 @@ test.describe('MathVisualsSettings.getGroupPalette', () => {
   test('supports options-object signature and ignores project override', () => {
     const { api, paletteCalls } = loadSettingsWithPaletteSpy(() => ['#fedcba']);
 
-    const palette = api.getGroupPalette('graftegner', { project: 'annet', count: 2 });
+    const palette = api.getGroupPalette('fellesfarger', { project: 'annet', count: 2 });
 
     expect(palette).toEqual(['#fedcba']);
     expect(paletteCalls).toHaveLength(1);
     const [{ groupId, options }] = paletteCalls;
-    expect(groupId).toBe('graftegner');
+    expect(groupId).toBe('fellesfarger');
     expect(options.project).toBeUndefined();
     expect(options.count).toBe(2);
   });
@@ -1027,7 +1027,7 @@ test.describe('nkant settings palette fallback', () => {
 });
 
 test.describe('MathVisuals palette slot handling', () => {
-  test('preserves graftegner axis color across flatten → distribute → expand', () => {
+  test('preserves fellesfarger axis color across flatten → distribute → expand', () => {
     expect(AXIS_SLOT).toBeTruthy();
     const axisIndex = AXIS_SLOT ? AXIS_SLOT.index : 0;
     const projects = Array.isArray(paletteConfig.DEFAULT_PROJECT_ORDER)
@@ -1096,11 +1096,11 @@ test.describe('MathVisualsSettings palette formats', () => {
     const settings = api.getSettings();
     expect(settings).toBeTruthy();
     expect(settings.groupPalettes).toBeTruthy();
-    expect(settings.groupPalettes.graftegner).toBeTruthy();
+    expect(settings.groupPalettes.fellesfarger).toBeTruthy();
     expect(Array.isArray(settings.defaultColors)).toBe(true);
     expect(settings.defaultColors[0]).toBeDefined();
-    const graftegnerFills = getRolePalette(settings.groupPalettes.graftegner, 'fills');
-    const firstGroupColor = graftegnerFills[0];
+    const fellesFills = getRolePalette(settings.groupPalettes.fellesfarger, 'fills');
+    const firstGroupColor = fellesFills[0];
     if (firstGroupColor) {
       expect(settings.defaultColors[0]).toBe(firstGroupColor);
     }
@@ -1111,19 +1111,19 @@ test.describe('MathVisualsSettings palette formats', () => {
 
     const update = api.setSettings({
       groupPalettes: {
-        graftegner: ['#111111'],
+        fellesfarger: ['#111111'],
         ukjent: ['#222222', ' #333333 ']
       }
     });
 
-    const updateFills = getRolePalette(update.groupPalettes.graftegner, 'fills');
+    const updateFills = getRolePalette(update.groupPalettes.fellesfarger, 'fills');
     expect(updateFills[0]).toBe('#111111');
     expect(update.defaultColors[0]).toBe('#111111');
     expect(update.groupPalettes.ukjent).toBeUndefined();
     expect(update.defaultColors).not.toEqual(expect.arrayContaining(['#222222']));
 
     const settings = api.getSettings();
-    const settingsFills = getRolePalette(settings.groupPalettes.graftegner, 'fills');
+    const settingsFills = getRolePalette(settings.groupPalettes.fellesfarger, 'fills');
     expect(settingsFills[0]).toBe('#111111');
     expect(settings.defaultColors[0]).toBe('#111111');
     expect(settings.groupPalettes.ukjent).toBeUndefined();
@@ -1135,21 +1135,21 @@ test.describe('MathVisualsSettings palette formats', () => {
 
     const update = api.updateSettings({
       groupPalettes: {
-        graftegner: ['#010101', ' #020202 '],
+        fellesfarger: ['#010101', ' #020202 '],
         ukjent: ['#030303']
       }
     });
 
-    const updateFills = getRolePalette(update.groupPalettes.graftegner, 'fills');
-    const updateEdges = getRolePalette(update.groupPalettes.graftegner, 'edges');
+    const updateFills = getRolePalette(update.groupPalettes.fellesfarger, 'fills');
+    const updateEdges = getRolePalette(update.groupPalettes.fellesfarger, 'edges');
     expect(updateFills[0]).toBe('#010101');
     expect(updateEdges[0]).toBe('#020202');
     expect(update.defaultColors[0]).toBe('#010101');
     expect(update.groupPalettes.ukjent).toBeUndefined();
 
     const persisted = api.getSettings();
-    const persistedFills = getRolePalette(persisted.groupPalettes.graftegner, 'fills');
-    const persistedEdges = getRolePalette(persisted.groupPalettes.graftegner, 'edges');
+    const persistedFills = getRolePalette(persisted.groupPalettes.fellesfarger, 'fills');
+    const persistedEdges = getRolePalette(persisted.groupPalettes.fellesfarger, 'edges');
     expect(persistedFills[0]).toBe('#010101');
     expect(persistedEdges[0]).toBe('#020202');
     expect(persisted.defaultColors[0]).toBe('#010101');

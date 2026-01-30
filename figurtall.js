@@ -148,14 +148,14 @@ function isValidColor(value) {
     colorInputs.push(inp);
   }
   const LEGACY_COLOR_PALETTE = ['#B25FE3', '#6C1BA2', '#534477', '#873E79', '#E3B660', '#2C395B'];
-  const SHARED_GROUP_ID = 'graftegner';
+  const SHARED_GROUP_ID = 'fellesfarger';
   const DEFAULT_GRAFTEGNER_COLOR_ROLES = [
     { fillIndex: 0, lineIndex: 1 },
-    { fillIndex: 2, lineIndex: 3 },
-    { fillIndex: 4, lineIndex: 5 },
+    { fillIndex: 3, lineIndex: 4 },
     { fillIndex: 6, lineIndex: 7 },
-    { fillIndex: 8, lineIndex: 9 },
-    { fillIndex: 10, lineIndex: 11 }
+    { fillIndex: 9, lineIndex: 10 },
+    { fillIndex: 12, lineIndex: 13 },
+    { fillIndex: 15, lineIndex: 16 }
   ];
   let activeFillColorIndex = sanitizeFillIndex(STATE.activeFillColorIndex, FILL_COLOR_COUNT);
   STATE.activeFillColorIndex = activeFillColorIndex;
@@ -284,8 +284,7 @@ function isValidColor(value) {
     const pairs = [];
     for (let index = 0; index < FILL_COLOR_COUNT; index += 1) {
       pairs.push({
-        fillSlotIndex: index * 2,
-        lineSlotIndex: index * 2 + 1
+        fillSlotIndex: index * 3
       });
     }
     return pairs;
