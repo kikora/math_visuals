@@ -1130,6 +1130,21 @@ test.describe('MathVisualsSettings palette formats', () => {
     expect(settings.defaultColors).not.toEqual(expect.arrayContaining(['#222222']));
   });
 
+  test('accepts legacy palette.colors payloads when setting settings', () => {
+    const { api } = loadSettingsWithPaletteSpy(() => ['#abcdef']);
+
+    const update = api.setSettings({
+      palette: {
+        colors: ['#010203', ' #040506 ']
+      }
+    });
+
+    const updateFills = getRolePalette(update.groupPalettes.fellesfarger, 'fills');
+    expect(updateFills[0]).toBe('#010203');
+    expect(update.defaultColors[0]).toBe('#010203');
+    expect(update.defaultColors[1]).toBe('#040506');
+  });
+
   test('updateSettings accepts root-level groupPalettes', () => {
     const { api } = loadSettingsWithPaletteSpy(() => ['#abcdef']);
 
@@ -1154,5 +1169,21 @@ test.describe('MathVisualsSettings palette formats', () => {
     expect(persistedEdges[0]).toBe('#020202');
     expect(persisted.defaultColors[0]).toBe('#010101');
     expect(persisted.groupPalettes.ukjent).toBeUndefined();
+  });
+
+  test('updateSettings trims legacy palette.colors using palette.colorCount', () => {
+    const { api } = loadSettingsWithPaletteSpy(() => ['#abcdef']);
+
+    const update = api.updateSettings({
+      palette: {
+        colors: ['#111111', '#222222'],
+        colorCount: 1
+      }
+    });
+
+    const updateFills = getRolePalette(update.groupPalettes.fellesfarger, 'fills');
+    expect(updateFills[0]).toBe('#111111');
+    expect(update.defaultColors[0]).toBe('#111111');
+    expect(update.defaultColors).not.toEqual(expect.arrayContaining(['#222222']));
   });
 });
