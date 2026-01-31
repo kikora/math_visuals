@@ -745,12 +745,30 @@ initExamples();
     return DEFAULT_PROJECT;
   }
 
+  function resolvePaletteColors(source) {
+    if (!source || typeof source !== 'object') return null;
+    const palette = source.palette && typeof source.palette === 'object' ? source.palette : null;
+    if (!palette) return null;
+    const colors = Array.isArray(palette.colors) ? palette.colors.slice() : null;
+    if (!colors) return null;
+    const rawCount = palette.colorCount;
+    const count = Number.isFinite(rawCount) ? Math.trunc(rawCount) : null;
+    if (count && count > 0) {
+      return colors.slice(0, count);
+    }
+    return colors;
+  }
+
   function normalizeSettings(value) {
     const input = value && typeof value === 'object' ? value : {};
     let groupPalettes = null;
+    const paletteColors = resolvePaletteColors(input);
 
-    if (input.groupPalettes != null || input.defaultColors != null) {
-      const palette = normalizeProjectPalette(DEFAULT_PROJECT, input.groupPalettes != null ? input.groupPalettes : input.defaultColors);
+    if (input.groupPalettes != null || input.defaultColors != null || paletteColors) {
+      const palette = normalizeProjectPalette(
+        DEFAULT_PROJECT,
+        input.groupPalettes != null ? input.groupPalettes : input.defaultColors != null ? input.defaultColors : paletteColors
+      );
       groupPalettes = cloneProjectPalette(palette);
     } else if (input.projects && typeof input.projects === 'object') {
       const projectName = resolveProjectName(input.project || input.defaultProject, input.projects);
@@ -967,10 +985,11 @@ initExamples();
   function updateSettings(patch) {
     const merged = cloneSettings(settings);
     if (patch && typeof patch === 'object') {
-      if (patch.groupPalettes != null || patch.defaultColors != null) {
+      const paletteColors = resolvePaletteColors(patch);
+      if (patch.groupPalettes != null || patch.defaultColors != null || paletteColors) {
         const normalizedPalette = normalizeProjectPalette(
           DEFAULT_PROJECT,
-          patch.groupPalettes != null ? patch.groupPalettes : patch.defaultColors
+          patch.groupPalettes != null ? patch.groupPalettes : patch.defaultColors != null ? patch.defaultColors : paletteColors
         );
         merged.groupPalettes = cloneProjectPalette(normalizedPalette);
         merged.defaultColors = expandPalette(DEFAULT_PROJECT, merged.groupPalettes);
