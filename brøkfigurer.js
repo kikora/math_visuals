@@ -735,18 +735,6 @@ const fillColorPickerInstances = new WeakMap();
     const settingsSource =
       settings && typeof settings.getSettings === 'function' ? settings.getSettings() : settings || undefined;
 
-    if (paletteApi) {
-      const palette = tryResolvePalette(() =>
-        paletteApi.getGroupPalette(SHARED_GROUP_ID, {
-          count: target || undefined,
-          settings: settingsSource
-        })
-      );
-      if (palette && palette.length) {
-        return ensurePaletteSize(palette, fallback, target);
-      }
-    }
-
     if (settings && typeof settings.getGroupPalette === 'function') {
       let palette = tryResolvePalette(() =>
         settings.getGroupPalette(SHARED_GROUP_ID, {
@@ -756,6 +744,18 @@ const fillColorPickerInstances = new WeakMap();
       if ((!palette || palette.length < target) && settings.getGroupPalette.length >= 3) {
         palette = tryResolvePalette(() => settings.getGroupPalette(SHARED_GROUP_ID, target || undefined));
       }
+      if (palette && palette.length) {
+        return ensurePaletteSize(palette, fallback, target);
+      }
+    }
+
+    if (paletteApi) {
+      const palette = tryResolvePalette(() =>
+        paletteApi.getGroupPalette(SHARED_GROUP_ID, {
+          count: target || undefined,
+          settings: settingsSource
+        })
+      );
       if (palette && palette.length) {
         return ensurePaletteSize(palette, fallback, target);
       }
