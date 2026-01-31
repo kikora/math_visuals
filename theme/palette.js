@@ -375,8 +375,29 @@
     return null;
   }
 
+  function resolveSettingsSnapshot(source) {
+    if (source && typeof source === 'object' && typeof source.getSettings === 'function') {
+      try {
+        const snapshot = source.getSettings();
+        if (snapshot && typeof snapshot === 'object') {
+          return snapshot;
+        }
+      } catch (_) {}
+    }
+    return source;
+  }
+
   function readGroupPalettesFromApi(api) {
     if (!api || typeof api !== 'object') return null;
+    if (typeof api.getSettings === 'function') {
+      try {
+        const snapshot = api.getSettings();
+        const groupPalettes = readGroupPalettesFromSettingsObject(snapshot);
+        if (groupPalettes && typeof groupPalettes === 'object') {
+          return groupPalettes;
+        }
+      } catch (_) {}
+    }
     if (typeof api.getGroupPalettes === 'function') {
       try {
         const groups = api.getGroupPalettes();
@@ -414,12 +435,13 @@
   }
 
   function readGroupPalettesFromSettingsObject(settings) {
-    if (!settings || typeof settings !== 'object') return null;
-    if (settings.groupPalettes && typeof settings.groupPalettes === 'object') {
-      return settings.groupPalettes;
+    const settingsObject = resolveSettingsSnapshot(settings);
+    if (!settingsObject || typeof settingsObject !== 'object') return null;
+    if (settingsObject.groupPalettes && typeof settingsObject.groupPalettes === 'object') {
+      return settingsObject.groupPalettes;
     }
-    if (Array.isArray(settings.defaultColors) && settings.defaultColors.length) {
-      return distributeFlatPaletteToGroups(settings.defaultColors.slice(0, MAX_COLORS));
+    if (Array.isArray(settingsObject.defaultColors) && settingsObject.defaultColors.length) {
+      return distributeFlatPaletteToGroups(settingsObject.defaultColors.slice(0, MAX_COLORS));
     }
     return null;
   }
@@ -463,7 +485,7 @@
   }
 
   function readGroupPaletteOverrides(settings, groupId) {
-    const settingsObject = settings && typeof settings === 'object' ? settings : null;
+    const settingsObject = resolveSettingsSnapshot(settings);
     if (!settingsObject) return [];
 
     const rootGroups =
