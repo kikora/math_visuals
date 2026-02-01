@@ -199,7 +199,8 @@
       null;
     if (!root || !root.console) return;
     const consoleRef = root.console;
-    const method = typeof consoleRef[level] === 'function' ? consoleRef[level] : consoleRef.log;
+    const resolvedLevel = level === 'info' ? 'debug' : level;
+    const method = typeof consoleRef[resolvedLevel] === 'function' ? consoleRef[resolvedLevel] : consoleRef.log;
     try {
       if (details !== undefined) {
         method.call(consoleRef, `${descriptionRendererLogPrefix} ${message}`, details);
