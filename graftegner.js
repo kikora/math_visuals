@@ -7252,6 +7252,12 @@ function handleGraftegnerSettingsChange() {
   ADV.axis.style.width = thickness;
   ADV.domainMarkers.width = thickness;
   handleGraftegnerProfileChange();
+  if (typeof syncFunctionColorOptionsAfterPaletteUpdate === 'function') {
+    syncFunctionColorOptionsAfterPaletteUpdate();
+  }
+  if (typeof refreshFunctionColorDefaults === 'function') {
+    refreshFunctionColorDefaults();
+  }
 }
 
 if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
@@ -8789,6 +8795,15 @@ function setupSettingsForm() {
       }
       applyColorManualClass(control.row, control.manual);
     });
+    if (funcRows) {
+      const options = getFunctionColorOptions();
+      const pickers = Array.from(funcRows.querySelectorAll('[data-color-picker]'));
+      pickers.forEach(picker => {
+        const hiddenInput = picker.querySelector('input[data-color]');
+        if (!hiddenInput) return;
+        updateFunctionColorPicker(picker, hiddenInput, hiddenInput.value, options);
+      });
+    }
   };
   const setPointMarkerValueForRow = (row, value, options = {}) => {
     if (!row) return;
