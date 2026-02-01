@@ -2891,6 +2891,12 @@ function handleThemeChange() {
   }, 50);
 }
 
+function refreshPaletteFromSettings() {
+  getFractionPalette(FILL_COLOR_COUNT * 2);
+  renderFillColorPickers();
+  applyPizzaColors();
+}
+
 function setupThemeSync() {
   // 1. Overvåk HTML-taggen direkte. Dette er den mest pålitelige metoden.
   // Når 'data-theme-profile' endres, vet vi at prosjektet er byttet.
@@ -2917,8 +2923,12 @@ function setupThemeSync() {
   // 2. Lytt på events (backup, og for fargeendringer internt i et prosjekt)
   if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
     const onEvent = () => handleThemeChange();
+    const onSettingsEvent = () => {
+      refreshPaletteFromSettings();
+      handleThemeChange();
+    };
 
-    window.addEventListener('math-visuals:settings-changed', onEvent);
+    window.addEventListener('math-visuals:settings-changed', onSettingsEvent);
     window.addEventListener('math-visuals:profile-change', onEvent);
     window.addEventListener('math-visuals:project-change', onEvent);
     window.addEventListener('message', (event) => {
