@@ -804,10 +804,11 @@ const fillColorPickerInstances = new WeakMap();
   }
   function getLineFillPalettes() {
     const slotCount = getGraftegnerRoleSlotCount();
+    const themePalette = getPaletteFromTheme(slotCount);
     const basePalette = getColors();
     const palette = ensurePaletteSize(
-      basePalette.length >= slotCount ? basePalette : [],
-      getPaletteFromTheme(slotCount),
+      themePalette.length >= slotCount ? themePalette : basePalette,
+      themePalette.length >= slotCount ? basePalette : themePalette,
       slotCount
     );
     const lineColors = [];
@@ -3909,6 +3910,7 @@ const fillColorPickerInstances = new WeakMap();
   function handleThemeSettingsChanged(event) {
     if (!event || event.type !== 'math-visuals:settings-changed') return;
     handleThemePaletteChanged();
+    renderFillColorPickers();
   }
 
   if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
