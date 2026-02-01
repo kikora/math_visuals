@@ -373,6 +373,7 @@ initExamples();
     ? paletteConfig.DEFAULT_PROJECT_ORDER.slice()
     : ['campus', 'annet'];
   const SETTINGS_STORAGE_KEY = 'mathVisuals:settings';
+  const SETTINGS_BROADCAST_KEY = 'mathVisuals:settings:snapshot';
 
   const listeners = new Set();
   let remoteLoadPromise = null;
@@ -905,6 +906,14 @@ initExamples();
     }
   }
 
+  function applySettingsSnapshot(snapshot, options) {
+    const opts = options && typeof options === 'object' ? options : {};
+    const next = snapshot && typeof snapshot === 'object' ? snapshot : {};
+    const notify = opts.notify !== false;
+    const emitEvent = opts.emitEvent !== false;
+    return commitSettings(next, { persist: false, notify, emitEvent });
+  }
+
   function buildPersistPayload(next) {
     const source = next && typeof next === 'object' ? next : {};
     const normalized = normalizeSettings(source);
@@ -1011,6 +1020,18 @@ initExamples();
       }
     }
     return commitSettings(merged, { persist: true, notify: true });
+  }
+
+  function parseSettingsBroadcastPayload(value) {
+    if (!value || typeof value !== 'string') return null;
+    try {
+      const parsed = JSON.parse(value);
+      if (!parsed || typeof parsed !== 'object') return null;
+      if (!parsed.settings || typeof parsed.settings !== 'object') return null;
+      return parsed;
+    } catch (_) {
+      return null;
+    }
   }
 
   function resetSettings() {
@@ -1164,8 +1185,22 @@ initExamples();
   };
   settingsApi.refresh = options => loadFromRemote(options);
   settingsApi.getApiUrl = () => resolveApiUrl();
+  settingsApi.applySettingsSnapshot = (snapshot, options) => applySettingsSnapshot(snapshot, options);
 
   globalScope.MathVisualsSettings = settingsApi;
+
+  let lastBroadcastStamp = null;
+  if (globalScope && typeof globalScope.addEventListener === 'function') {
+    globalScope.addEventListener('storage', event => {
+      if (!event || event.key !== SETTINGS_BROADCAST_KEY) return;
+      const payload = parseSettingsBroadcastPayload(event.newValue);
+      if (!payload) return;
+      const stamp = payload.updatedAt || payload.timestamp || payload.ts || null;
+      if (stamp && stamp === lastBroadcastStamp) return;
+      lastBroadcastStamp = stamp || String(Date.now());
+      applySettingsSnapshot(payload.settings, { notify: true, emitEvent: true });
+    });
+  }
 
   notifyChange({ emitEvent: true });
   loadFromRemote({ notify: true }).catch(() => {});
