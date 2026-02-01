@@ -10,6 +10,7 @@
   const actionsStatusElement = document.querySelector('[data-actions-status]');
   const LOCAL_STORAGE_PREFIXES = ['examples_', 'mathvis:', 'mathVisuals:', 'svg-archive'];
   const LOCAL_STORAGE_KEYS = new Set(['archive_open_request', 'example_to_load']);
+  const SETTINGS_BROADCAST_KEY = 'mathVisuals:settings:snapshot';
 
   function resolvePaletteConfig() {
     const scopes = [
@@ -282,9 +283,11 @@
     try {
       const payload = buildPayload(colorsForSave);
       const snapshot = await persistSettings('PUT', payload);
-      applySettings(snapshot || {});
+      const appliedSnapshot = snapshot && typeof snapshot === 'object' ? snapshot : payload;
+      applySettings(appliedSnapshot);
       restoreUnsavedChanges(unsavedChanges);
       maybeRefreshSettingsApi(resolveApiUrl());
+      broadcastSettingsSnapshot(appliedSnapshot);
       const contrastStatus = buildContrastStatus(normalizedId, colorsForSave);
       const successMessage = `Fargene for ${label} er lagret.`;
       const contrastMessage = contrastStatus && contrastStatus.message ? ` ${contrastStatus.message}` : '';
@@ -1277,6 +1280,36 @@
     try {
       settingsApi.refresh({ force: true, notify: true });
     } catch (_) {}
+  }
+
+  function broadcastSettingsSnapshot(snapshot) {
+    if (!snapshot || typeof snapshot !== 'object') return;
+    let dispatched = false;
+    if (settingsApi && typeof settingsApi.applySettingsSnapshot === 'function') {
+      try {
+        settingsApi.applySettingsSnapshot(snapshot, { notify: true, emitEvent: true });
+        dispatched = true;
+      } catch (_) {}
+    }
+    if (
+      !dispatched &&
+      typeof window !== 'undefined' &&
+      typeof window.dispatchEvent === 'function' &&
+      typeof CustomEvent === 'function'
+    ) {
+      try {
+        window.dispatchEvent(new CustomEvent('math-visuals:settings-changed', { detail: { settings: snapshot } }));
+      } catch (_) {}
+    }
+    const storage = getLocalStorage();
+    if (storage && typeof storage.setItem === 'function') {
+      try {
+        storage.setItem(
+          SETTINGS_BROADCAST_KEY,
+          JSON.stringify({ updatedAt: new Date().toISOString(), settings: snapshot })
+        );
+      } catch (_) {}
+    }
   }
 
   async function loadSettings() {
