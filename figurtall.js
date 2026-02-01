@@ -163,6 +163,14 @@ function isValidColor(value) {
     const theme = typeof window !== 'undefined' ? window.MathVisualsTheme : null;
     return theme && typeof theme === 'object' ? theme : null;
   }
+  function getPaletteApi() {
+    const palette = typeof window !== 'undefined' ? window.MathVisualsPalette : null;
+    return palette && typeof palette.getGroupPalette === 'function' ? palette : null;
+  }
+  function getSettingsApi() {
+    const settings = typeof window !== 'undefined' ? window.MathVisualsSettings : null;
+    return settings && typeof settings === 'object' ? settings : null;
+  }
   function resolvePaletteConfig() {
     const scopes = [
       typeof window !== 'undefined' ? window : null,
@@ -219,11 +227,50 @@ function isValidColor(value) {
     return result;
   }
   function getPaletteFromTheme(count) {
+    const settings = getSettingsApi();
+    const paletteApi = getPaletteApi();
     const theme = getThemeApi();
     const targetCount = Number.isFinite(count) && count > 0 ? Math.trunc(count) : undefined;
+    const settingsSnapshot =
+      settings && typeof settings.getSettings === 'function'
+        ? settings.getSettings()
+        : settings || undefined;
+    if (settings && typeof settings.getGroupPalette === 'function') {
+      let palette = null;
+      try {
+        palette = settings.getGroupPalette(SHARED_GROUP_ID, { count: targetCount });
+      } catch (_) {
+        palette = null;
+      }
+      if ((!palette || (targetCount && palette.length < targetCount)) && settings.getGroupPalette.length >= 3) {
+        try {
+          palette = settings.getGroupPalette(SHARED_GROUP_ID, targetCount);
+        } catch (_) {
+          palette = null;
+        }
+      }
+      if (Array.isArray(palette) && palette.length) {
+        return normalizePaletteToCount(palette, targetCount, LEGACY_COLOR_PALETTE);
+      }
+    }
+    if (paletteApi) {
+      let palette = null;
+      try {
+        palette = paletteApi.getGroupPalette(SHARED_GROUP_ID, {
+          count: targetCount,
+          settings: settingsSnapshot
+        });
+      } catch (_) {
+        palette = null;
+      }
+      if (Array.isArray(palette) && palette.length) {
+        return normalizePaletteToCount(palette, targetCount, LEGACY_COLOR_PALETTE);
+      }
+    }
     const servicePalette = paletteService.resolveGroupPalette({
       groupId: SHARED_GROUP_ID,
       count: targetCount,
+      settings: settingsSnapshot,
       fallback: LEGACY_COLOR_PALETTE,
       legacyPaletteId: 'figures'
     });

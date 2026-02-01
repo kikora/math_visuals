@@ -80,6 +80,14 @@
     const theme = typeof window !== 'undefined' ? window.MathVisualsTheme : null;
     return theme && typeof theme === 'object' ? theme : null;
   }
+  function getPaletteApi() {
+    const palette = typeof window !== 'undefined' ? window.MathVisualsPalette : null;
+    return palette && typeof palette.getGroupPalette === 'function' ? palette : null;
+  }
+  function getSettingsApi() {
+    const settings = typeof window !== 'undefined' ? window.MathVisualsSettings : null;
+    return settings && typeof settings === 'object' ? settings : null;
+  }
   function getColorPickerHelper() {
     const scope = typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : null;
     if (scope && scope.MathVisualsColorPickerHelper) {
@@ -177,9 +185,41 @@
   }
   function getPaletteFromTheme(count) {
     const target = Number.isFinite(count) && count > 0 ? Math.trunc(count) : LEGACY_FILL_PALETTE.length;
+    const settings = getSettingsApi();
+    const paletteApi = getPaletteApi();
     const theme = getThemeApi();
+    const settingsSnapshot =
+      settings && typeof settings.getSettings === 'function'
+        ? settings.getSettings()
+        : settings || undefined;
+    let palette = null;
+    if (settings && typeof settings.getGroupPalette === 'function') {
+      try {
+        palette = settings.getGroupPalette('fellesfarger', { count: target });
+      } catch (_) {}
+      if ((!palette || palette.length < target) && settings.getGroupPalette.length >= 3) {
+        try {
+          palette = settings.getGroupPalette('fellesfarger', target);
+        } catch (_) {
+          palette = null;
+        }
+      }
+      if (Array.isArray(palette) && palette.length) {
+        return ensurePaletteSize(palette, LEGACY_FILL_PALETTE, target);
+      }
+    }
+    if (paletteApi && typeof paletteApi.getGroupPalette === 'function') {
+      try {
+        palette = paletteApi.getGroupPalette('fellesfarger', { count: target, settings: settingsSnapshot });
+      } catch (_) {
+        palette = null;
+      }
+      if (Array.isArray(palette) && palette.length) {
+        return ensurePaletteSize(palette, LEGACY_FILL_PALETTE, target);
+      }
+    }
     if (theme && typeof theme.getGroupPalette === 'function') {
-      let palette = null;
+      palette = null;
       try {
         palette = theme.getGroupPalette('fellesfarger', { count: target });
       } catch (_) {}
@@ -1875,8 +1915,15 @@
     render();
     applyFillColorSelection(getFillPalette());
   }
+  function handleThemeSettingsChange(event) {
+    if (!event || event.type !== 'math-visuals:settings-changed') return;
+    applyThemeToDocument();
+    render();
+    applyFillColorSelection(getFillPalette());
+  }
   if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
     window.addEventListener('message', handleThemeProfileChange);
+    window.addEventListener('math-visuals:settings-changed', handleThemeSettingsChange);
   }
   function bindNumberInput(input, targetGetter, key, min = 0) {
     if (!input) return;

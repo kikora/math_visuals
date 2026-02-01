@@ -765,6 +765,7 @@ const fillColorPickerInstances = new WeakMap();
       paletteService.resolveGroupPalette({
         groupId: SHARED_GROUP_ID,
         count: target || undefined,
+        settings: settingsSource,
         fallback
       })
     );
