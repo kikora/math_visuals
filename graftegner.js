@@ -263,6 +263,7 @@ const DEFAULT_GRAFTEGNER_TRIG_SIMPLE = {
 const AXIS_ARROW_PIXEL_THICKNESS = 26;
 const AXIS_ARROW_ASPECT_RATIO = 17 / 30;
 const AXIS_LABEL_OFFSET_PX = 10;
+const EXPORT_LABEL_SHIFT_PX = 5;
 const AXIS_LABEL_MARGIN_FRACTION = 0.005;
 const AXIS_LABEL_MARGINS = { x: AXIS_LABEL_MARGIN_FRACTION, y: AXIS_LABEL_MARGIN_FRACTION };
 
@@ -3684,6 +3685,13 @@ function getSvgLabelPosition(node) {
   return null;
 }
 
+function shiftExportScreenPosition(screenPos) {
+  if (!screenPos) return screenPos;
+  const shiftX = Number(EXPORT_LABEL_SHIFT_PX);
+  if (!Number.isFinite(shiftX) || shiftX === 0) return screenPos;
+  return { x: screenPos.x - shiftX, y: screenPos.y };
+}
+
 function hasExistingAxisLabelNodes(node) {
   if (!node || typeof node.querySelector !== 'function') return false;
   if (node.querySelector('.graf-axis-label, [data-axis-label], [data-export-axis-labels]')) return true;
@@ -3739,7 +3747,7 @@ function appendAxisLabelsToSvgClone(node) {
     const label = axisLabelText(axisKey);
     if (!label) return null;
     const worldPos = computeAxisLabelWorldPosition(axisKey);
-    const screenPos = worldToScreenPoint(worldPos);
+    const screenPos = shiftExportScreenPosition(worldToScreenPoint(worldPos));
     if (!screenPos) return null;
     const latex = convertExpressionToLatex(label) || label;
     const katexHtml = latex ? renderLatexToHtml(latex) : '';
@@ -3849,7 +3857,7 @@ function appendCurveLabelsToSvgClone(node) {
     const x = typeof label.X === 'function' ? Number(label.X()) : NaN;
     const y = typeof label.Y === 'function' ? Number(label.Y()) : NaN;
     if (!Number.isFinite(x) || !Number.isFinite(y)) return;
-    const screenPos = worldToScreenPoint({ x, y });
+    const screenPos = shiftExportScreenPosition(worldToScreenPoint({ x, y }));
     if (!screenPos) return;
     if (hasExistingCurveLabel(node, textContent, screenPos)) return;
     const latex = convertExpressionToLatex(textContent) || formatPointLabelLatex(textContent);
