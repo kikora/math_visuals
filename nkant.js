@@ -968,7 +968,8 @@ const colorPickerModule = getColorPickerModule();
 const nkantColorPickerInstances = new WeakMap();
 let nkantPaletteCache = [];
 
-function resolveNkantPalette() {
+function resolveNkantPalette(options = {}) {
+  const { preferSettings = false } = options;
   const paletteApi = getPaletteApi();
   const settings = getSettingsApi();
   const theme = getThemeApi();
@@ -994,15 +995,27 @@ function resolveNkantPalette() {
     }
   };
 
-  if (paletteApi && typeof paletteApi.getGroupPalette === 'function') {
+  const resolveFromSettings = () => {
+    if (settings && typeof settings.getGroupPalette === 'function') {
+      const result = resolveGroupPalette(() => settings.getGroupPalette('nkant', request));
+      if (result && result.length) return result;
+      if (settings.getGroupPalette.length >= 3) {
+        return resolveGroupPalette(() => settings.getGroupPalette('nkant', NKANT_GROUP_PALETTE_SIZE));
+      }
+    }
+    return [];
+  };
+
+  if (preferSettings) {
+    groupPalette = resolveFromSettings();
+  }
+
+  if ((!groupPalette || !groupPalette.length) && paletteApi && typeof paletteApi.getGroupPalette === 'function') {
     groupPalette = resolveGroupPalette(() => paletteApi.getGroupPalette('nkant', request));
   }
 
-  if ((!groupPalette || !groupPalette.length) && settings && typeof settings.getGroupPalette === 'function') {
-    groupPalette = resolveGroupPalette(() => settings.getGroupPalette('nkant', request));
-    if ((!groupPalette || !groupPalette.length) && settings.getGroupPalette.length >= 3) {
-      groupPalette = resolveGroupPalette(() => settings.getGroupPalette('nkant', NKANT_GROUP_PALETTE_SIZE));
-    }
+  if ((!groupPalette || !groupPalette.length) && !preferSettings) {
+    groupPalette = resolveFromSettings();
   }
 
   if ((!groupPalette || !groupPalette.length) && theme && typeof theme.getGroupPalette === 'function') {
@@ -1137,7 +1150,8 @@ function renderNkantColorPicker(element, palette, getColorSetIndex, onSelect) {
 // --- PATCH START: Manglende tema-funksjon ---
 
 function refreshNkantTheme(options = {}) {
-  const palette = resolveNkantPalette();
+  const { preferSettings = false } = options;
+  const palette = resolveNkantPalette({ preferSettings });
   applyNkantPaletteSelection(palette, { render: true });
   document.querySelectorAll('[data-nkant-color-picker]').forEach(element => {
     const figIndex = Number.parseInt(element.dataset.figureIndex, 10);
@@ -1166,21 +1180,27 @@ function refreshNkantTheme(options = {}) {
 
 // Hjelpefunksjon for å unngå spamming av refresh
 let themeRefreshTimer = null;
-function scheduleThemeRefresh(delay = 50) {
+function scheduleThemeRefresh(options = {}, delay = 50) {
+  let finalOptions = options;
+  let finalDelay = delay;
+  if (typeof options === 'number') {
+    finalDelay = options;
+    finalOptions = {};
+  }
   if (themeRefreshTimer) clearTimeout(themeRefreshTimer);
   themeRefreshTimer = setTimeout(() => {
     themeRefreshTimer = null;
-    refreshNkantTheme();
-  }, delay);
+    refreshNkantTheme(finalOptions);
+  }, finalDelay);
 }
 // --- PATCH SLUTT ---
 
   function setupNkantThemeSync() {
-    const refresh = () => {
+    const refresh = options => {
       if (typeof requestAnimationFrame === 'function') {
-        requestAnimationFrame(() => scheduleThemeRefresh());
+        requestAnimationFrame(() => scheduleThemeRefresh(options));
       } else {
-        setTimeout(() => scheduleThemeRefresh(), 50);
+        setTimeout(() => scheduleThemeRefresh(options), 50);
       }
     };
 
@@ -1201,7 +1221,9 @@ function scheduleThemeRefresh(delay = 50) {
     }
 
     if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
-      window.addEventListener('math-visuals:settings-changed', refresh);
+      window.addEventListener('math-visuals:settings-changed', () => {
+        refresh({ preferSettings: true });
+      });
       window.addEventListener('math-visuals:profile-change', refresh);
       window.addEventListener('math-visuals:project-change', refresh);
       window.addEventListener('message', event => {
