@@ -202,6 +202,12 @@
     return incomingMs;
   }
 
+  function ensureSnapshotUpdatedAt(snapshot) {
+    if (!snapshot || typeof snapshot !== 'object') return snapshot;
+    if (snapshot.updatedAt) return snapshot;
+    return { ...snapshot, updatedAt: new Date().toISOString() };
+  }
+
   function applySettingsSnapshot(snapshot) {
     if (!snapshot || typeof snapshot !== 'object') return false;
     if (isSnapshotOlderThanLatest(snapshot)) return false;
@@ -362,7 +368,7 @@
       const snapshot = await persistSettings('PUT', payload);
       const appliedSnapshot =
         snapshot && typeof snapshot === 'object'
-          ? snapshot
+          ? ensureSnapshotUpdatedAt(snapshot)
           : { ...payload, updatedAt: new Date().toISOString() };
       applySettingsSnapshot(appliedSnapshot);
       restoreUnsavedChanges(unsavedChanges);
