@@ -1875,8 +1875,10 @@
   }
   function render() {
     syncControlsToCfg();
+    const palette = getFillPalette();
     renderFillColorPicker();
     renderView();
+    return palette;
   }
   window.render = render;
   function handleThemeProfileChange(event) {
@@ -1884,14 +1886,15 @@
     const type = typeof data === 'string' ? data : data && data.type;
     if (type !== 'math-visuals:profile-change') return;
     applyThemeToDocument();
-    render();
-    applyFillColorSelection(getFillPalette());
+    const palette = render();
+    applyFillColorSelection(palette);
   }
   function handleThemeSettingsChange(event) {
     if (!event || event.type !== 'math-visuals:settings-changed') return;
     applyThemeToDocument();
-    render();
-    applyFillColorSelection(getFillPalette());
+    const palette = render();
+    applyFillColorSelection(palette);
+    renderFillColorPicker();
   }
   function handleThemePaletteChange(event) {
     if (!event || event.type !== 'math-visuals:palette-changed') return;
