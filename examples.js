@@ -804,6 +804,23 @@ initExamples();
     };
   }
 
+  function parseUpdatedAtMs(value) {
+    if (value == null) return null;
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string') {
+      const parsed = Date.parse(value);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+  }
+
+  function isSnapshotNewer(incoming, current) {
+    const incomingMs = parseUpdatedAtMs(incoming && incoming.updatedAt);
+    const currentMs = parseUpdatedAtMs(current && current.updatedAt);
+    if (incomingMs == null || currentMs == null) return true;
+    return incomingMs > currentMs;
+  }
+
   const DEFAULT_SETTINGS = normalizeSettings({});
 
   function cloneSettings(source) {
@@ -911,6 +928,9 @@ initExamples();
     const next = snapshot && typeof snapshot === 'object' ? snapshot : {};
     const notify = opts.notify !== false;
     const emitEvent = opts.emitEvent !== false;
+    if (!opts.force && !isSnapshotNewer(next, settings)) {
+      return cloneSettings();
+    }
     return commitSettings(next, { persist: false, notify, emitEvent });
   }
 
@@ -1106,6 +1126,9 @@ initExamples();
       })
       .then(remote => {
         if (!remote || typeof remote !== 'object') return cloneSettings();
+        if (!isSnapshotNewer(remote, settings)) {
+          return cloneSettings();
+        }
         settings = normalizeSettings(remote);
         if (opts.notify !== false) {
           notifyChange({ emitEvent: opts.emitEvent !== false });
