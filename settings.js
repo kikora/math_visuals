@@ -46,6 +46,40 @@
     return;
   }
 
+  function resolvePaletteNormalize() {
+    const scopes = [
+      typeof window !== 'undefined' ? window : null,
+      typeof globalThis !== 'undefined' ? globalThis : null,
+      typeof global !== 'undefined' ? global : null
+    ];
+    for (const scope of scopes) {
+      if (!scope || typeof scope !== 'object') continue;
+      const normalizer = scope.MathVisualsPaletteNormalize;
+      if (normalizer && typeof normalizer === 'object') {
+        return normalizer;
+      }
+    }
+    if (typeof require === 'function') {
+      try {
+        const mod = require('./palette/palette-normalize.js');
+        if (mod && typeof mod === 'object') {
+          return mod;
+        }
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  const paletteNormalize = resolvePaletteNormalize();
+  if (!paletteNormalize) {
+    if (typeof console !== 'undefined' && console && typeof console.error === 'function') {
+      console.error(
+        '[MathVisualsSettings] Mangler normalisering. Sørg for at palette/palette-normalize.js lastes før settings.js.'
+      );
+    }
+    return;
+  }
+
   const MAX_COLORS = paletteConfig.MAX_COLORS;
   const PROJECT_FALLBACKS = paletteConfig.PROJECT_FALLBACKS;
   const COLOR_SLOT_GROUPS = paletteConfig.COLOR_SLOT_GROUPS.map(group => ({
@@ -358,117 +392,17 @@
     return result;
   }
 
-  function normalizeRoleKey(value) {
-    if (typeof value !== 'string') return '';
-    const trimmed = value.trim().toLowerCase();
-    if (!trimmed) return '';
-    if (trimmed.startsWith('fill')) return 'fills';
-    if (trimmed.startsWith('line')) return 'lines';
-    if (trimmed.startsWith('edge') || trimmed.startsWith('kant')) return 'edges';
-    if (trimmed.startsWith('angle') || trimmed.startsWith('vinkel')) return 'angles';
-    return '';
-  }
-
-  function resolveSlotRole(slot) {
-    const label = slot && typeof slot.label === 'string' ? slot.label.trim().toLowerCase() : '';
-    if (!label) return '';
-    if (label.includes('fyll')) return 'fills';
-    if (label.includes('linje')) return 'lines';
-    if (label.includes('kant')) return 'edges';
-    if (label.includes('vinkel')) return 'angles';
-    return '';
-  }
-
-  function extractFlatPalette(entry) {
-    if (!entry) return null;
-    if (Array.isArray(entry)) return entry;
-    if (entry && typeof entry === 'object') {
-      if (Array.isArray(entry.colors)) return entry.colors;
-      if (Array.isArray(entry.palette)) return entry.palette;
-      if (Array.isArray(entry.values)) return entry.values;
-      if (entry.default != null) {
-        const nested = extractFlatPalette(entry.default);
-        if (nested && nested.length) return nested;
-      }
-      if (entry.fallback != null) {
-        const nested = extractFlatPalette(entry.fallback);
-        if (nested && nested.length) return nested;
-      }
-    }
-    return null;
-  }
-
-  function collectRoleLists(entry) {
-    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return {};
-    const roles = {};
-    Object.keys(entry).forEach(key => {
-      const roleKey = normalizeRoleKey(key);
-      if (!roleKey) return;
-      const values = sanitizeColorList(entry[key], MAX_COLORS);
-      if (values.length) {
-        roles[roleKey] = values;
-      }
-    });
-    return roles;
-  }
-
-  function buildRolePaletteSlots(group, roleLists, fallbackList) {
-    const slotRoles = {};
-    const fallback = Array.isArray(fallbackList) ? fallbackList : [];
-    return group.slots.map((slot, slotIndex) => {
-      const roleKey = resolveSlotRole(slot);
-      if (roleKey && Array.isArray(roleLists[roleKey])) {
-        const position = Number.isInteger(slotRoles[roleKey]) ? slotRoles[roleKey] : 0;
-        const color = roleLists[roleKey][position];
-        slotRoles[roleKey] = position + 1;
-        if (color) return color;
-      }
-      return fallback[slotIndex];
-    });
-  }
+  const paletteNormalizeOptions = {
+    sanitizeColorList,
+    maxColors: MAX_COLORS
+  };
 
   function resolveGroupPaletteEntry(group, entry) {
-    if (Array.isArray(entry)) return entry;
-    if (entry && typeof entry === 'object') {
-      const roleLists = collectRoleLists(entry);
-      const flat = extractFlatPalette(entry);
-      if (Object.keys(roleLists).length) {
-        return buildRolePaletteSlots(group, roleLists, flat);
-      }
-      if (flat && flat.length) {
-        return flat;
-      }
-    }
-    return [];
+    return paletteNormalize.resolveGroupPaletteEntry(group, entry, paletteNormalizeOptions);
   }
 
   function buildRolePayloadForGroup(group, colors) {
-    const lists = {};
-    let hasRoles = false;
-    let hasUnmatched = false;
-    group.slots.forEach((slot, slotIndex) => {
-      const roleKey = resolveSlotRole(slot);
-      const color = colors[slotIndex];
-      if (roleKey) {
-        hasRoles = true;
-        if (!lists[roleKey]) {
-          lists[roleKey] = [];
-        }
-        lists[roleKey].push(color);
-      } else if (color) {
-        hasUnmatched = true;
-      }
-    });
-    if (!hasRoles || hasUnmatched) return null;
-    Object.keys(lists).forEach(key => {
-      const values = sanitizeColorList(lists[key], MAX_COLORS);
-      if (values.length) {
-        lists[key] = values;
-      } else {
-        delete lists[key];
-      }
-    });
-    return Object.keys(lists).length ? lists : null;
+    return paletteNormalize.buildRolePayloadForGroup(group, colors, paletteNormalizeOptions);
   }
 
   const CONTRAST_THRESHOLD_NORMAL_TEXT = 4.5;
@@ -694,14 +628,7 @@
   }
 
   function ensurePaletteShape(palette) {
-    const shaped = {};
-    const source = palette && typeof palette === 'object' ? palette : {};
-    COLOR_SLOT_GROUPS.forEach(group => {
-      const groupId = group.groupId;
-      const entry = source[groupId];
-      shaped[groupId] = Array.isArray(entry) ? entry : resolveGroupPaletteEntry(group, entry);
-    });
-    return shaped;
+    return paletteNormalize.ensureProjectPaletteShape(palette, COLOR_SLOT_GROUPS, paletteNormalizeOptions);
   }
 
   function cloneProjectPalette(palette) {
