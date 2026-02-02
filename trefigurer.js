@@ -1276,6 +1276,11 @@
   const colorPickerHelper = getColorPickerHelper();
   const colorPickerModule = getColorPickerModule();
   const fillColorPickerInstances = new WeakMap();
+  function getSettingsApi() {
+    if (typeof window === 'undefined') return null;
+    const api = window.MathVisualsSettings;
+    return api && typeof api === 'object' ? api : null;
+  }
   function getPaletteApi() {
     if (typeof window === 'undefined') return null;
     const api = window.MathVisualsPalette;
@@ -1345,10 +1350,29 @@
   }
   function getLineFillPalettes() {
     const paletteApi = getPaletteApi();
+    const settings = getSettingsApi();
+    const settingsSnapshot =
+      settings && typeof settings.getSettings === 'function'
+        ? settings.getSettings()
+        : settings || undefined;
     let colors = [];
-    if (paletteApi) {
+    if (settings && typeof settings.getGroupPalette === 'function') {
       try {
-        colors = paletteApi.getGroupPalette('fellesfarger', { count: 12 });
+        colors = settings.getGroupPalette('fellesfarger', { count: 12 });
+      } catch (_) {
+        colors = [];
+      }
+      if ((!colors || colors.length < 12) && settings.getGroupPalette.length >= 3) {
+        try {
+          colors = settings.getGroupPalette('fellesfarger', 12);
+        } catch (_) {
+          colors = [];
+        }
+      }
+    }
+    if ((!colors || !colors.length) && paletteApi) {
+      try {
+        colors = paletteApi.getGroupPalette('fellesfarger', { count: 12, settings: settingsSnapshot });
       } catch (_) {
         colors = [];
       }
@@ -2402,6 +2426,10 @@
     applyTransparency(transparencyValue);
     renderFillColorPicker();
   }
+  function handleThemeSettingsChanged(event) {
+    if (!event || event.type !== 'math-visuals:settings-changed') return;
+    renderFillColorPicker();
+  }
   ensureStateDefaults();
   syncControlsFromState();
   updateViewControlsUI(getActiveViewIndex());
@@ -2664,6 +2692,9 @@
     });
   }
   if (typeof window !== 'undefined') {
+    if (typeof window.addEventListener === 'function') {
+      window.addEventListener('math-visuals:settings-changed', handleThemeSettingsChanged);
+    }
     window.loadCleanState = loadCleanState;
     window.trefigurerApi = {
       createCleanState: (...args) => createCleanState(...args),
