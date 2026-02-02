@@ -117,12 +117,12 @@ function buildLegacyPaletteConfig() {
       description:
         'Farger som brukes av graftegner, diagram, brøksirkler, brøkfigurer, tallfigurer, kvikkbilder, tenkeblokker, brøkvegg og 3D-figurer. Hvert fargesett har Fyll/Kant/Linje.',
       colorRoles: [
-        { fillIndex: 0, lineIndex: 1 },
-        { fillIndex: 3, lineIndex: 4 },
-        { fillIndex: 6, lineIndex: 7 },
-        { fillIndex: 9, lineIndex: 10 },
-        { fillIndex: 12, lineIndex: 13 },
-        { fillIndex: 15, lineIndex: 16 }
+        { fillIndex: 0, lineIndex: 2 },
+        { fillIndex: 3, lineIndex: 5 },
+        { fillIndex: 6, lineIndex: 8 },
+        { fillIndex: 9, lineIndex: 11 },
+        { fillIndex: 12, lineIndex: 14 },
+        { fillIndex: 15, lineIndex: 17 }
       ],
       slots: [
         { index: 0, label: 'Fyll 1', description: 'Fyllfarge til fargesett 1.' },
