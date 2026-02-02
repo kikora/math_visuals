@@ -2355,11 +2355,8 @@
     Object.assign(CFG, mergedCfg);
     sanitizeCfg();
     const settings = getSettingsApi();
-    const settingsSnapshot =
-      settings && typeof settings.getSettings === 'function'
-        ? settings.getSettings()
-        : settings || null;
-    if (settingsSnapshot) {
+    const hasSettingsApi = !!settings;
+    if (hasSettingsApi) {
       kvikkbilderPalette = syncBrickPaletteFromFill(getFillPalette());
     } else if (cleanState.palette && typeof cleanState.palette === 'object') {
       kvikkbilderPalette = { ...DEFAULT_BRICK_PALETTE, ...cleanState.palette };
