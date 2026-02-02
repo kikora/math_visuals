@@ -3692,15 +3692,16 @@ const fillColorPickerInstances = new WeakMap();
         showDivisionLines: !!STATE.showDivisionLines,
         showOutline: !!STATE.showOutline
       },
-      palette: {
-        colorCount,
-        colors: getColors().slice(0, colorCount)
-      },
       figures
     };
   }
   function loadCleanState(rawState) {
     if (!rawState || typeof rawState !== 'object' || rawState.v !== 1) return false;
+    const settingsApi = getSettingsApi();
+    if (settingsApi && rawState.palette) {
+      // Legacy payloads may include a palette, but settings/theme now define colors.
+      // Ignore the stored palette when MathVisualsSettings is available.
+    }
     const settings = rawState.settings && typeof rawState.settings === 'object' ? rawState.settings : {};
     rows = clampInt(settings.rows != null ? settings.rows : rows, MIN_DIMENSION, MAX_ROWS);
     cols = clampInt(settings.cols != null ? settings.cols : cols, MIN_DIMENSION, MAX_COLS);
