@@ -203,6 +203,10 @@ function isValidColor(value) {
     }
     return paletteConfigCache;
   }
+  function resetPaletteConfigCache() {
+    paletteConfigResolved = false;
+    paletteConfigCache = null;
+  }
   function applyThemeToDocument() {
     const theme = getThemeApi();
     if (theme && typeof theme.applyToDocument === 'function') {
@@ -2400,7 +2404,9 @@ function isValidColor(value) {
   }
   function handleThemeSettingsChanged(event) {
     if (!event || event.type !== 'math-visuals:settings-changed') return;
+    resetPaletteConfigCache();
     syncThemeAndPalette();
+    renderFillColorPicker();
   }
   function initProjectProfileSync() {
     if (typeof MutationObserver === 'function' && document && document.documentElement) {
