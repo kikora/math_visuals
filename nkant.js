@@ -926,10 +926,12 @@ const NKANT_COLOR_SET_COUNT = 3;
 const NKANT_GROUP_PALETTE_SIZE = NKANT_COLOR_SET_SIZE * NKANT_COLOR_SET_COUNT;
 const paletteFallbacks = resolvePaletteFallbacks();
 const legacyFallbacks = paletteFallbacks && paletteFallbacks.legacy ? paletteFallbacks.legacy : null;
-const SETTINGS_FALLBACK_PALETTE = Array.isArray(legacyFallbacks && legacyFallbacks.nkant)
+const SETTINGS_FALLBACK_PALETTE = Array.isArray(paletteFallbacks && paletteFallbacks.nkant)
+  ? paletteFallbacks.nkant.slice()
+  : Array.isArray(legacyFallbacks && legacyFallbacks.nkant)
   ? legacyFallbacks.nkant.slice()
-  : Array.isArray(legacyFallbacks && legacyFallbacks.settingsDefault)
-  ? legacyFallbacks.settingsDefault.slice(0, 6)
+  : Array.isArray(paletteFallbacks && paletteFallbacks.settingsDefault)
+  ? paletteFallbacks.settingsDefault.slice(0, NKANT_GROUP_PALETTE_SIZE)
   : [];
 const NKANT_FALLBACK_PALETTE = Array.from({ length: NKANT_GROUP_PALETTE_SIZE }, (_, idx) => {
   const fallback = SETTINGS_FALLBACK_PALETTE.length ? SETTINGS_FALLBACK_PALETTE : ["#111827"];
