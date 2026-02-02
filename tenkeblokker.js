@@ -1549,10 +1549,20 @@ function handleThemePaletteChanged() {
   applyFractionPalette(true);
 }
 
+function refreshPaletteFromSettings() {
+  cachedPaletteConfig = null;
+  paletteConfigResolved = false;
+  applyFractionPalette(true);
+}
+
 function handleThemeProfileMessage(event) {
   const data = event && event.data;
   const type = typeof data === 'string' ? data : data && data.type;
   if (type === 'math-visuals:profile-change' || type === 'math-visuals:settings-changed') {
+    if (type === 'math-visuals:settings-changed') {
+      refreshPaletteFromSettings();
+      return;
+    }
     handleThemePaletteChanged();
   }
 }
@@ -1564,7 +1574,7 @@ function handleThemeProfileChangeEvent(event) {
 
 function handleThemeSettingsChanged(event) {
   if (!event || event.type !== 'math-visuals:settings-changed') return;
-  handleThemePaletteChanged();
+  refreshPaletteFromSettings();
 }
 
 if (typeof window !== 'undefined') {
