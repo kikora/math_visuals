@@ -337,11 +337,16 @@ function getColorPickerAdapter() {
     if (!inp) break;
     colorInputs.push(inp);
   }
-  const LEGACY_COLOR_PALETTE = ['#B25FE3', '#6C1BA2', '#534477', '#873E79', '#BF4474', '#E31C3D'];
   const SHARED_GROUP_ID = 'fellesfarger';
   const PALETTE_PAIR_COUNT = 6;
   const PALETTE_SLOT_COUNT = PALETTE_PAIR_COUNT * 3;
   const FILL_COLOR_COUNT = PALETTE_PAIR_COUNT;
+  const SETTINGS_MISSING_MESSAGE =
+    '[Brøkfigurer] Mangler settings-data. Sørg for at settings-bootstrap lastes før brøkfigurer.js.';
+  const PALETTE_RESOLVER_MISSING_MESSAGE =
+    '[Brøkfigurer] Mangler paletteresolver. Sørg for at palette/palette-config.js og palette-resolver er tilgjengelig.';
+  let hasWarnedMissingSettings = false;
+  let hasWarnedMissingResolver = false;
 const DEFAULT_GRAFTEGNER_COLOR_ROLES = [
   { fillIndex: 0, lineIndex: 1 },
   { fillIndex: 3, lineIndex: 4 },
@@ -499,35 +504,52 @@ const fillColorPickerInstances = new WeakMap();
     const api = window.MathVisualsSettings;
     return api && typeof api === 'object' ? api : null;
   }
-  function getGroupFallbackPalette(groupId, basePalette) {
-    const baseCandidate = sanitizePalette(basePalette);
-    if (!baseCandidate.length) {
+  function warnMissingSettings() {
+    if (hasWarnedMissingSettings) return;
+    hasWarnedMissingSettings = true;
+    if (typeof console !== 'undefined' && console && typeof console.error === 'function') {
+      console.error(SETTINGS_MISSING_MESSAGE);
+    }
+  }
+
+  function warnMissingResolver() {
+    if (hasWarnedMissingResolver) return;
+    hasWarnedMissingResolver = true;
+    if (typeof console !== 'undefined' && console && typeof console.error === 'function') {
+      console.error(PALETTE_RESOLVER_MISSING_MESSAGE);
+    }
+  }
+
+  function resolveSettingsSnapshot() {
+    const settings = getSettingsApi();
+    if (!settings) {
+      warnMissingSettings();
+      return null;
+    }
+    if (typeof settings.getSettings === 'function') {
+      const snapshot = settings.getSettings();
+      if (!snapshot || typeof snapshot !== 'object') {
+        warnMissingSettings();
+        return null;
+      }
+      return snapshot;
+    }
+    return settings;
+  }
+
+  function resolveSharedPalette(count) {
+    const resolver = getPaletteResolver();
+    if (!resolver || typeof resolver.resolveGroupPalette !== 'function') {
+      warnMissingResolver();
       return [];
     }
-    const config = getPaletteConfig();
-    if (!config) {
-      return baseCandidate.slice();
-    }
-    const indices = getGroupSlotIndices(config, groupId);
-    if (!indices.length) {
-      return baseCandidate.slice();
-    }
-    const result = [];
-    const baseLength = baseCandidate.length;
-    indices.forEach((index, slotIndex) => {
-      if (Number.isInteger(index) && index >= 0) {
-        const color = baseCandidate[index % baseLength];
-        if (typeof color === 'string' && color) {
-          result.push(color);
-          return;
-        }
-      }
-      const fallbackColor = baseCandidate[slotIndex % baseLength] || baseCandidate[0];
-      if (typeof fallbackColor === 'string' && fallbackColor) {
-        result.push(fallbackColor);
-      }
+    const target = Number.isFinite(count) && count > 0 ? Math.trunc(count) : undefined;
+    const settingsSnapshot = resolveSettingsSnapshot();
+    return resolver.resolveGroupPalette({
+      groupId: SHARED_GROUP_ID,
+      count: target,
+      settings: settingsSnapshot || undefined
     });
-    return result.length ? result : baseCandidate.slice();
   }
   function applyThemeToDocument() {
     const theme = getThemeApi();
@@ -640,49 +662,25 @@ const fillColorPickerInstances = new WeakMap();
   }
 
   function getPaletteFromTheme(count) {
-    const settings = getSettingsApi();
-    const legacyFallback = sanitizePalette(LEGACY_COLOR_PALETTE);
-    const groupFallback = getGroupFallbackPalette(SHARED_GROUP_ID, LEGACY_COLOR_PALETTE);
-    const fallback = groupFallback.length ? groupFallback : legacyFallback;
-    const target = Number.isFinite(count) && count > 0 ? Math.trunc(count) : fallback.length || legacyFallback.length;
-    const settingsSource =
-      settings && typeof settings.getSettings === 'function' ? settings.getSettings() : settings || undefined;
-    const resolver = getPaletteResolver();
-    const palette = resolver
-      ? resolver.resolveGroupPalette({
-        groupId: SHARED_GROUP_ID,
-        count: target || undefined,
-        settings: settingsSource,
-        fallback
-      })
-      : [];
-    return ensurePaletteSize(palette, fallback, target);
+    const target = Number.isFinite(count) && count > 0 ? Math.trunc(count) : undefined;
+    const palette = resolveSharedPalette(target);
+    return ensurePaletteSize(palette, [], target);
   }
   function applySettingsPaletteOverride(count) {
-    const settings = getSettingsApi();
     const target = Number.isFinite(count) && count > 0 ? Math.trunc(count) : FILL_COLOR_COUNT;
-    const settingsSnapshot =
-      settings && typeof settings.getSettings === 'function' ? settings.getSettings() : settings || undefined;
-    const fallback = getGroupFallbackPalette(SHARED_GROUP_ID, LEGACY_COLOR_PALETTE);
-    const resolver = getPaletteResolver();
-    const palette = resolver
-      ? resolver.resolveGroupPalette({
-        groupId: SHARED_GROUP_ID,
-        count: target || undefined,
-        settings: settingsSnapshot,
-        fallback
-      })
-      : [];
+    const palette = resolveSharedPalette(target);
     if (!palette || !palette.length) return false;
     if (!Array.isArray(STATE.colors)) STATE.colors = [];
-    STATE.colors = ensurePaletteSize(palette, fallback, target);
+    STATE.colors = ensurePaletteSize(palette, [], target);
     return true;
   }
   function getDefaultColorForIndex(index) {
-    if (!Number.isFinite(index) || index < 0) return LEGACY_COLOR_PALETTE[0];
-    const palette = getPaletteFromTheme(index + 1);
-    if (Array.isArray(palette) && palette[index]) return palette[index];
-    return LEGACY_COLOR_PALETTE[index % LEGACY_COLOR_PALETTE.length];
+    const safeIndex = Number.isFinite(index) && index >= 0 ? Math.trunc(index) : 0;
+    const palette = getPaletteFromTheme(safeIndex + 1);
+    if (Array.isArray(palette) && palette.length) {
+      return palette[safeIndex % palette.length];
+    }
+    return null;
   }
   function getLineFillPalettes() {
     const slotCount = getGraftegnerRoleSlotCount();
@@ -1106,13 +1104,13 @@ const fillColorPickerInstances = new WeakMap();
     const required = Math.max(count, maxColors);
     const palette = getPaletteFromTheme(required);
     if (!Array.isArray(STATE.colors)) STATE.colors = [];
-    STATE.colors = palette.slice(0, required);
+    STATE.colors = ensurePaletteSize(palette, [], required);
     for (let i = 0; i < required; i++) {
       const defaultColor = palette[i] || getDefaultColorForIndex(i);
       const hasColor = typeof STATE.colors[i] === 'string' && STATE.colors[i];
       if (!hasColor) STATE.colors[i] = defaultColor;
       if (typeof STATE.colors[i] !== 'string' || !STATE.colors[i]) {
-        STATE.colors[i] = defaultColor || LEGACY_COLOR_PALETTE[i % LEGACY_COLOR_PALETTE.length];
+        STATE.colors[i] = defaultColor;
       }
     }
     if (STATE.colors.length > required) STATE.colors.length = required;
