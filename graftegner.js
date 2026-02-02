@@ -148,6 +148,29 @@ function getSettingsApi() {
   const api = window.MathVisualsSettings;
   return api && typeof api === 'object' ? api : null;
 }
+function getPaletteResolver() {
+  const scopes = [
+    typeof window !== 'undefined' ? window : null,
+    typeof globalThis !== 'undefined' ? globalThis : null,
+    typeof global !== 'undefined' ? global : null
+  ];
+  for (const scope of scopes) {
+    if (!scope || typeof scope !== 'object') continue;
+    const resolver = scope.MathVisualsPaletteResolver;
+    if (resolver && typeof resolver.resolveGroupPalette === 'function') {
+      return resolver;
+    }
+  }
+  if (typeof require === 'function') {
+    try {
+      const mod = require('./palette/palette-resolver.js');
+      if (mod && typeof mod.resolveGroupPalette === 'function') {
+        return mod;
+      }
+    } catch (_) {}
+  }
+  return null;
+}
 function cycleColors(source, count) {
   const base = Array.isArray(source) ? source.filter(color => typeof color === 'string' && color) : [];
   if (!base.length) return [];
@@ -160,29 +183,6 @@ function cycleColors(source, count) {
     result.push(base[i % base.length]);
   }
   return result;
-}
-function readStoredSettings() {
-  if (typeof window === 'undefined' || !window.localStorage) return null;
-  try {
-    const raw = window.localStorage.getItem(SETTINGS_STORAGE_KEY);
-    if (typeof raw !== 'string' || !raw) return null;
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? parsed : null;
-  } catch (_) {
-    return null;
-  }
-}
-function resolveSettingsSnapshot() {
-  const api = getSettingsApi();
-  if (api && typeof api.getSettings === 'function') {
-    try {
-      const snapshot = api.getSettings();
-      if (snapshot && typeof snapshot === 'object') {
-        return snapshot;
-      }
-    } catch (_) {}
-  }
-  return readStoredSettings();
 }
 function getBaseCurveColors(count) {
   const targetCount = Number.isFinite(count) && count > 0 ? Math.trunc(count) : undefined;
@@ -340,9 +340,6 @@ const POINT_MARKER_DARKEN_FACTOR = 0.35;
 function getThemeApi() {
   return (typeof window !== 'undefined' && window.MathVisualsTheme) || null;
 }
-function getPaletteApi() {
-  return (typeof window !== 'undefined' && window.MathVisualsPalette) || null;
-}
 function getPaletteConfig() {
   return (typeof window !== 'undefined' && window.MathVisualsPaletteConfig) || null;
 }
@@ -434,7 +431,6 @@ function getReadableTextColor(color) {
 }
 
 function refreshGraftegnerTheme(options = {}) {
-  const paletteApi = getPaletteApi();
   const settings = getSettingsApi();
   const theme = getThemeApi();
   const requestedCount = Number.isFinite(options.count) && options.count > 0 ? Math.trunc(options.count) : null;
@@ -451,35 +447,14 @@ function refreshGraftegnerTheme(options = {}) {
 
   const settingsSnapshot =
     settings && typeof settings.getSettings === 'function' ? settings.getSettings() : settings || undefined;
-  const request = { count, settings: settingsSnapshot };
-  let groupPalette = [];
-
-  if (settings && typeof settings.getGroupPalette === 'function') {
-    try {
-      const res = settings.getGroupPalette(GRAFTEGNER_GROUP_ID, request);
-      groupPalette = res && Array.isArray(res.colors) ? res.colors : (Array.isArray(res) ? res : []);
-    } catch (_) {}
-    if ((!groupPalette || !groupPalette.length) && settings.getGroupPalette.length >= 3) {
-      try {
-        const res = settings.getGroupPalette(GRAFTEGNER_GROUP_ID, count);
-        groupPalette = res && Array.isArray(res.colors) ? res.colors : (Array.isArray(res) ? res : []);
-      } catch (_) {}
-    }
-  }
-
-  if ((!groupPalette || !groupPalette.length) && paletteApi && typeof paletteApi.getGroupPalette === 'function') {
-    try {
-      const res = paletteApi.getGroupPalette(GRAFTEGNER_GROUP_ID, request);
-      groupPalette = res && Array.isArray(res.colors) ? res.colors : (Array.isArray(res) ? res : []);
-    } catch (_) {}
-  }
-
-  if ((!groupPalette || !groupPalette.length) && theme && typeof theme.getGroupPalette === 'function') {
-    try {
-      const res = theme.getGroupPalette(GRAFTEGNER_GROUP_ID, request);
-      groupPalette = res && Array.isArray(res.colors) ? res.colors : (Array.isArray(res) ? res : []);
-    } catch (_) {}
-  }
+  const resolver = getPaletteResolver();
+  const groupPalette = resolver
+    ? resolver.resolveGroupPalette(GRAFTEGNER_GROUP_ID, {
+      count,
+      settings: settingsSnapshot,
+      fallback: GRAFTEGNER_FALLBACK_PALETTE
+    })
+    : [];
 
   const finalPalette = ensureColorCount(groupPalette, GRAFTEGNER_FALLBACK_PALETTE, count);
   const linePalette = finalPalette.length > DEFAULT_FUNCTION_COLORS.fallback.length
@@ -732,49 +707,19 @@ function fetchGraftegnerAxisColor(provider) {
 
 function fetchGraftegnerPalette(count) {
   const targetCount = Number.isFinite(count) && count > 0 ? Math.trunc(count) : undefined;
-  const theme = getThemeApi();
   const settings = getSettingsApi();
-  if (settings && typeof settings.getGroupPalette === 'function') {
-    let palette = tryResolveGroupPalette(() => settings.getGroupPalette(GRAFTEGNER_GROUP_ID, { count: targetCount }));
-    if (
-      (!Array.isArray(palette) || (targetCount && palette.length < targetCount)) &&
-      settings.getGroupPalette.length >= 3
-    ) {
-      palette = tryResolveGroupPalette(() => settings.getGroupPalette(GRAFTEGNER_GROUP_ID, targetCount || undefined));
-    }
-    if (palette) return palette;
-  }
-  if (theme && typeof theme.getGroupPalette === 'function') {
-    let palette = tryResolveGroupPalette(() => theme.getGroupPalette(GRAFTEGNER_GROUP_ID, { count: targetCount }));
-    if (
-      (!Array.isArray(palette) || (targetCount && palette.length < targetCount)) &&
-      theme.getGroupPalette.length >= 3
-    ) {
-      palette = tryResolveGroupPalette(() => theme.getGroupPalette(GRAFTEGNER_GROUP_ID, targetCount || undefined));
-    }
-    if (palette) return palette;
-  }
-  const helper = getPaletteHelper();
-  if (helper && typeof helper.getGroupPalette === 'function') {
-    const palette = tryResolveGroupPalette(() => helper.getGroupPalette(GRAFTEGNER_GROUP_ID, { count: targetCount }));
-    if (palette) return palette;
-  }
-  if (theme && typeof theme.getPalette === 'function') {
-    const palette = tryResolveGroupPalette(() =>
-      theme.getPalette('fellesfarger', targetCount || DEFAULT_FUNCTION_COLORS.fallback.length)
-    );
-    if (palette) return palette;
-  }
-  const stored = resolveSettingsSnapshot();
-  if (stored && typeof stored === 'object') {
-    if (Array.isArray(stored.defaultColors)) {
-      const sanitized = sanitizePaletteList(stored.defaultColors);
-      if (sanitized.length) {
-        return sanitized;
-      }
-    }
-  }
-  return DEFAULT_FUNCTION_COLORS.fallback.slice();
+  const settingsSnapshot =
+    settings && typeof settings.getSettings === 'function' ? settings.getSettings() : settings || undefined;
+  const resolver = getPaletteResolver();
+  const palette = resolver
+    ? resolver.resolveGroupPalette(GRAFTEGNER_GROUP_ID, {
+      count: targetCount,
+      settings: settingsSnapshot,
+      fallback: DEFAULT_FUNCTION_COLORS.fallback
+    })
+    : [];
+  const sanitized = sanitizePaletteList(palette);
+  return sanitized.length ? sanitized : DEFAULT_FUNCTION_COLORS.fallback.slice();
 }
 
 function applyGraftegnerPalette(palette, options = {}) {
@@ -7285,6 +7230,7 @@ if (typeof window !== 'undefined' && typeof window.addEventListener === 'functio
   });
   window.addEventListener('math-visuals:profile-change', () => handleGraftegnerProfileChange());
   window.addEventListener('math-visuals:settings-changed', () => handleGraftegnerSettingsChange());
+  window.addEventListener('math-visuals:palette-changed', () => refreshGraftegnerTheme());
 }
 function requestRebuild() {
   cancelScheduledSimpleRebuild();
