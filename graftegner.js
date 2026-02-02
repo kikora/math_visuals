@@ -369,8 +369,22 @@ function getColorPickerModule() {
   return null;
 }
 
+function getColorPickerAdapter() {
+  const scope = typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : null;
+  if (scope && scope.MathVisualsColorPickerAdapter) {
+    return scope.MathVisualsColorPickerAdapter;
+  }
+  if (typeof require === 'function') {
+    try {
+      return require('./ui/colorpicker/adapter.js');
+    } catch (_) {}
+  }
+  return null;
+}
+
 const colorPickerHelper = getColorPickerHelper();
 const colorPickerModule = getColorPickerModule();
+const colorPickerAdapter = getColorPickerAdapter();
 const functionColorPickerInstances = new WeakMap();
 
 function getThemeColor(token, fallback) {
@@ -8522,12 +8536,6 @@ function setupSettingsForm() {
     }
     return [inputs].filter(Boolean);
   };
-  const buildFunctionColorSlots = palette =>
-    palette.slice(0, FUNCTION_COLOR_OPTION_COUNT).map((color, index) => ({
-      value: index + 1,
-      label: `Velg farge ${index + 1}`,
-      color
-    }));
   const applyFunctionSwatch = (element, color) => {
     if (!element) return;
     if (colorPickerHelper && typeof colorPickerHelper.applyColorPairSwatch === 'function') {
@@ -8543,14 +8551,21 @@ function setupSettingsForm() {
     }
   };
   const updateFunctionColorPicker = (picker, hiddenInput, activeColor, palette) => {
-    if (!picker || !hiddenInput || !colorPickerModule || typeof colorPickerModule.createColorPicker !== 'function') {
+    if (
+      !picker ||
+      !hiddenInput ||
+      !colorPickerAdapter ||
+      typeof colorPickerAdapter.syncColorPicker !== 'function' ||
+      typeof colorPickerAdapter.buildSlotsFromPalette !== 'function'
+    ) {
       return;
     }
     const safePalette = Array.isArray(palette) && palette.length ? palette : getFunctionColorOptions();
+    const slotPalette = safePalette.slice(0, FUNCTION_COLOR_OPTION_COUNT);
     const normalizedActive = normalizeFunctionColorChoice(activeColor, safePalette)
       || normalizeFunctionColorChoice(safePalette[0], safePalette)
       || DEFAULT_COLOR_FALLBACK;
-    const slots = buildFunctionColorSlots(safePalette);
+    const slots = colorPickerAdapter.buildSlotsFromPalette(slotPalette);
     const renderStyle = ({ element, slot, isActive }) => {
       const color = isActive ? normalizedActive : slot.color;
       applyFunctionSwatch(element, color);
@@ -8569,19 +8584,17 @@ function setupSettingsForm() {
       return index >= 0 ? index + 1 : null;
     };
     const existing = functionColorPickerInstances.get(picker);
-    if (existing) {
-      existing.update({ slots, renderStyle, onSelect, getActiveValue });
-    } else {
-      const instance = colorPickerModule.createColorPicker({
-        element: picker,
-        slots,
-        renderStyle,
-        onSelect,
-        getActiveValue
-      });
-      if (instance) {
-        functionColorPickerInstances.set(picker, instance);
-      }
+    const nextInstance = colorPickerAdapter.syncColorPicker({
+      module: colorPickerModule,
+      element: picker,
+      instance: existing,
+      palette: safePalette,
+      renderStyle,
+      onSelect,
+      getActiveValue
+    });
+    if (nextInstance && nextInstance !== existing) {
+      functionColorPickerInstances.set(picker, nextInstance);
     }
   };
   const syncFunctionColorSwatches = (inputs, preferred) => {
