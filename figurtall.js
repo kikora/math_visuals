@@ -2146,7 +2146,6 @@ function isValidColor(value) {
   }
   function createCleanState() {
     sanitizeState();
-    const colors = getColors();
     const figures = Array.isArray(STATE.figures)
       ? STATE.figures.map(fig => ({
           name: typeof (fig === null || fig === void 0 ? void 0 : fig.name) === 'string' ? fig.name : '',
@@ -2163,8 +2162,6 @@ function isValidColor(value) {
       gridOnlyOnLast: !!STATE.gridOnlyOnLast,
       lastFigureIsAnswer: !!STATE.lastFigureIsAnswer,
       labelMode: STATE.labelMode,
-      colorCount: colors.length,
-      colors,
       figures,
       answerText: typeof STATE.answerText === 'string' ? STATE.answerText : '',
       altText: {
@@ -2192,13 +2189,7 @@ function isValidColor(value) {
     STATE.lastFigureIsAnswer = rawState.lastFigureIsAnswer === true;
     STATE.labelMode = normalizeLabelMode(rawState.labelMode);
 
-    const nextColorCount = clampInt(
-      rawState.colorCount != null ? rawState.colorCount : STATE.colorCount,
-      1,
-      FILL_COLOR_COUNT
-    );
     STATE.colorCount = FILL_COLOR_COUNT;
-    ensureColors(STATE.colorCount);
     modifiedColorIndexes.clear();
 
     const settingsApi = getSettingsApi();
@@ -2213,6 +2204,7 @@ function isValidColor(value) {
       });
     }
     autoPaletteEnabled = modifiedColorIndexes.size === 0;
+    ensureColors(STATE.colorCount);
 
     if (Array.isArray(rawState.figures)) {
       STATE.figures = rawState.figures.map((fig, idx) => ({
