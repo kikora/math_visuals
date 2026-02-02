@@ -435,6 +435,7 @@ function getReadableTextColor(color) {
 
 function refreshGraftegnerTheme(options = {}) {
   const paletteApi = getPaletteApi();
+  const settings = getSettingsApi();
   const theme = getThemeApi();
   const requestedCount = Number.isFinite(options.count) && options.count > 0 ? Math.trunc(options.count) : null;
   const lineSlotInfo = resolveGraftegnerLineSlotPositions();
@@ -448,10 +449,25 @@ function refreshGraftegnerTheme(options = {}) {
     lineSlotCount
   );
 
-  const request = { count };
+  const settingsSnapshot =
+    settings && typeof settings.getSettings === 'function' ? settings.getSettings() : settings || undefined;
+  const request = { count, settings: settingsSnapshot };
   let groupPalette = [];
 
-  if (paletteApi && typeof paletteApi.getGroupPalette === 'function') {
+  if (settings && typeof settings.getGroupPalette === 'function') {
+    try {
+      const res = settings.getGroupPalette(GRAFTEGNER_GROUP_ID, request);
+      groupPalette = res && Array.isArray(res.colors) ? res.colors : (Array.isArray(res) ? res : []);
+    } catch (_) {}
+    if ((!groupPalette || !groupPalette.length) && settings.getGroupPalette.length >= 3) {
+      try {
+        const res = settings.getGroupPalette(GRAFTEGNER_GROUP_ID, count);
+        groupPalette = res && Array.isArray(res.colors) ? res.colors : (Array.isArray(res) ? res : []);
+      } catch (_) {}
+    }
+  }
+
+  if ((!groupPalette || !groupPalette.length) && paletteApi && typeof paletteApi.getGroupPalette === 'function') {
     try {
       const res = paletteApi.getGroupPalette(GRAFTEGNER_GROUP_ID, request);
       groupPalette = res && Array.isArray(res.colors) ? res.colors : (Array.isArray(res) ? res : []);

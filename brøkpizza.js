@@ -502,7 +502,6 @@ function tryResolvePalette(resolver) {
 }
 
 function getFractionPalette(count) {
-  const paletteApi = getPaletteApi();
   const settings = getSettingsApi();
   const theme = getThemeApi();
   const project = resolvePaletteProjectName();
@@ -521,18 +520,6 @@ function getFractionPalette(count) {
     palette: ensurePaletteSize(palette, fallback, target),
     isCustom
   });
-
-  if (paletteApi) {
-    const palette = tryResolvePalette(() =>
-      paletteApi.getGroupPalette(SHARED_GROUP_ID, {
-        project: project || undefined,
-        count: target || undefined
-      })
-    );
-    if (palette && palette.length) {
-      return createResult(palette, true);
-    }
-  }
 
   if (settings && typeof settings.getGroupPalette === 'function') {
     let palette = tryResolvePalette(() =>
@@ -555,12 +542,31 @@ function getFractionPalette(count) {
     }
   }
 
+  const settingsSnapshot =
+    settings && typeof settings.getSettings === 'function'
+      ? settings.getSettings()
+      : settings || undefined;
+  const paletteApi = getPaletteApi();
+  if (paletteApi) {
+    const palette = tryResolvePalette(() =>
+      paletteApi.getGroupPalette(SHARED_GROUP_ID, {
+        project: project || undefined,
+        count: target || undefined,
+        settings: settingsSnapshot
+      })
+    );
+    if (palette && palette.length) {
+      return createResult(palette, true);
+    }
+  }
+
   const servicePalette = tryResolvePalette(() =>
     paletteService.resolveGroupPalette({
       groupId: SHARED_GROUP_ID,
       count: target || undefined,
       project: project || undefined,
-      fallback
+      fallback,
+      settings: settingsSnapshot
     })
   );
   if (servicePalette && servicePalette.length) {
