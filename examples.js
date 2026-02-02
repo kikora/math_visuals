@@ -895,6 +895,34 @@ initExamples();
     return null;
   }
 
+  function normalizeApiUrl(value) {
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    return trimmed ? trimmed : null;
+  }
+
+  function shouldRefreshSettingsApi(sourceUrl) {
+    const settingsApiUrl = normalizeApiUrl(resolveApiUrl());
+    const normalizedSource = normalizeApiUrl(sourceUrl);
+    if (!settingsApiUrl) {
+      return !normalizedSource;
+    }
+    if (!normalizedSource) return true;
+    return settingsApiUrl !== normalizedSource;
+  }
+
+  function refreshFromSource(sourceUrl, options) {
+    if (!shouldRefreshSettingsApi(sourceUrl)) {
+      return Promise.resolve(cloneSettings());
+    }
+    const opts = options && typeof options === 'object' ? options : {};
+    return loadFromRemote({
+      force: true,
+      notify: opts.notify !== false,
+      emitEvent: opts.emitEvent !== false
+    });
+  }
+
   function persistSettings(next) {
     const url = resolveApiUrl();
     if (!url || typeof globalScope.fetch !== 'function') {
@@ -1145,6 +1173,7 @@ initExamples();
     return ensureColorCount(basePalette, size || basePalette.length);
   };
   settingsApi.refresh = options => loadFromRemote(options);
+  settingsApi.refreshFromSource = (sourceUrl, options) => refreshFromSource(sourceUrl, options);
   settingsApi.getApiUrl = () => resolveApiUrl();
   settingsApi.applySettingsSnapshot = (snapshot, options) => applySettingsSnapshot(snapshot, options);
 

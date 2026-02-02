@@ -160,6 +160,8 @@
     palette: null,
     persistedPalette: null
   };
+  let lastSnapshotUpdatedAtMs = null;
+  let lastBroadcastUpdatedAtMs = null;
   let colors = [];
   const slotBindings = new Map();
   const groupStatusElements = new Map();
@@ -171,6 +173,47 @@
     if (api && typeof api === 'object') return api;
     const legacy = window.mathVisuals && window.mathVisuals.settings;
     return legacy && typeof legacy === 'object' ? legacy : null;
+  }
+
+  function parseUpdatedAtMs(value) {
+    if (value == null) return null;
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string') {
+      const parsed = Date.parse(value);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+  }
+
+  function isSnapshotOlderThanLatest(snapshot) {
+    const incomingMs = parseUpdatedAtMs(snapshot && snapshot.updatedAt);
+    if (incomingMs == null) {
+      return lastSnapshotUpdatedAtMs != null;
+    }
+    if (lastSnapshotUpdatedAtMs == null) return false;
+    return incomingMs < lastSnapshotUpdatedAtMs;
+  }
+
+  function registerSnapshotTimestamp(snapshot) {
+    const incomingMs = parseUpdatedAtMs(snapshot && snapshot.updatedAt);
+    if (incomingMs != null) {
+      lastSnapshotUpdatedAtMs = incomingMs;
+    }
+    return incomingMs;
+  }
+
+  function applySettingsSnapshot(snapshot) {
+    if (!snapshot || typeof snapshot !== 'object') return false;
+    if (isSnapshotOlderThanLatest(snapshot)) return false;
+    applySettings(snapshot);
+    registerSnapshotTimestamp(snapshot);
+    return true;
+  }
+
+  const initialSnapshot =
+    settingsApi && typeof settingsApi.getSettings === 'function' ? settingsApi.getSettings() : null;
+  if (initialSnapshot && typeof initialSnapshot === 'object') {
+    registerSnapshotTimestamp(initialSnapshot);
   }
 
   function collectGroupIndices(groupId) {
@@ -317,10 +360,13 @@
     try {
       const payload = buildPayload(colorsForSave);
       const snapshot = await persistSettings('PUT', payload);
-      const appliedSnapshot = snapshot && typeof snapshot === 'object' ? snapshot : payload;
-      applySettings(appliedSnapshot);
+      const appliedSnapshot =
+        snapshot && typeof snapshot === 'object'
+          ? snapshot
+          : { ...payload, updatedAt: new Date().toISOString() };
+      applySettingsSnapshot(appliedSnapshot);
       restoreUnsavedChanges(unsavedChanges);
-      maybeRefreshSettingsApi(resolveApiUrl());
+      refreshSettingsApi(resolveApiUrl());
       broadcastSettingsSnapshot(appliedSnapshot);
       const contrastStatus = buildContrastStatus(normalizedId, colorsForSave);
       const successMessage = `Fargene for ${label} er lagret.`;
@@ -1191,26 +1237,19 @@
     return null;
   }
 
-  function shouldRefreshSettingsApi(sourceUrl) {
-    if (!settingsApi || typeof settingsApi.refresh !== 'function') return false;
-    const settingsApiUrl = getSettingsApiUrl();
-    const normalizedSource = normalizeApiUrl(sourceUrl);
-    if (!settingsApiUrl) {
-      return !normalizedSource;
-    }
-    if (!normalizedSource) return true;
-    return settingsApiUrl !== normalizedSource;
-  }
-
-  function maybeRefreshSettingsApi(sourceUrl) {
-    if (!shouldRefreshSettingsApi(sourceUrl)) return;
+  function refreshSettingsApi(sourceUrl) {
+    if (!settingsApi || typeof settingsApi.refreshFromSource !== 'function') return;
     try {
-      settingsApi.refresh({ force: true, notify: true });
+      settingsApi.refreshFromSource(sourceUrl, { notify: true, emitEvent: true });
     } catch (_) {}
   }
 
   function broadcastSettingsSnapshot(snapshot) {
     if (!snapshot || typeof snapshot !== 'object') return;
+    if (isSnapshotOlderThanLatest(snapshot)) return;
+    const incomingMs = parseUpdatedAtMs(snapshot.updatedAt);
+    if (incomingMs == null) return;
+    if (lastBroadcastUpdatedAtMs != null && incomingMs <= lastBroadcastUpdatedAtMs) return;
     let dispatched = false;
     if (settingsApi && typeof settingsApi.applySettingsSnapshot === 'function') {
       try {
@@ -1237,6 +1276,8 @@
         );
       } catch (_) {}
     }
+    lastBroadcastUpdatedAtMs = incomingMs;
+    registerSnapshotTimestamp(snapshot);
   }
 
   async function loadSettings() {
@@ -1255,9 +1296,9 @@
       }
       const payload = await response.json().catch(() => ({}));
       const snapshot = payload && typeof payload === 'object' && payload.settings ? payload.settings : payload;
-      applySettings(snapshot || {});
+      applySettingsSnapshot(snapshot || {});
       setStatus('Innstillingene er lastet.', 'info');
-      maybeRefreshSettingsApi(url);
+      refreshSettingsApi(url);
     } catch (error) {
       console.error(error);
       setStatus('Kunne ikke laste innstillingene.', 'error');
@@ -1354,16 +1395,18 @@
     try {
       settingsApi.subscribe(snapshot => {
         if (!snapshot || typeof snapshot !== 'object') return;
-        applySettings(snapshot);
-        notifySettingsUpdated();
+        if (applySettingsSnapshot(snapshot)) {
+          notifySettingsUpdated();
+        }
       });
     } catch (_) {}
   } else if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
     window.addEventListener('math-visuals:settings-changed', event => {
       const detail = event && event.detail && event.detail.settings;
       if (detail && typeof detail === 'object') {
-        applySettings(detail);
-        notifySettingsUpdated();
+        if (applySettingsSnapshot(detail)) {
+          notifySettingsUpdated();
+        }
       }
     });
   }
