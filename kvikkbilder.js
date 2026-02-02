@@ -211,7 +211,8 @@
         : settings || undefined;
     const resolver = getPaletteResolver();
     const palette = resolver
-      ? resolver.resolveGroupPalette('fellesfarger', {
+      ? resolver.resolveGroupPalette({
+        groupId: 'fellesfarger',
         count: target,
         settings: settingsSnapshot,
         fallback: LEGACY_FILL_PALETTE
@@ -489,7 +490,7 @@
     const fallback = DEFAULT_BRICK_PALETTE.left;
     const resolver = getPaletteResolver();
     const palette = resolver
-      ? resolver.resolveGroupPalette('fellesfarger', { count: 1, fallback: [fallback] })
+      ? resolver.resolveGroupPalette({ groupId: 'fellesfarger', count: 1, fallback: [fallback] })
       : [];
     if (Array.isArray(palette) && palette.length) {
       const normalized = normalizeHexColor(palette[0]);
