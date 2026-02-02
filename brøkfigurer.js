@@ -652,7 +652,8 @@ const fillColorPickerInstances = new WeakMap();
       settings && typeof settings.getSettings === 'function' ? settings.getSettings() : settings || undefined;
     const resolver = getPaletteResolver();
     const palette = resolver
-      ? resolver.resolveGroupPalette(SHARED_GROUP_ID, {
+      ? resolver.resolveGroupPalette({
+        groupId: SHARED_GROUP_ID,
         count: target || undefined,
         settings: settingsSource,
         fallback
@@ -668,7 +669,8 @@ const fillColorPickerInstances = new WeakMap();
     const fallback = getGroupFallbackPalette(SHARED_GROUP_ID, LEGACY_COLOR_PALETTE);
     const resolver = getPaletteResolver();
     const palette = resolver
-      ? resolver.resolveGroupPalette(SHARED_GROUP_ID, {
+      ? resolver.resolveGroupPalette({
+        groupId: SHARED_GROUP_ID,
         count: target || undefined,
         settings: settingsSnapshot,
         fallback

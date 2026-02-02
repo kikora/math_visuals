@@ -26,13 +26,15 @@ function createPaletteResolver() {
    * - Otherwise falls back to the length of options.fallback (if any).
    */
   function resolveGroupPalette(groupId, options = {}) {
-    const opts = options && typeof options === 'object' ? options : {};
-    const normalizedGroupId = typeof groupId === 'string' ? groupId.trim().toLowerCase() : '';
+    const resolvedOptions = groupId && typeof groupId === 'object' ? groupId : options;
+    const resolvedGroupId = groupId && typeof groupId === 'object' ? groupId.groupId : groupId;
+    const opts = resolvedOptions && typeof resolvedOptions === 'object' ? resolvedOptions : {};
+    const normalizedGroupId = typeof resolvedGroupId === 'string' ? resolvedGroupId.trim().toLowerCase() : '';
     const groupMeta = resolveGroupMeta(paletteGroups, normalizedGroupId);
     const fallback = Array.isArray(opts.fallback) ? opts.fallback : [];
     const count = resolveCount(opts.count, groupMeta, fallback);
     const request = Object.assign({}, opts, {
-      groupId: normalizedGroupId || groupId,
+      groupId: normalizedGroupId || resolvedGroupId,
       count
     });
 

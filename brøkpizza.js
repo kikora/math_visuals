@@ -439,7 +439,8 @@ function getFractionPalette(count) {
       : settings || undefined;
   const resolver = getPaletteResolver();
   const palette = resolver
-    ? resolver.resolveGroupPalette(SHARED_GROUP_ID, {
+    ? resolver.resolveGroupPalette({
+      groupId: SHARED_GROUP_ID,
       project: project || undefined,
       count: target || undefined,
       fallback,

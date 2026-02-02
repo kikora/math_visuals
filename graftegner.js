@@ -449,7 +449,8 @@ function refreshGraftegnerTheme(options = {}) {
     settings && typeof settings.getSettings === 'function' ? settings.getSettings() : settings || undefined;
   const resolver = getPaletteResolver();
   const groupPalette = resolver
-    ? resolver.resolveGroupPalette(GRAFTEGNER_GROUP_ID, {
+    ? resolver.resolveGroupPalette({
+      groupId: GRAFTEGNER_GROUP_ID,
       count,
       settings: settingsSnapshot,
       fallback: GRAFTEGNER_FALLBACK_PALETTE
@@ -679,15 +680,6 @@ function resolveGraftegnerFullPaletteForLineSlots() {
   return DEFAULT_FUNCTION_COLORS.fallback.slice();
 }
 
-function tryResolveGroupPalette(resolver) {
-  try {
-    const result = resolver();
-    return Array.isArray(result) && result.length ? result : null;
-  } catch (_) {
-    return null;
-  }
-}
-
 function fetchGraftegnerAxisColor(provider) {
   if (!provider || typeof provider.getGroupPalette !== 'function') return '';
   const options = { count: 2 };
@@ -712,7 +704,8 @@ function fetchGraftegnerPalette(count) {
     settings && typeof settings.getSettings === 'function' ? settings.getSettings() : settings || undefined;
   const resolver = getPaletteResolver();
   const palette = resolver
-    ? resolver.resolveGroupPalette(GRAFTEGNER_GROUP_ID, {
+    ? resolver.resolveGroupPalette({
+      groupId: GRAFTEGNER_GROUP_ID,
       count: targetCount,
       settings: settingsSnapshot,
       fallback: DEFAULT_FUNCTION_COLORS.fallback
