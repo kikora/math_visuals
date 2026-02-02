@@ -689,28 +689,11 @@ function resolveFractionPalette(count = 2) {
     projectFallback.length
       ? ensurePaletteCount(projectFallback, projectFallback, target)
       : ensurePaletteCount(FRACTION_FALLBACK_COLORS, FRACTION_FALLBACK_COLORS, target);
-  const servicePalette = tryResolvePalette(() =>
-    paletteService.resolveGroupPalette({
-      groupId: SHARED_GROUP_ID,
-      count: target || undefined,
-      fallback
-    })
-  );
-  if (servicePalette && servicePalette.length) {
-    return ensurePaletteCount(servicePalette, fallback, target);
-  }
-  const paletteApi = getPaletteApi();
-  if (paletteApi) {
-    const palette = tryResolvePalette(() =>
-      paletteApi.getGroupPalette(SHARED_GROUP_ID, {
-        count: target || undefined
-      })
-    );
-    if (palette && palette.length) {
-      return ensurePaletteCount(palette, fallback, target);
-    }
-  }
   const settings = getSettingsApi();
+  const settingsSnapshot =
+    settings && typeof settings.getSettings === 'function'
+      ? settings.getSettings()
+      : settings || undefined;
   if (settings && typeof settings.getGroupPalette === 'function') {
     let palette = tryResolvePalette(() =>
       settings.getGroupPalette(SHARED_GROUP_ID, {
@@ -723,6 +706,29 @@ function resolveFractionPalette(count = 2) {
     if (palette && palette.length) {
       return ensurePaletteCount(palette, fallback, target);
     }
+  }
+  const paletteApi = getPaletteApi();
+  if (paletteApi) {
+    const palette = tryResolvePalette(() =>
+      paletteApi.getGroupPalette(SHARED_GROUP_ID, {
+        count: target || undefined,
+        settings: settingsSnapshot
+      })
+    );
+    if (palette && palette.length) {
+      return ensurePaletteCount(palette, fallback, target);
+    }
+  }
+  const servicePalette = tryResolvePalette(() =>
+    paletteService.resolveGroupPalette({
+      groupId: SHARED_GROUP_ID,
+      count: target || undefined,
+      fallback,
+      settings: settingsSnapshot
+    })
+  );
+  if (servicePalette && servicePalette.length) {
+    return ensurePaletteCount(servicePalette, fallback, target);
   }
   const theme = getThemeApi();
   if (theme && typeof theme.getGroupPalette === 'function') {

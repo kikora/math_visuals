@@ -641,6 +641,13 @@ function getPaletteApi() {
   return palette && typeof palette.getGroupPalette === 'function' ? palette : null;
 }
 
+function getSettingsApi() {
+  const root = typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : null;
+  if (!root || typeof root !== 'object') return null;
+  const settings = root.MathVisualsSettings;
+  return settings && typeof settings === 'object' ? settings : null;
+}
+
 let paletteConfigResolved = false;
 let paletteConfigCache = null;
 
@@ -793,6 +800,7 @@ function setCssVariable(name, value, style) {
 }
 function resolveDiagramPaletteData(options = {}) {
   const theme = getThemeApi();
+  const settings = getSettingsApi();
   const activeProfileNameRaw =
     theme && typeof theme.getActiveProfileName === 'function'
       ? theme.getActiveProfileName()
@@ -809,10 +817,37 @@ function resolveDiagramPaletteData(options = {}) {
     count: Math.max(requestedPaletteSize, DIAGRAM_GROUP_SLOT_COUNT),
     project: normalizedProfileName || undefined
   };
+  const settingsSnapshot =
+    settings && typeof settings.getSettings === 'function'
+      ? settings.getSettings()
+      : settings || undefined;
   let groupPalette = [];
-  if (paletteApi) {
+  if (settings && typeof settings.getGroupPalette === 'function') {
     try {
-      groupPalette = paletteApi.getGroupPalette(SHARED_GROUP_ID, paletteRequest) || [];
+      const res = settings.getGroupPalette(SHARED_GROUP_ID, paletteRequest);
+      groupPalette = res && Array.isArray(res.colors) ? res.colors : (Array.isArray(res) ? res : []);
+    } catch (_) {
+      groupPalette = [];
+    }
+    if ((!Array.isArray(groupPalette) || !groupPalette.length) && settings.getGroupPalette.length >= 3) {
+      try {
+        const res = settings.getGroupPalette(
+          SHARED_GROUP_ID,
+          paletteRequest.count,
+          paletteRequest.project ? { project: paletteRequest.project } : undefined
+        );
+        groupPalette = res && Array.isArray(res.colors) ? res.colors : (Array.isArray(res) ? res : []);
+      } catch (_) {
+        groupPalette = [];
+      }
+    }
+  }
+  if ((!Array.isArray(groupPalette) || !groupPalette.length) && paletteApi) {
+    try {
+      groupPalette = paletteApi.getGroupPalette(SHARED_GROUP_ID, {
+        ...paletteRequest,
+        settings: settingsSnapshot
+      }) || [];
     } catch (_) {
       groupPalette = [];
     }

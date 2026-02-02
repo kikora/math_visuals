@@ -796,6 +796,23 @@ const fillColorPickerInstances = new WeakMap();
 
     return ensurePaletteSize([], fallback, target);
   }
+  function applySettingsPaletteOverride(count) {
+    const settings = getSettingsApi();
+    if (!settings || typeof settings.getGroupPalette !== 'function') return false;
+    const target = Number.isFinite(count) && count > 0 ? Math.trunc(count) : FILL_COLOR_COUNT;
+    let palette = tryResolvePalette(() =>
+      settings.getGroupPalette(SHARED_GROUP_ID, {
+        count: target || undefined
+      })
+    );
+    if ((!palette || palette.length < target) && settings.getGroupPalette.length >= 3) {
+      palette = tryResolvePalette(() => settings.getGroupPalette(SHARED_GROUP_ID, target || undefined));
+    }
+    if (!palette || !palette.length) return false;
+    if (!Array.isArray(STATE.colors)) STATE.colors = [];
+    STATE.colors = ensurePaletteSize(palette, getGroupFallbackPalette(SHARED_GROUP_ID, LEGACY_COLOR_PALETTE), target);
+    return true;
+  }
   function getDefaultColorForIndex(index) {
     if (!Number.isFinite(index) || index < 0) return LEGACY_COLOR_PALETTE[0];
     const palette = getPaletteFromTheme(index + 1);
@@ -3909,6 +3926,7 @@ const fillColorPickerInstances = new WeakMap();
 
   function handleThemeSettingsChanged(event) {
     if (!event || event.type !== 'math-visuals:settings-changed') return;
+    applySettingsPaletteOverride(colorCount);
     handleThemePaletteChanged();
     renderFillColorPickers();
   }
