@@ -2200,13 +2200,17 @@ function isValidColor(value) {
     ensureColors(STATE.colorCount);
     modifiedColorIndexes.clear();
 
-    const incomingColors = Array.isArray(rawState.colors) ? rawState.colors.slice(0, STATE.colorCount) : [];
-    incomingColors.forEach((color, idx) => {
-      if (typeof color === 'string' && color.trim()) {
-        STATE.colors[idx] = color;
-        modifiedColorIndexes.add(idx);
-      }
-    });
+    const settingsApi = getSettingsApi();
+    const shouldApplySnapshotPalette = !settingsApi;
+    if (shouldApplySnapshotPalette) {
+      const incomingColors = Array.isArray(rawState.colors) ? rawState.colors.slice(0, STATE.colorCount) : [];
+      incomingColors.forEach((color, idx) => {
+        if (typeof color === 'string' && color.trim()) {
+          STATE.colors[idx] = color;
+          modifiedColorIndexes.add(idx);
+        }
+      });
+    }
     autoPaletteEnabled = modifiedColorIndexes.size === 0;
 
     if (Array.isArray(rawState.figures)) {
