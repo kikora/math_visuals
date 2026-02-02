@@ -2152,7 +2152,7 @@ function isValidColor(value) {
           cells: normalizeCells(fig === null || fig === void 0 ? void 0 : fig.cells, rows, cols)
         }))
       : [];
-    return {
+    const cleanState = {
       v: 1,
       rows,
       cols,
@@ -2169,6 +2169,9 @@ function isValidColor(value) {
         source: STATE.altTextSource === 'manual' ? 'manual' : 'auto'
       }
     };
+    delete cleanState.colors;
+    delete cleanState.colorCount;
+    return cleanState;
   }
   function loadCleanState(rawState) {
     if (!rawState || typeof rawState !== 'object' || rawState.v !== 1) return false;

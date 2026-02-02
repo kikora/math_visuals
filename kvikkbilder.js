@@ -2328,9 +2328,13 @@
   }
   function createCleanState() {
     sanitizeCfg();
+    const cleanCfg = deepClone(CFG);
+    if (cleanCfg && typeof cleanCfg === 'object') {
+      delete cleanCfg.palette;
+    }
     const state = {
       v: 1,
-      cfg: deepClone(CFG)
+      cfg: cleanCfg
     };
     if (typeof BRICK_SRC === 'string' && BRICK_SRC) {
       state.brickSrc = BRICK_SRC;
@@ -2354,9 +2358,8 @@
     Object.keys(CFG).forEach(key => delete CFG[key]);
     Object.assign(CFG, mergedCfg);
     sanitizeCfg();
-    const settings = getSettingsApi();
-    const hasSettingsApi = !!settings;
-    if (hasSettingsApi) {
+    const settingsApi = getSettingsApi();
+    if (settingsApi) {
       kvikkbilderPalette = syncBrickPaletteFromFill(getFillPalette());
     } else if (cleanState.palette && typeof cleanState.palette === 'object') {
       kvikkbilderPalette = { ...DEFAULT_BRICK_PALETTE, ...cleanState.palette };
