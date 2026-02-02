@@ -41,6 +41,7 @@ const DEFAULT_GRAFTEGNER_COLOR_ROLES = [
 ];
 const colorPickerHelper = getColorPickerHelper();
 const colorPickerModule = getColorPickerModule();
+const colorPickerAdapter = getColorPickerAdapter();
 function sanitizeValueDisplay(value) {
   if (typeof value !== 'string') return 'none';
   const normalized = value.trim().toLowerCase();
@@ -634,6 +635,19 @@ function getColorPickerModule() {
   return null;
 }
 
+function getColorPickerAdapter() {
+  const scope = typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : null;
+  if (scope && scope.MathVisualsColorPickerAdapter) {
+    return scope.MathVisualsColorPickerAdapter;
+  }
+  if (typeof require === 'function') {
+    try {
+      return require('./ui/colorpicker/adapter.js');
+    } catch (_) {}
+  }
+  return null;
+}
+
 function getPaletteResolver() {
   const scopes = [
     typeof window !== 'undefined' ? window : null,
@@ -1008,22 +1022,13 @@ function setSeriesColorOverride(seriesIndex, color) {
   drawDiagram();
 }
 
-function buildSeriesColorSlots(optionColors, lineOptionColors) {
-  const slots = [];
-  const fallbackLine = lineOptionColors[0] || optionColors[0] || '#000';
-  optionColors.forEach((color, index) => {
-    slots.push({
-      value: index + 1,
-      label: `Velg farge ${index + 1}`,
-      fillColor: color,
-      lineColor: lineOptionColors[index] || fallbackLine
-    });
-  });
-  return slots;
-}
-
 function updateSeriesColorPickers() {
-  if (!seriesColorPickers.length || !colorPickerModule || typeof colorPickerModule.createColorPicker !== 'function') {
+  if (
+    !seriesColorPickers.length ||
+    !colorPickerAdapter ||
+    typeof colorPickerAdapter.syncColorPicker !== 'function' ||
+    typeof colorPickerAdapter.buildSlotsFromPalette !== 'function'
+  ) {
     return;
   }
   const overrides = getSeriesColorOverrides();
@@ -1034,7 +1039,8 @@ function updateSeriesColorPickers() {
   });
   const optionColors = getSeriesColorOptionPalette(paletteData.fillPaletteEntries);
   const lineOptionColors = getSeriesColorOptionPalette(paletteData.linePaletteEntries);
-  const slots = buildSeriesColorSlots(optionColors, lineOptionColors);
+  const palette = { fillColors: optionColors, lineColors: lineOptionColors };
+  const slots = colorPickerAdapter.buildSlotsFromPalette(palette);
   seriesColorPickers.forEach(picker => {
     if (!picker || !picker.root) return;
     const activeColor = overrides[picker.seriesIndex]
@@ -1072,16 +1078,17 @@ function updateSeriesColorPickers() {
       const idx = optionColors.findIndex(color => sanitizeThemePaletteValue(color) === normalized);
       return idx >= 0 ? idx + 1 : null;
     };
-    if (picker.instance) {
-      picker.instance.update({ slots, renderStyle, onSelect, getActiveValue });
-    } else {
-      picker.instance = colorPickerModule.createColorPicker({
-        element: picker.root,
-        slots,
-        renderStyle,
-        onSelect,
-        getActiveValue
-      });
+    const nextInstance = colorPickerAdapter.syncColorPicker({
+      module: colorPickerModule,
+      element: picker.root,
+      instance: picker.instance,
+      palette,
+      renderStyle,
+      onSelect,
+      getActiveValue
+    });
+    if (nextInstance && nextInstance !== picker.instance) {
+      picker.instance = nextInstance;
     }
   });
 }

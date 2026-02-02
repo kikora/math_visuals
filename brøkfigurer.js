@@ -48,6 +48,19 @@ function getColorPickerModule() {
   return null;
 }
 
+function getColorPickerAdapter() {
+  const scope = typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : null;
+  if (scope && scope.MathVisualsColorPickerAdapter) {
+    return scope.MathVisualsColorPickerAdapter;
+  }
+  if (typeof require === 'function') {
+    try {
+      return require('./ui/colorpicker/adapter.js');
+    } catch (_) {}
+  }
+  return null;
+}
+
 (function (_colorCountInp$value) {
   function svgToString(svgEl) {
     if (!svgEl) return '';
@@ -339,6 +352,7 @@ const DEFAULT_GRAFTEGNER_COLOR_ROLES = [
 ];
 const colorPickerHelper = getColorPickerHelper();
 const colorPickerModule = getColorPickerModule();
+const colorPickerAdapter = getColorPickerAdapter();
 const fillColorPickerInstances = new WeakMap();
   const fillColorPickersSelector = '[data-fill-color-picker]';
   function getThemeApi() {
@@ -478,23 +492,6 @@ const fillColorPickerInstances = new WeakMap();
     if (typeof lineColor === 'string' && lineColor) {
       element.style.setProperty('--swatch-line', lineColor);
     }
-  }
-
-  function buildFillColorSlots(fillColors, lineColors) {
-    const slots = [];
-    const fallbackLine = lineColors[0] || '#000';
-    const pairCount = Math.min(fillColors.length, lineColors.length);
-    for (let index = 0; index < pairCount; index += 1) {
-      const fillColor = fillColors[index];
-      const lineColor = lineColors[index] || fallbackLine;
-      slots.push({
-        value: index + 1,
-        label: `Velg farge ${index + 1}`,
-        fillColor,
-        lineColor
-      });
-    }
-    return slots;
   }
 
   function getSettingsApi() {
@@ -770,13 +767,13 @@ const fillColorPickerInstances = new WeakMap();
   }
   function renderFillColorPickers() {
     const pickers = getFillColorPickers();
-    if (!pickers.length || !colorPickerModule || typeof colorPickerModule.createColorPicker !== 'function') {
+    if (!pickers.length || !colorPickerAdapter || typeof colorPickerAdapter.syncColorPicker !== 'function') {
       return;
     }
     const paletteData = getLineFillPalettes();
     const colors = paletteData.fillColors.slice(0, FILL_COLOR_COUNT);
     const lineColors = paletteData.lineColors.slice(0, colors.length);
-    const slots = buildFillColorSlots(colors, lineColors);
+    const palette = { fillColors: colors, lineColors };
     pickers.forEach(picker => {
       const renderStyle = ({ element, slot }) => {
         applyPairSwatch(element, slot.fillColor, slot.lineColor);
@@ -792,21 +789,11 @@ const fillColorPickerInstances = new WeakMap();
         window.render();
       };
       const instance = fillColorPickerInstances.get(picker);
-      if (instance) {
-        instance.update({
-          slots,
-          renderStyle,
-          onSelect,
-          getActiveValue: () => {
-            const figureId = getPickerFigureId(picker);
-            return figureId ? getFigureFillIndex(figureId) : sanitizeFillIndex(activeFillColorIndex, colors.length);
-          }
-        });
-        return;
-      }
-      const pickerInstance = colorPickerModule.createColorPicker({
+      const nextInstance = colorPickerAdapter.syncColorPicker({
+        module: colorPickerModule,
         element: picker,
-        slots,
+        instance,
+        palette,
         renderStyle,
         onSelect,
         getActiveValue: () => {
@@ -814,8 +801,8 @@ const fillColorPickerInstances = new WeakMap();
           return figureId ? getFigureFillIndex(figureId) : sanitizeFillIndex(activeFillColorIndex, colors.length);
         }
       });
-      if (pickerInstance) {
-        fillColorPickerInstances.set(picker, pickerInstance);
+      if (nextInstance && nextInstance !== instance) {
+        fillColorPickerInstances.set(picker, nextInstance);
       }
     });
   }
