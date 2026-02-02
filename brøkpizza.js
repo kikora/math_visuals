@@ -1148,6 +1148,7 @@ class Pizza {
       fill: "transparent",
       class: "a11y",
       tabindex: 0,
+      focusable: "true",
       role: "slider",
       "aria-orientation": "horizontal"
     });
@@ -1423,7 +1424,7 @@ function getExportSvgStyle() {
 .sector-fill{fill:${colors.fill}}
 .sector-empty{fill:#fff}
 .dash{stroke:${colors.dash};stroke-dasharray:4 4;stroke-width:2}
-.handle{cursor:grab}
+.handle{cursor:grab;pointer-events:all}
 .handle.is-grabbing{cursor:grabbing}
 .a11y:focus{outline:none;stroke:#1e88e5;stroke-width:3}
 .btn{fill:#fff;stroke:#cfcfcf;stroke-width:1;cursor:pointer}

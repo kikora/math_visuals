@@ -91,7 +91,7 @@
     .sector-fill  { fill:var(--pizza-fill, #5B2AA5); }
     .sector-empty { fill:#fff; }
     .dash { stroke:var(--pizza-dash, #000000); stroke-width:3; }
-    .handle { cursor:grab; user-select:none; touch-action:none; }
+    .handle { cursor:grab; user-select:none; touch-action:none; pointer-events:all; }
     .handle.is-grabbing { cursor:grabbing; }
     .stepper {
       display:flex; align-items:center; gap:12px;
