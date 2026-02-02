@@ -264,6 +264,9 @@ const AXIS_ARROW_PIXEL_THICKNESS = 26;
 const AXIS_ARROW_ASPECT_RATIO = 17 / 30;
 const AXIS_LABEL_OFFSET_PX = 10;
 const EXPORT_LABEL_SHIFT_PX = 5;
+const EXPORT_CURVE_LABEL_SHIFT_X_PX = -15;
+const EXPORT_CURVE_LABEL_SHIFT_Y_PX = -5;
+const DEBUG_EXPORT_CURVE_LABEL_SHIFT = false;
 const AXIS_LABEL_MARGIN_FRACTION = 0.005;
 const AXIS_LABEL_MARGINS = { x: AXIS_LABEL_MARGIN_FRACTION, y: AXIS_LABEL_MARGIN_FRACTION };
 
@@ -3653,11 +3656,14 @@ function getSvgLabelPosition(node) {
   return null;
 }
 
-function shiftExportScreenPosition(screenPos) {
+function shiftExportScreenPosition(screenPos, shifts = {}) {
   if (!screenPos) return screenPos;
-  const shiftX = Number(EXPORT_LABEL_SHIFT_PX);
-  if (!Number.isFinite(shiftX) || shiftX === 0) return screenPos;
-  return { x: screenPos.x - shiftX, y: screenPos.y };
+  const shiftX = Number(shifts.shiftX ?? 0);
+  const shiftY = Number(shifts.shiftY ?? 0);
+  const dx = Number.isFinite(shiftX) ? shiftX : 0;
+  const dy = Number.isFinite(shiftY) ? shiftY : 0;
+  if (dx === 0 && dy === 0) return screenPos;
+  return { x: screenPos.x + dx, y: screenPos.y + dy };
 }
 
 function hasExistingAxisLabelNodes(node) {
@@ -3715,7 +3721,9 @@ function appendAxisLabelsToSvgClone(node) {
     const label = axisLabelText(axisKey);
     if (!label) return null;
     const worldPos = computeAxisLabelWorldPosition(axisKey);
-    const screenPos = shiftExportScreenPosition(worldToScreenPoint(worldPos));
+    const screenPos = shiftExportScreenPosition(worldToScreenPoint(worldPos), {
+      shiftX: -EXPORT_LABEL_SHIFT_PX
+    });
     if (!screenPos) return null;
     const latex = convertExpressionToLatex(label) || label;
     const katexHtml = latex ? renderLatexToHtml(latex) : '';
@@ -3815,6 +3823,26 @@ function appendCurveLabelsToSvgClone(node) {
   if (node.querySelector('[data-export-curve-labels]')) return;
   const fontSizeRaw = Number.parseFloat(ADV.curveName.fontSize);
   const fontSize = Number.isFinite(fontSizeRaw) ? fontSizeRaw : 15;
+  const logCurveLabelShift = (label, screenPos, textContent) => {
+    if (!DEBUG_EXPORT_CURVE_LABEL_SHIFT) return;
+    if (!label || !label.rendNode || typeof label.rendNode.getBoundingClientRect !== 'function') return;
+    if (!screenPos) return;
+    const boardRoot = appState.board && appState.board.renderer ? appState.board.renderer.svgRoot : null;
+    if (!boardRoot || typeof boardRoot.getBoundingClientRect !== 'function') return;
+    const labelRect = label.rendNode.getBoundingClientRect();
+    const boardRect = boardRoot.getBoundingClientRect();
+    const domX = labelRect.left - boardRect.left;
+    const domY = labelRect.top - boardRect.top;
+    const dx = screenPos.x - domX;
+    const dy = screenPos.y - domY;
+    const labelText = normalizeExportLabelText(textContent);
+    console.info('[export][curve-label-shift]', {
+      label: labelText,
+      dom: { x: Number(domX.toFixed(2)), y: Number(domY.toFixed(2)) },
+      export: { x: Number(screenPos.x.toFixed(2)), y: Number(screenPos.y.toFixed(2)) },
+      diff: { x: Number(dx.toFixed(2)), y: Number(dy.toFixed(2)) }
+    });
+  };
   const group = doc.createElementNS('http://www.w3.org/2000/svg', 'g');
   group.setAttribute('data-export-curve-labels', '');
   appState.graphs.forEach(g => {
@@ -3825,8 +3853,12 @@ function appendCurveLabelsToSvgClone(node) {
     const x = typeof label.X === 'function' ? Number(label.X()) : NaN;
     const y = typeof label.Y === 'function' ? Number(label.Y()) : NaN;
     if (!Number.isFinite(x) || !Number.isFinite(y)) return;
-    const screenPos = shiftExportScreenPosition(worldToScreenPoint({ x, y }));
+    const screenPos = shiftExportScreenPosition(worldToScreenPoint({ x, y }), {
+      shiftX: EXPORT_CURVE_LABEL_SHIFT_X_PX,
+      shiftY: EXPORT_CURVE_LABEL_SHIFT_Y_PX
+    });
     if (!screenPos) return;
+    logCurveLabelShift(label, screenPos, textContent);
     if (hasExistingCurveLabel(node, textContent, screenPos)) return;
     const latex = convertExpressionToLatex(textContent) || formatPointLabelLatex(textContent);
     const katexHtml = latex ? renderLatexToHtml(latex) : '';
