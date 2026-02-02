@@ -2330,8 +2330,7 @@
     sanitizeCfg();
     const state = {
       v: 1,
-      cfg: deepClone(CFG),
-      palette: deepClone(kvikkbilderPalette)
+      cfg: deepClone(CFG)
     };
     if (typeof BRICK_SRC === 'string' && BRICK_SRC) {
       state.brickSrc = BRICK_SRC;
@@ -2355,7 +2354,8 @@
     Object.keys(CFG).forEach(key => delete CFG[key]);
     Object.assign(CFG, mergedCfg);
     sanitizeCfg();
-    if (cleanState.palette && typeof cleanState.palette === 'object') {
+    const settingsApi = getSettingsApi();
+    if (!settingsApi && cleanState.palette && typeof cleanState.palette === 'object') {
       kvikkbilderPalette = { ...DEFAULT_BRICK_PALETTE, ...cleanState.palette };
     } else {
       kvikkbilderPalette = syncBrickPaletteFromFill(getFillPalette());

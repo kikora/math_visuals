@@ -2146,7 +2146,6 @@ function isValidColor(value) {
   }
   function createCleanState() {
     sanitizeState();
-    const colors = getColors();
     const figures = Array.isArray(STATE.figures)
       ? STATE.figures.map(fig => ({
           name: typeof (fig === null || fig === void 0 ? void 0 : fig.name) === 'string' ? fig.name : '',
@@ -2163,8 +2162,6 @@ function isValidColor(value) {
       gridOnlyOnLast: !!STATE.gridOnlyOnLast,
       lastFigureIsAnswer: !!STATE.lastFigureIsAnswer,
       labelMode: STATE.labelMode,
-      colorCount: colors.length,
-      colors,
       figures,
       answerText: typeof STATE.answerText === 'string' ? STATE.answerText : '',
       altText: {
