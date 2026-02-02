@@ -931,7 +931,24 @@ initExamples();
     if (!opts.force && !isSnapshotNewer(next, settings)) {
       return cloneSettings();
     }
-    return commitSettings(next, { persist: false, notify, emitEvent });
+    const result = commitSettings(next, { persist: false, notify, emitEvent });
+    if (globalScope && globalScope.MathVisualsPaletteEvents) {
+      const paletteEvents = globalScope.MathVisualsPaletteEvents;
+      if (paletteEvents && typeof paletteEvents.emitFromSettings === 'function') {
+        try {
+          paletteEvents.emitFromSettings(result);
+        } catch (_) {}
+      } else if (
+        paletteEvents &&
+        typeof paletteEvents.emit === 'function' &&
+        typeof paletteEvents.normalize === 'function'
+      ) {
+        try {
+          paletteEvents.emit(paletteEvents.normalize(result));
+        } catch (_) {}
+      }
+    }
+    return result;
   }
 
   function buildPersistPayload(next) {
