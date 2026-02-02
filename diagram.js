@@ -641,6 +641,16 @@ function getPaletteApi() {
   return palette && typeof palette.getGroupPalette === 'function' ? palette : null;
 }
 
+let settingsPaletteOverride = false;
+
+function getSettingsPaletteApi() {
+  if (!settingsPaletteOverride) return null;
+  const root = typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : null;
+  if (!root || typeof root !== 'object') return null;
+  const settings = root.MathVisualsSettings;
+  return settings && typeof settings.getGroupPalette === 'function' ? settings : null;
+}
+
 let paletteConfigResolved = false;
 let paletteConfigCache = null;
 
@@ -805,16 +815,26 @@ function resolveDiagramPaletteData(options = {}) {
     Number.isFinite(options.paletteSize) && options.paletteSize > 0 ? Math.trunc(options.paletteSize) : PIE_COLOR_CLASS_COUNT
   );
   const paletteApi = getPaletteApi();
+  const settingsPaletteApi = getSettingsPaletteApi();
   const paletteRequest = {
     count: Math.max(requestedPaletteSize, DIAGRAM_GROUP_SLOT_COUNT),
     project: normalizedProfileName || undefined
   };
   let groupPalette = [];
-  if (paletteApi) {
+  if (settingsPaletteApi) {
     try {
-      groupPalette = paletteApi.getGroupPalette(SHARED_GROUP_ID, paletteRequest) || [];
+      groupPalette = settingsPaletteApi.getGroupPalette(SHARED_GROUP_ID, paletteRequest) || [];
     } catch (_) {
       groupPalette = [];
+    }
+  }
+  if (paletteApi) {
+    try {
+      groupPalette = (groupPalette && groupPalette.length)
+        ? groupPalette
+        : paletteApi.getGroupPalette(SHARED_GROUP_ID, paletteRequest) || [];
+    } catch (_) {
+      groupPalette = groupPalette || [];
     }
   }
   if ((!Array.isArray(groupPalette) || !groupPalette.length) && theme && typeof theme.getGroupPalette === 'function') {
@@ -1232,7 +1252,9 @@ if (typeof MutationObserver === 'function' && typeof document !== 'undefined' &&
 }
 if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
   window.addEventListener('math-visuals:settings-changed', () => {
+    settingsPaletteOverride = true;
     refreshDiagramTheme();
+    updateSeriesColorPickers();
   });
   window.addEventListener('math-visuals:profile-change', () => {
     refreshDiagramTheme();
