@@ -23,6 +23,29 @@ function getPaletteResolver() {
   }
   return null;
 }
+function resolvePaletteFallbacks() {
+  const scopes = [
+    typeof globalThis !== 'undefined' ? globalThis : null,
+    typeof window !== 'undefined' ? window : null,
+    typeof global !== 'undefined' ? global : null
+  ];
+  for (const scope of scopes) {
+    if (!scope || typeof scope !== 'object') continue;
+    const fallbacks = scope.MathVisualsPaletteFallbacks;
+    if (fallbacks && typeof fallbacks === 'object') {
+      return fallbacks;
+    }
+  }
+  if (typeof require === 'function') {
+    try {
+      const mod = require('./palette/fallbacks.js');
+      if (mod && typeof mod === 'object') {
+        return mod;
+      }
+    } catch (_) {}
+  }
+  return null;
+}
 
 function getColorPickerHelper() {
   const scope = typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : null;
@@ -132,14 +155,15 @@ const DEFAULT_GRAFTEGNER_COLOR_ROLES = [
 const colorPickerHelper = getColorPickerHelper();
 const colorPickerModule = getColorPickerModule();
 const fillColorPickerInstances = new WeakMap();
-const FRACTION_FALLBACK_COLORS = Object.freeze([
-  '#dbe7ff',
-  '#c7d2fe',
-  '#fcd34d',
-  '#a7f3d0',
-  '#fde68a',
-  '#fbcfe8'
-]);
+const paletteFallbacks = resolvePaletteFallbacks();
+const legacyFallbacks = paletteFallbacks && paletteFallbacks.legacy ? paletteFallbacks.legacy : null;
+const FRACTION_FALLBACK_COLORS = Object.freeze(
+  Array.isArray(legacyFallbacks && legacyFallbacks.tenkeblokkerFractions)
+    ? legacyFallbacks.tenkeblokkerFractions.slice()
+    : Array.isArray(legacyFallbacks && legacyFallbacks.fractions)
+    ? legacyFallbacks.fractions.slice()
+    : []
+);
 
 function getSegmentTextColor(isFilled, textColor) {
   if (isFilled) {

@@ -102,29 +102,13 @@ function loadPalettePackage() {
 }
 
 function buildLegacyPaletteConfig() {
+  const paletteFallbacks = resolvePaletteFallbacks();
   const MAX_COLORS = 49;
   const DEFAULT_PROJECT = 'default';
   const PROJECT_FALLBACKS = {
-    default: [
-      '#DC6A4B',
-      '#6B1F0B',
-      '#C14F30',
-      '#528BFF',
-      '#002266',
-      '#155EEF',
-      '#4F9566',
-      '#000000',
-      '#027A48',
-      '#13A2B6',
-      '#04343A',
-      '#B8325D',
-      '#DC5D85',
-      '#400115',
-      '#B8325D',
-      '#9780C0',
-      '#190A35',
-      '#674D96'
-    ]
+    default: Array.isArray(paletteFallbacks && paletteFallbacks.settingsDefault)
+      ? paletteFallbacks.settingsDefault.slice()
+      : []
   };
   const RAW_COLOR_SLOT_GROUPS = [
     {
@@ -275,4 +259,28 @@ function buildLegacyPaletteConfig() {
     DEFAULT_GROUP_ORDER,
     DEFAULT_PROJECT_ORDER
   });
+}
+
+function resolvePaletteFallbacks() {
+  if (typeof MathVisualsPaletteFallbacks !== 'undefined' && MathVisualsPaletteFallbacks) {
+    return MathVisualsPaletteFallbacks;
+  }
+  if (typeof globalThis !== 'undefined' && globalThis.MathVisualsPaletteFallbacks) {
+    return globalThis.MathVisualsPaletteFallbacks;
+  }
+  if (typeof window !== 'undefined' && window.MathVisualsPaletteFallbacks) {
+    return window.MathVisualsPaletteFallbacks;
+  }
+  if (typeof global !== 'undefined' && global.MathVisualsPaletteFallbacks) {
+    return global.MathVisualsPaletteFallbacks;
+  }
+  if (typeof require === 'function') {
+    try {
+      const mod = require('./fallbacks.js');
+      if (mod && typeof mod === 'object') {
+        return mod;
+      }
+    } catch (_) {}
+  }
+  return null;
 }

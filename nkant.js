@@ -924,13 +924,42 @@ const STYLE = { ...STYLE_DEFAULTS };
 const NKANT_COLOR_SET_SIZE = 3;
 const NKANT_COLOR_SET_COUNT = 3;
 const NKANT_GROUP_PALETTE_SIZE = NKANT_COLOR_SET_SIZE * NKANT_COLOR_SET_COUNT;
-const SETTINGS_FALLBACK_PALETTE = ["#1F4DE2", "#475569", "#ef4444", "#0ea5e9", "#10b981", "#f59e0b"];
+const paletteFallbacks = resolvePaletteFallbacks();
+const legacyFallbacks = paletteFallbacks && paletteFallbacks.legacy ? paletteFallbacks.legacy : null;
+const SETTINGS_FALLBACK_PALETTE = Array.isArray(legacyFallbacks && legacyFallbacks.nkant)
+  ? legacyFallbacks.nkant.slice()
+  : Array.isArray(legacyFallbacks && legacyFallbacks.settingsDefault)
+  ? legacyFallbacks.settingsDefault.slice(0, 6)
+  : [];
 const NKANT_FALLBACK_PALETTE = Array.from({ length: NKANT_GROUP_PALETTE_SIZE }, (_, idx) => {
   const fallback = SETTINGS_FALLBACK_PALETTE.length ? SETTINGS_FALLBACK_PALETTE : ["#111827"];
   return fallback[idx % fallback.length];
 });
 
 // Hjelpere for å finne API-er
+function resolvePaletteFallbacks() {
+  const scopes = [
+    typeof window !== 'undefined' ? window : null,
+    typeof globalThis !== 'undefined' ? globalThis : null,
+    typeof global !== 'undefined' ? global : null
+  ];
+  for (const scope of scopes) {
+    if (!scope || typeof scope !== 'object') continue;
+    const fallbacks = scope.MathVisualsPaletteFallbacks;
+    if (fallbacks && typeof fallbacks === 'object') {
+      return fallbacks;
+    }
+  }
+  if (typeof require === 'function') {
+    try {
+      const mod = require('./palette/fallbacks.js');
+      if (mod && typeof mod === 'object') {
+        return mod;
+      }
+    } catch (_) {}
+  }
+  return null;
+}
 function getThemeApi() {
   return (typeof window !== "undefined" && window.MathVisualsTheme) || null;
 }
