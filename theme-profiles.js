@@ -1,6 +1,33 @@
 (function () {
   const SETTINGS_STORAGE_KEY = 'mathVisuals:settings';
-  const LEGACY_FRACTION_PALETTE = ['#B25FE3', '#6C1BA2', '#534477', '#873E79', '#BF4474', '#E31C3D'];
+  function resolvePaletteFallbacks() {
+    const scopes = [
+      typeof window !== 'undefined' ? window : null,
+      typeof globalThis !== 'undefined' ? globalThis : null,
+      typeof global !== 'undefined' ? global : null
+    ];
+    for (const scope of scopes) {
+      if (!scope || typeof scope !== 'object') continue;
+      const fallbacks = scope.MathVisualsPaletteFallbacks;
+      if (fallbacks && typeof fallbacks === 'object') {
+        return fallbacks;
+      }
+    }
+    if (typeof require === 'function') {
+      try {
+        const mod = require('./palette/fallbacks.js');
+        if (mod && typeof mod === 'object') {
+          return mod;
+        }
+      } catch (_) {}
+    }
+    return null;
+  }
+  const paletteFallbacks = resolvePaletteFallbacks();
+  const LEGACY_FRACTION_PALETTE =
+    paletteFallbacks && paletteFallbacks.legacy && Array.isArray(paletteFallbacks.legacy.fractions)
+      ? paletteFallbacks.legacy.fractions.slice()
+      : [];
   function deepClone(value) {
     if (typeof structuredClone === 'function') {
       try {

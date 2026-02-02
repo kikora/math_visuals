@@ -4,6 +4,7 @@ const vm = require('vm');
 const path = require('path');
 
 const SETTINGS_MODULE = require.resolve('../examples.js');
+const paletteFallbacks = require('../palette/fallbacks.js');
 const paletteConfig = require('../palette/palette-config.js');
 const {
   distributeFlatPaletteToGroups,
@@ -851,7 +852,10 @@ function sanitizePaletteForTest(values) {
   return sanitized;
 }
 
-const LEGACY_FRACTION_PALETTE = ['#B25FE3', '#6C1BA2', '#534477', '#873E79', '#BF4474', '#E31C3D'];
+const LEGACY_FRACTION_PALETTE =
+  paletteFallbacks && paletteFallbacks.legacy && Array.isArray(paletteFallbacks.legacy.fractions)
+    ? paletteFallbacks.legacy.fractions.slice()
+    : [];
 
 function resolveGroupFallbackPaletteForTest(groupId) {
   const config = paletteConfig || {};

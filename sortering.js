@@ -14,7 +14,19 @@ const FIGURE_LIBRARY_APP_KEY = 'sortering';
   if (!globalObj || !doc) return;
   const root = doc.documentElement || null;
 
-  const SORTERING_FALLBACK_PALETTE = ['#ffffff', '#000000', '#000000'];
+  async function resolvePaletteFallbacks() {
+    if (globalObj.MathVisualsPaletteFallbacks) {
+      return globalObj.MathVisualsPaletteFallbacks;
+    }
+    await import('./palette/fallbacks.js').catch(() => {});
+    return globalObj.MathVisualsPaletteFallbacks || null;
+  }
+
+  const paletteFallbacks = await resolvePaletteFallbacks();
+  const SORTERING_FALLBACK_PALETTE =
+    paletteFallbacks && paletteFallbacks.legacy && Array.isArray(paletteFallbacks.legacy.sortering)
+      ? paletteFallbacks.legacy.sortering.slice()
+      : [];
 
   let storageWarningMessage = '';
   let storageWarningEl = null;
@@ -57,6 +69,7 @@ const FIGURE_LIBRARY_APP_KEY = 'sortering';
   function applySorteringPalette() {
     if (!root || !root.style) return;
     const [background, outline, text] = SORTERING_FALLBACK_PALETTE;
+    if (!background || !outline || !text) return;
     root.style.setProperty('--sortering-item-background', background);
     root.style.setProperty('--sortering-item-outline', outline);
     root.style.setProperty('--sortering-item-text', text);

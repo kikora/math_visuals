@@ -336,27 +336,41 @@ initExamples();
     return;
   }
 
+  function resolvePaletteFallbacks() {
+    const scopes = [
+      typeof window !== 'undefined' ? window : null,
+      typeof globalThis !== 'undefined' ? globalThis : null,
+      typeof global !== 'undefined' ? global : null
+    ];
+    for (const scope of scopes) {
+      if (!scope || typeof scope !== 'object') continue;
+      const fallbacks = scope.MathVisualsPaletteFallbacks;
+      if (fallbacks && typeof fallbacks === 'object') {
+        return fallbacks;
+      }
+    }
+    if (typeof require === 'function') {
+      try {
+        const mod = require('./palette/fallbacks.js');
+        if (mod && typeof mod === 'object') {
+          return mod;
+        }
+      } catch (_) {}
+    }
+    return null;
+  }
+
   const MAX_COLORS = paletteConfig.MAX_COLORS;
-  const FALLBACK_COLORS = [
-    '#1F4DE2',
-    '#475569',
-    '#EF4444',
-    '#0EA5E9',
-    '#10B981',
-    '#F59E0B',
-    '#6366F1',
-    '#D946EF',
-    '#F97316',
-    '#14B8A6',
-    '#22C55E',
-    '#EAB308',
-    '#EC4899',
-    '#8B5CF6',
-    '#0EA5A5',
-    '#2563EB',
-    '#FACC15',
-    '#F87171'
-  ];
+  const paletteFallbacks = resolvePaletteFallbacks();
+  const legacyFallbackColors =
+    paletteFallbacks && paletteFallbacks.legacy && Array.isArray(paletteFallbacks.legacy.settingsDefault)
+      ? paletteFallbacks.legacy.settingsDefault
+      : null;
+  const FALLBACK_COLORS = Array.isArray(legacyFallbackColors) && legacyFallbackColors.length
+    ? legacyFallbackColors.slice()
+    : Array.isArray(paletteConfig.PROJECT_FALLBACKS && paletteConfig.PROJECT_FALLBACKS.default)
+    ? paletteConfig.PROJECT_FALLBACKS.default.slice()
+    : [];
   const PROJECT_FALLBACKS = paletteConfig.PROJECT_FALLBACKS;
   const COLOR_SLOT_GROUPS = paletteConfig.COLOR_SLOT_GROUPS.map(group => ({
     groupId: group.groupId,

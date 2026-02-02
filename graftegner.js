@@ -109,9 +109,41 @@ function whenJXGReady(callback) {
   jxgReadyQueue.push(callback);
   scheduleJXGCheck();
 }
+function resolvePaletteFallbacks() {
+  const scopes = [
+    typeof window !== 'undefined' ? window : null,
+    typeof globalThis !== 'undefined' ? globalThis : null,
+    typeof global !== 'undefined' ? global : null
+  ];
+  for (const scope of scopes) {
+    if (!scope || typeof scope !== 'object') continue;
+    const fallbacks = scope.MathVisualsPaletteFallbacks;
+    if (fallbacks && typeof fallbacks === 'object') {
+      return fallbacks;
+    }
+  }
+  if (typeof require === 'function') {
+    try {
+      const mod = require('./palette/fallbacks.js');
+      if (mod && typeof mod === 'object') {
+        return mod;
+      }
+    } catch (_) {}
+  }
+  return null;
+}
 const SETTINGS_STORAGE_KEY = 'mathVisuals:settings';
 const GRAFTEGNER_GROUP_ID = 'fellesfarger';
-const GRAFTEGNER_FALLBACK_PALETTE = ['#c14f30', '#155eef', '#027a48', '#b8325d', '#b8325d', '#674d96'];
+const paletteFallbacks = resolvePaletteFallbacks();
+const settingsDerivedFallbacks =
+  paletteFallbacks && paletteFallbacks.settingsDefaultDerived ? paletteFallbacks.settingsDefaultDerived : null;
+const settingsDefaultFallbacks =
+  paletteFallbacks && Array.isArray(paletteFallbacks.settingsDefault) ? paletteFallbacks.settingsDefault : null;
+const GRAFTEGNER_FALLBACK_PALETTE = Array.isArray(settingsDerivedFallbacks && settingsDerivedFallbacks.graftegner)
+  ? settingsDerivedFallbacks.graftegner.slice()
+  : Array.isArray(settingsDefaultFallbacks)
+  ? settingsDefaultFallbacks.slice()
+  : [];
 const DEFAULT_LINE_THICKNESS = 3;
 const AUTO_SPAN_SAFETY_MULTIPLIER = 200;
 const AUTO_SPAN_RECENTER_FACTOR = 1.25;
