@@ -80,9 +80,28 @@
     const theme = typeof window !== 'undefined' ? window.MathVisualsTheme : null;
     return theme && typeof theme === 'object' ? theme : null;
   }
-  function getPaletteApi() {
-    const palette = typeof window !== 'undefined' ? window.MathVisualsPalette : null;
-    return palette && typeof palette.getGroupPalette === 'function' ? palette : null;
+  function getPaletteResolver() {
+    const scopes = [
+      typeof window !== 'undefined' ? window : null,
+      typeof globalThis !== 'undefined' ? globalThis : null,
+      typeof global !== 'undefined' ? global : null
+    ];
+    for (const scope of scopes) {
+      if (!scope || typeof scope !== 'object') continue;
+      const resolver = scope.MathVisualsPaletteResolver;
+      if (resolver && typeof resolver.resolveGroupPalette === 'function') {
+        return resolver;
+      }
+    }
+    if (typeof require === 'function') {
+      try {
+        const mod = require('./palette/palette-resolver.js');
+        if (mod && typeof mod.resolveGroupPalette === 'function') {
+          return mod;
+        }
+      } catch (_) {}
+    }
+    return null;
   }
   function getSettingsApi() {
     const settings = typeof window !== 'undefined' ? window.MathVisualsSettings : null;
@@ -186,66 +205,19 @@
   function getPaletteFromTheme(count) {
     const target = Number.isFinite(count) && count > 0 ? Math.trunc(count) : LEGACY_FILL_PALETTE.length;
     const settings = getSettingsApi();
-    const paletteApi = getPaletteApi();
-    const theme = getThemeApi();
     const settingsSnapshot =
       settings && typeof settings.getSettings === 'function'
         ? settings.getSettings()
         : settings || undefined;
-    let palette = null;
-    if (settings && typeof settings.getGroupPalette === 'function') {
-      try {
-        palette = settings.getGroupPalette('fellesfarger', { count: target });
-      } catch (_) {}
-      if ((!palette || palette.length < target) && settings.getGroupPalette.length >= 3) {
-        try {
-          palette = settings.getGroupPalette('fellesfarger', target);
-        } catch (_) {
-          palette = null;
-        }
-      }
-      if (Array.isArray(palette) && palette.length) {
-        return ensurePaletteSize(palette, LEGACY_FILL_PALETTE, target);
-      }
-    }
-    if (paletteApi && typeof paletteApi.getGroupPalette === 'function') {
-      try {
-        palette = paletteApi.getGroupPalette('fellesfarger', { count: target, settings: settingsSnapshot });
-      } catch (_) {
-        palette = null;
-      }
-      if (Array.isArray(palette) && palette.length) {
-        return ensurePaletteSize(palette, LEGACY_FILL_PALETTE, target);
-      }
-    }
-    if (theme && typeof theme.getGroupPalette === 'function') {
-      palette = null;
-      try {
-        palette = theme.getGroupPalette('fellesfarger', { count: target });
-      } catch (_) {}
-      if ((!palette || palette.length < target) && theme.getGroupPalette.length >= 2) {
-        try {
-          palette = theme.getGroupPalette('fellesfarger', target);
-        } catch (_) {
-          palette = null;
-        }
-      }
-      if (Array.isArray(palette) && palette.length) {
-        return ensurePaletteSize(palette, LEGACY_FILL_PALETTE, target);
-      }
-    }
-    if (theme && typeof theme.getPalette === 'function') {
-      let palette = null;
-      try {
-        palette = theme.getPalette('fellesfarger', target);
-      } catch (_) {
-        palette = null;
-      }
-      if (Array.isArray(palette) && palette.length) {
-        return ensurePaletteSize(palette, LEGACY_FILL_PALETTE, target);
-      }
-    }
-    return ensurePaletteSize([], LEGACY_FILL_PALETTE, target);
+    const resolver = getPaletteResolver();
+    const palette = resolver
+      ? resolver.resolveGroupPalette('fellesfarger', {
+        count: target,
+        settings: settingsSnapshot,
+        fallback: LEGACY_FILL_PALETTE
+      })
+      : [];
+    return ensurePaletteSize(palette, LEGACY_FILL_PALETTE, target);
   }
   function getGraftegnerRoleSlotPairs() {
     const config = getPaletteConfig();
@@ -515,16 +487,15 @@
   }
   function getKvikkbilderBaseColor() {
     const fallback = DEFAULT_BRICK_PALETTE.left;
-    const theme = getThemeApi();
-    if (theme && typeof theme.getGroupPalette === 'function') {
-      try {
-        const palette = theme.getGroupPalette('fellesfarger', { count: 1 });
-        if (Array.isArray(palette) && palette.length) {
-          const normalized = normalizeHexColor(palette[0]);
-          if (normalized) return normalized;
-        }
-      } catch (_) {}
+    const resolver = getPaletteResolver();
+    const palette = resolver
+      ? resolver.resolveGroupPalette('fellesfarger', { count: 1, fallback: [fallback] })
+      : [];
+    if (Array.isArray(palette) && palette.length) {
+      const normalized = normalizeHexColor(palette[0]);
+      if (normalized) return normalized;
     }
+    const theme = getThemeApi();
     if (theme && typeof theme.getColor === 'function') {
       const color = theme.getColor('kvikkbilder.fill', fallback);
       const normalized = normalizeHexColor(color);
@@ -1921,9 +1892,16 @@
     render();
     applyFillColorSelection(getFillPalette());
   }
+  function handleThemePaletteChange(event) {
+    if (!event || event.type !== 'math-visuals:palette-changed') return;
+    applyThemeToDocument();
+    render();
+    applyFillColorSelection(getFillPalette());
+  }
   if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
     window.addEventListener('message', handleThemeProfileChange);
     window.addEventListener('math-visuals:settings-changed', handleThemeSettingsChange);
+    window.addEventListener('math-visuals:palette-changed', handleThemePaletteChange);
   }
   function bindNumberInput(input, targetGetter, key, min = 0) {
     if (!input) return;

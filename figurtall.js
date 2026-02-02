@@ -1,87 +1,25 @@
-const PALETTE_CLIENT_ERROR_CODES = new Set(['MODULE_NOT_FOUND', 'ERR_MODULE_NOT_FOUND', 'ERR_REQUIRE_ESM']);
-
-const paletteModule = loadPaletteServiceClient();
-const { paletteService } = paletteModule;
-
-function loadPaletteServiceClient() {
-  const moduleExports = tryRequirePaletteClient();
-  if (moduleExports && moduleExports.paletteService && typeof moduleExports.paletteService.resolveGroupPalette === 'function') {
-    return moduleExports;
-  }
+function getPaletteResolver() {
   const scopes = [
     typeof globalThis !== 'undefined' ? globalThis : null,
     typeof window !== 'undefined' ? window : null,
     typeof global !== 'undefined' ? global : null
   ];
   for (const scope of scopes) {
-    const client = resolvePaletteClientFromScope(scope);
-    if (client) {
-      return client;
+    if (!scope || typeof scope !== 'object') continue;
+    const resolver = scope.MathVisualsPaletteResolver;
+    if (resolver && typeof resolver.resolveGroupPalette === 'function') {
+      return resolver;
     }
   }
-  return createFallbackPaletteClient();
-}
-
-function tryRequirePaletteClient() {
-  if (typeof require !== 'function') {
-    return null;
-  }
-  try {
-    return require('./palette/palette-service-client.js');
-  } catch (error) {
-    if (!error || !PALETTE_CLIENT_ERROR_CODES.has(error.code)) {
-      throw error;
-    }
+  if (typeof require === 'function') {
+    try {
+      const mod = require('./palette/palette-resolver.js');
+      if (mod && typeof mod.resolveGroupPalette === 'function') {
+        return mod;
+      }
+    } catch (_) {}
   }
   return null;
-}
-
-function resolvePaletteClientFromScope(scope) {
-  if (!scope || typeof scope !== 'object') {
-    return null;
-  }
-  const client = scope.MathVisualsPaletteServiceClient;
-  if (client && client.paletteService && typeof client.paletteService.resolveGroupPalette === 'function') {
-    return client;
-  }
-  const group = scope.MathVisualsGroupPalette;
-  if (!group || typeof group !== 'object') {
-    return null;
-  }
-  const service = group.service && typeof group.service === 'object' ? group.service : group;
-  const resolver = service.resolveGroupPalette || service.resolve || group.resolveGroupPalette || group.resolve;
-  if (typeof resolver !== 'function') {
-    return null;
-  }
-  return {
-    paletteService: {
-      resolveGroupPalette(options = {}) {
-        return resolver.call(service, options);
-      }
-    }
-  };
-}
-
-function createFallbackPaletteClient() {
-  return {
-    paletteService: {
-      resolveGroupPalette(options = {}) {
-        const base = Array.isArray(options.base) ? options.base.filter(isValidColor) : [];
-        const fallback = Array.isArray(options.fallback) ? options.fallback.filter(isValidColor) : [];
-        const source = base.length ? base : fallback;
-        if (!source.length) {
-          return [];
-        }
-        const count = Number.isFinite(options.count) && options.count > 0 ? Math.trunc(options.count) : source.length;
-        const size = Math.max(1, count);
-        const result = [];
-        for (let index = 0; index < size; index += 1) {
-          result.push(source[index % source.length]);
-        }
-        return result;
-      }
-    }
-  };
 }
 
 function getColorPickerHelper() {
@@ -163,10 +101,6 @@ function isValidColor(value) {
     const theme = typeof window !== 'undefined' ? window.MathVisualsTheme : null;
     return theme && typeof theme === 'object' ? theme : null;
   }
-  function getPaletteApi() {
-    const palette = typeof window !== 'undefined' ? window.MathVisualsPalette : null;
-    return palette && typeof palette.getGroupPalette === 'function' ? palette : null;
-  }
   function getSettingsApi() {
     const settings = typeof window !== 'undefined' ? window.MathVisualsSettings : null;
     return settings && typeof settings === 'object' ? settings : null;
@@ -232,66 +166,20 @@ function isValidColor(value) {
   }
   function getPaletteFromTheme(count) {
     const settings = getSettingsApi();
-    const paletteApi = getPaletteApi();
-    const theme = getThemeApi();
     const targetCount = Number.isFinite(count) && count > 0 ? Math.trunc(count) : undefined;
     const settingsSnapshot =
       settings && typeof settings.getSettings === 'function'
         ? settings.getSettings()
         : settings || undefined;
-    if (settings && typeof settings.getGroupPalette === 'function') {
-      let palette = null;
-      try {
-        palette = settings.getGroupPalette(SHARED_GROUP_ID, { count: targetCount });
-      } catch (_) {
-        palette = null;
-      }
-      if ((!palette || (targetCount && palette.length < targetCount)) && settings.getGroupPalette.length >= 3) {
-        try {
-          palette = settings.getGroupPalette(SHARED_GROUP_ID, targetCount);
-        } catch (_) {
-          palette = null;
-        }
-      }
-      if (Array.isArray(palette) && palette.length) {
-        return normalizePaletteToCount(palette, targetCount, LEGACY_COLOR_PALETTE);
-      }
-    }
-    if (paletteApi) {
-      let palette = null;
-      try {
-        palette = paletteApi.getGroupPalette(SHARED_GROUP_ID, {
-          count: targetCount,
-          settings: settingsSnapshot
-        });
-      } catch (_) {
-        palette = null;
-      }
-      if (Array.isArray(palette) && palette.length) {
-        return normalizePaletteToCount(palette, targetCount, LEGACY_COLOR_PALETTE);
-      }
-    }
-    const servicePalette = paletteService.resolveGroupPalette({
-      groupId: SHARED_GROUP_ID,
-      count: targetCount,
-      settings: settingsSnapshot,
-      fallback: LEGACY_COLOR_PALETTE,
-      legacyPaletteId: 'figures'
-    });
-    if (Array.isArray(servicePalette) && servicePalette.length) {
-      return normalizePaletteToCount(servicePalette, targetCount, LEGACY_COLOR_PALETTE);
-    }
-    let palette = null;
-    if (theme && typeof theme.getGroupPalette === 'function') {
-      try {
-        palette = theme.getGroupPalette(SHARED_GROUP_ID, count);
-      } catch (_) {
-        palette = null;
-      }
-    }
-    if ((!Array.isArray(palette) || !palette.length) && theme && typeof theme.getPalette === 'function') {
-      palette = theme.getPalette('figures', count);
-    }
+    const resolver = getPaletteResolver();
+    const palette = resolver
+      ? resolver.resolveGroupPalette(SHARED_GROUP_ID, {
+        count: targetCount,
+        settings: settingsSnapshot,
+        fallback: LEGACY_COLOR_PALETTE,
+        legacyPaletteId: 'figures'
+      })
+      : [];
     return normalizePaletteToCount(palette, targetCount, LEGACY_COLOR_PALETTE);
   }
   function getFillPalette() {
@@ -2408,6 +2296,11 @@ function isValidColor(value) {
     syncThemeAndPalette();
     renderFillColorPicker();
   }
+  function handlePaletteChanged(event) {
+    if (!event || event.type !== 'math-visuals:palette-changed') return;
+    syncThemeAndPalette();
+    renderFillColorPicker();
+  }
   function initProjectProfileSync() {
     if (typeof MutationObserver === 'function' && document && document.documentElement) {
       themeObserver = new MutationObserver(mutations => {
@@ -2427,6 +2320,7 @@ function isValidColor(value) {
       window.addEventListener('math-visuals:project-change', handleProjectProfileChange);
       window.addEventListener('message', handleProjectProfileMessage);
       window.addEventListener('math-visuals:settings-changed', handleThemeSettingsChanged);
+      window.addEventListener('math-visuals:palette-changed', handlePaletteChanged);
     }
     syncThemeAndPalette();
   }

@@ -934,8 +934,28 @@ const NKANT_FALLBACK_PALETTE = Array.from({ length: NKANT_GROUP_PALETTE_SIZE }, 
 function getThemeApi() {
   return (typeof window !== "undefined" && window.MathVisualsTheme) || null;
 }
-function getPaletteApi() {
-  return (typeof window !== "undefined" && window.MathVisualsPalette) || null;
+function getPaletteResolver() {
+  const scopes = [
+    typeof window !== 'undefined' ? window : null,
+    typeof globalThis !== 'undefined' ? globalThis : null,
+    typeof global !== 'undefined' ? global : null
+  ];
+  for (const scope of scopes) {
+    if (!scope || typeof scope !== 'object') continue;
+    const resolver = scope.MathVisualsPaletteResolver;
+    if (resolver && typeof resolver.resolveGroupPalette === 'function') {
+      return resolver;
+    }
+  }
+  if (typeof require === 'function') {
+    try {
+      const mod = require('./palette/palette-resolver.js');
+      if (mod && typeof mod.resolveGroupPalette === 'function') {
+        return mod;
+      }
+    } catch (_) {}
+  }
+  return null;
 }
 function getSettingsApi() {
   return (typeof window !== "undefined" && window.MathVisualsSettings) || null;
@@ -970,61 +990,24 @@ let nkantPaletteCache = [];
 
 function resolveNkantPalette(options = {}) {
   const { preferSettings = false } = options;
-  const paletteApi = getPaletteApi();
   const settings = getSettingsApi();
-  const theme = getThemeApi();
   const settingsData =
     settings && typeof settings.getSettings === 'function'
       ? settings.getSettings()
       : settings && typeof settings === 'object'
       ? settings
       : null;
-
-  const request = {
-    count: NKANT_GROUP_PALETTE_SIZE,
-    settings: settingsData
-  };
-
-  let groupPalette = [];
-  const resolveGroupPalette = resolver => {
-    try {
-      const res = resolver();
-      return res && Array.isArray(res.colors) ? res.colors : (Array.isArray(res) ? res : []);
-    } catch (_) {
-      return [];
-    }
-  };
-
-  const resolveFromSettings = () => {
-    if (settings && typeof settings.getGroupPalette === 'function') {
-      const result = resolveGroupPalette(() => settings.getGroupPalette('nkant', request));
-      if (result && result.length) return result;
-      if (settings.getGroupPalette.length >= 3) {
-        return resolveGroupPalette(() => settings.getGroupPalette('nkant', NKANT_GROUP_PALETTE_SIZE));
-      }
-    }
-    return [];
-  };
-
-  if (preferSettings) {
-    groupPalette = resolveFromSettings();
+  const resolver = getPaletteResolver();
+  const groupPalette = resolver
+    ? resolver.resolveGroupPalette('nkant', {
+      count: NKANT_GROUP_PALETTE_SIZE,
+      settings: settingsData,
+      fallback: NKANT_FALLBACK_PALETTE
+    })
+    : [];
+  if (preferSettings && settings && !groupPalette.length) {
+    return ensurePalette([], NKANT_GROUP_PALETTE_SIZE, NKANT_FALLBACK_PALETTE);
   }
-
-  if ((!groupPalette || !groupPalette.length) && paletteApi && typeof paletteApi.getGroupPalette === 'function') {
-    groupPalette = resolveGroupPalette(() => paletteApi.getGroupPalette('nkant', request));
-  }
-
-  if ((!groupPalette || !groupPalette.length) && !preferSettings) {
-    groupPalette = resolveFromSettings();
-  }
-
-  if ((!groupPalette || !groupPalette.length) && theme && typeof theme.getGroupPalette === 'function') {
-    groupPalette = resolveGroupPalette(() => theme.getGroupPalette('nkant', request));
-    if ((!groupPalette || !groupPalette.length) && theme.getGroupPalette.length >= 3) {
-      groupPalette = resolveGroupPalette(() => theme.getGroupPalette('nkant', NKANT_GROUP_PALETTE_SIZE));
-    }
-  }
-
   return ensurePalette(groupPalette, NKANT_GROUP_PALETTE_SIZE, NKANT_FALLBACK_PALETTE);
 }
 
@@ -1222,6 +1205,9 @@ function scheduleThemeRefresh(options = {}, delay = 50) {
 
     if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
       window.addEventListener('math-visuals:settings-changed', () => {
+        refresh({ preferSettings: true });
+      });
+      window.addEventListener('math-visuals:palette-changed', () => {
         refresh({ preferSettings: true });
       });
       window.addEventListener('math-visuals:profile-change', refresh);

@@ -634,11 +634,28 @@ function getColorPickerModule() {
   return null;
 }
 
-function getPaletteApi() {
-  const root = typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : null;
-  if (!root || typeof root !== 'object') return null;
-  const palette = root.MathVisualsPalette;
-  return palette && typeof palette.getGroupPalette === 'function' ? palette : null;
+function getPaletteResolver() {
+  const scopes = [
+    typeof window !== 'undefined' ? window : null,
+    typeof globalThis !== 'undefined' ? globalThis : null,
+    typeof global !== 'undefined' ? global : null
+  ];
+  for (const scope of scopes) {
+    if (!scope || typeof scope !== 'object') continue;
+    const resolver = scope.MathVisualsPaletteResolver;
+    if (resolver && typeof resolver.resolveGroupPalette === 'function') {
+      return resolver;
+    }
+  }
+  if (typeof require === 'function') {
+    try {
+      const mod = require('./palette/palette-resolver.js');
+      if (mod && typeof mod.resolveGroupPalette === 'function') {
+        return mod;
+      }
+    } catch (_) {}
+  }
+  return null;
 }
 
 function getSettingsApi() {
@@ -812,7 +829,6 @@ function resolveDiagramPaletteData(options = {}) {
     requestedSeriesCount,
     Number.isFinite(options.paletteSize) && options.paletteSize > 0 ? Math.trunc(options.paletteSize) : PIE_COLOR_CLASS_COUNT
   );
-  const paletteApi = getPaletteApi();
   const paletteRequest = {
     count: Math.max(requestedPaletteSize, DIAGRAM_GROUP_SLOT_COUNT),
     project: normalizedProfileName || undefined
@@ -821,44 +837,13 @@ function resolveDiagramPaletteData(options = {}) {
     settings && typeof settings.getSettings === 'function'
       ? settings.getSettings()
       : settings || undefined;
-  let groupPalette = [];
-  if (settings && typeof settings.getGroupPalette === 'function') {
-    try {
-      const res = settings.getGroupPalette(SHARED_GROUP_ID, paletteRequest);
-      groupPalette = res && Array.isArray(res.colors) ? res.colors : (Array.isArray(res) ? res : []);
-    } catch (_) {
-      groupPalette = [];
-    }
-    if ((!Array.isArray(groupPalette) || !groupPalette.length) && settings.getGroupPalette.length >= 3) {
-      try {
-        const res = settings.getGroupPalette(
-          SHARED_GROUP_ID,
-          paletteRequest.count,
-          paletteRequest.project ? { project: paletteRequest.project } : undefined
-        );
-        groupPalette = res && Array.isArray(res.colors) ? res.colors : (Array.isArray(res) ? res : []);
-      } catch (_) {
-        groupPalette = [];
-      }
-    }
-  }
-  if ((!Array.isArray(groupPalette) || !groupPalette.length) && paletteApi) {
-    try {
-      groupPalette = paletteApi.getGroupPalette(SHARED_GROUP_ID, {
-        ...paletteRequest,
-        settings: settingsSnapshot
-      }) || [];
-    } catch (_) {
-      groupPalette = [];
-    }
-  }
-  if ((!Array.isArray(groupPalette) || !groupPalette.length) && theme && typeof theme.getGroupPalette === 'function') {
-    try {
-      groupPalette = theme.getGroupPalette(SHARED_GROUP_ID, paletteRequest) || [];
-    } catch (_) {
-      groupPalette = [];
-    }
-  }
+  const resolver = getPaletteResolver();
+  const groupPalette = resolver
+    ? resolver.resolveGroupPalette(SHARED_GROUP_ID, {
+      ...paletteRequest,
+      settings: settingsSnapshot
+    })
+    : [];
   const sanitizedGroupPalette = Array.isArray(groupPalette)
     ? groupPalette.map(sanitizeThemePaletteValue).filter(color => !!color)
     : [];
@@ -1270,6 +1255,9 @@ if (typeof window !== 'undefined' && typeof window.addEventListener === 'functio
     refreshDiagramTheme();
   });
   window.addEventListener('math-visuals:profile-change', () => {
+    refreshDiagramTheme();
+  });
+  window.addEventListener('math-visuals:palette-changed', () => {
     refreshDiagramTheme();
   });
   window.addEventListener('message', event => {
