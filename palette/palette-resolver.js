@@ -159,18 +159,7 @@ function safeResolvePalette(resolveFn) {
 }
 
 function normalizePaletteEntry(groupMeta, entry) {
-  if (Array.isArray(entry)) return entry;
-  if (entry && typeof entry === 'object') {
-    const roleLists = collectRoleLists(entry);
-    const flat = extractFlatPalette(entry);
-    if (Object.keys(roleLists).length && groupMeta && Array.isArray(groupMeta.slots)) {
-      return buildRolePaletteSlots(groupMeta, roleLists, flat);
-    }
-    if (flat && flat.length) {
-      return flat;
-    }
-  }
-  return [];
+  return resolveGroupPaletteEntry(groupMeta, entry);
 }
 
 function sanitizeColor(value) {
@@ -218,7 +207,12 @@ function normalizeRoleKey(value) {
 }
 
 function resolveSlotRole(slot) {
-  const label = slot && typeof slot.label === 'string' ? slot.label.trim().toLowerCase() : '';
+  if (!slot || typeof slot !== 'object') return '';
+  const explicitRole = normalizeRoleKey(
+    slot.role || slot.roleKey || slot.roleId || slot.colorRole || slot.kind || slot.type || ''
+  );
+  if (explicitRole) return explicitRole;
+  const label = typeof slot.label === 'string' ? slot.label.trim().toLowerCase() : '';
   if (!label) return '';
   if (label.includes('fyll')) return 'fills';
   if (label.includes('linje')) return 'lines';
@@ -273,6 +267,21 @@ function buildRolePaletteSlots(group, roleLists, fallbackList) {
     }
     return fallback[slotIndex];
   });
+}
+
+function resolveGroupPaletteEntry(group, entry) {
+  if (Array.isArray(entry)) return entry;
+  if (entry && typeof entry === 'object') {
+    const roleLists = collectRoleLists(entry);
+    const flat = extractFlatPalette(entry);
+    if (Object.keys(roleLists).length && group && Array.isArray(group.slots)) {
+      return buildRolePaletteSlots(group, roleLists, flat);
+    }
+    if (flat && flat.length) {
+      return flat;
+    }
+  }
+  return [];
 }
 
 function fallbackEnsurePalette(base, fallback, count) {
