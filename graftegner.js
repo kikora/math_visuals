@@ -3341,6 +3341,7 @@ function initBoard() {
       needShift: false
     }
   });
+  attachBoardResizeObserver(appState.board);
   // Drag forblir aktivt slik at punkter kan flyttes; bakgrunnen er allerede låst via pan/zoom-innstillingene.
   appState.axes.x = appState.board.defaultAxes.x;
   appState.axes.y = appState.board.defaultAxes.y;
@@ -7240,6 +7241,31 @@ function rebuildAll() {
   }
 }
 let resizeScheduled = false;
+let boardResizeObserver = null;
+const attachBoardResizeObserver = board => {
+  if (boardResizeObserver && typeof boardResizeObserver.disconnect === 'function') {
+    boardResizeObserver.disconnect();
+    boardResizeObserver = null;
+  }
+  if (!board || typeof ResizeObserver !== 'function') return;
+  const target = board.containerObj || (typeof document !== 'undefined' ? document.getElementById('board') : null);
+  if (!target) return;
+  const previousStop = typeof board.stopResizeObserver === 'function' ? board.stopResizeObserver.bind(board) : null;
+  boardResizeObserver = new ResizeObserver(() => {
+    scheduleBoardMeasurementReset();
+    scheduleResize();
+  });
+  boardResizeObserver.observe(target);
+  board.stopResizeObserver = () => {
+    if (previousStop) {
+      previousStop();
+    }
+    if (boardResizeObserver && typeof boardResizeObserver.disconnect === 'function') {
+      boardResizeObserver.disconnect();
+      boardResizeObserver = null;
+    }
+  };
+};
 const scheduleResize = () => {
   if (resizeScheduled) return;
   resizeScheduled = true;
@@ -7648,10 +7674,10 @@ function getNormalizedBoardExportDimensions(width, height) {
   const normalizedWidth = safeWidth * scale;
   const normalizedHeight = safeHeight * scale;
   return {
-    width: EXPORT_BASE_SIZE,
-    height: EXPORT_BASE_SIZE,
-    offsetX: (EXPORT_BASE_SIZE - normalizedWidth) / 2,
-    offsetY: (EXPORT_BASE_SIZE - normalizedHeight) / 2,
+    width: normalizedWidth,
+    height: normalizedHeight,
+    offsetX: 0,
+    offsetY: 0,
     scale
   };
 }
