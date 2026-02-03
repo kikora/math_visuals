@@ -184,6 +184,10 @@ function isValidColor(value) {
     return normalizePaletteToCount(palette, targetCount, LEGACY_COLOR_PALETTE);
   }
   function getFillPalette() {
+    const stateColors = Array.isArray(STATE.colors) ? STATE.colors.filter(isValidColor) : [];
+    if (stateColors.length) {
+      return stateColors.slice(0, FILL_COLOR_COUNT);
+    }
     const roleSlots = getGraftegnerRoleSlotPairs();
     const fillIndices = roleSlots
       .map(role => (Number.isInteger(role?.fillIndex) ? role.fillIndex : role?.fillSlotIndex))
