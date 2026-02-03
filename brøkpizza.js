@@ -1152,7 +1152,9 @@ class Pizza {
       role: "slider",
       "aria-orientation": "horizontal"
     });
-    this.slider.style.pointerEvents = "none";
+    this.slider.style.pointerEvents = "all";
+    this.slider.style.touchAction = "none";
+    this.svg.style.touchAction = "none";
     this.gA11y.appendChild(this.slider);
 
     // <title>/<desc> for eksport og live-oppdatering
@@ -1168,6 +1170,7 @@ class Pizza {
     } else {
       this.slider.setAttribute("aria-disabled", cfg.lockNumerator ? "true" : "false");
       this.handle.style.cursor = cfg.lockNumerator ? 'default' : 'grab';
+      this.slider.style.cursor = cfg.lockNumerator ? 'default' : 'grab';
       if (cfg.lockNumerator) this.handle.classList.remove('is-grabbing');
     }
 
@@ -1194,31 +1197,49 @@ class Pizza {
       const a = norm(Math.atan2(y, x));
       this._setTheta(a, true);
     };
-    this.handle.addEventListener('pointerdown', e => {
+    const startDrag = (e, captureTarget) => {
       if (cfg.lockNumerator || this.fullyLocked) return;
       this._dragging = true;
       this.handle.classList.add('is-grabbing');
-      if (typeof this.handle.setPointerCapture === 'function') {
+      const target = captureTarget || e.currentTarget;
+      if (target && typeof target.setPointerCapture === 'function') {
         try {
-          this.handle.setPointerCapture(e.pointerId);
+          target.setPointerCapture(e.pointerId);
         } catch (_) {}
       }
-    });
-    this.handle.addEventListener('pointerup', e => {
+    };
+    const stopDrag = (e, captureTarget) => {
       if (cfg.lockNumerator || this.fullyLocked) return;
       this._dragging = false;
       this.handle.classList.remove('is-grabbing');
-      if (typeof this.handle.releasePointerCapture === 'function') {
+      const target = captureTarget || (e ? e.currentTarget : null);
+      if (target && typeof target.releasePointerCapture === 'function') {
         try {
-          this.handle.releasePointerCapture(e.pointerId);
+          target.releasePointerCapture(e.pointerId);
         } catch (_) {}
       }
+    };
+    this.handle.addEventListener('pointerdown', e => {
+      startDrag(e, this.handle);
     });
-    this.handle.addEventListener('pointercancel', () => {
-      this._dragging = false;
-      this.handle.classList.remove('is-grabbing');
+    this.handle.addEventListener('pointerup', e => {
+      stopDrag(e, this.handle);
+    });
+    this.handle.addEventListener('pointercancel', e => {
+      stopDrag(e, this.handle);
     });
     this.handle.addEventListener('pointermove', onHandleDragMove);
+    this.slider.addEventListener('pointerdown', e => {
+      startDrag(e, this.slider);
+      onHandleDragMove(e);
+    });
+    this.slider.addEventListener('pointerup', e => {
+      stopDrag(e, this.slider);
+    });
+    this.slider.addEventListener('pointercancel', e => {
+      stopDrag(e, this.slider);
+    });
+    this.slider.addEventListener('pointermove', onHandleDragMove);
     this.svg.addEventListener("pointerleave", () => {
       this._dragging = false;
       this.handle.classList.remove('is-grabbing');
