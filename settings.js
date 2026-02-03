@@ -70,14 +70,40 @@
     return null;
   }
 
-  const paletteNormalize = resolvePaletteNormalize();
+  let paletteNormalize = resolvePaletteNormalize();
   if (!paletteNormalize) {
     if (typeof console !== 'undefined' && console && typeof console.error === 'function') {
       console.error(
         '[MathVisualsSettings] Mangler normalisering. Sørg for at palette/palette-normalize.js lastes før settings.js.'
       );
     }
-    return;
+    paletteNormalize = {
+      resolveGroupPaletteEntry(group, entry) {
+        if (Array.isArray(entry)) return entry;
+        if (entry && typeof entry === 'object') {
+          const flat =
+            (Array.isArray(entry.colors) && entry.colors) ||
+            (Array.isArray(entry.palette) && entry.palette) ||
+            (Array.isArray(entry.values) && entry.values);
+          if (flat && flat.length) return flat;
+        }
+        return [];
+      },
+      buildRolePayloadForGroup() {
+        return null;
+      },
+      ensureProjectPaletteShape(palette, groups) {
+        const shaped = {};
+        const source = palette && typeof palette === 'object' ? palette : {};
+        (Array.isArray(groups) ? groups : []).forEach(group => {
+          if (!group || !group.groupId) return;
+          shaped[group.groupId] = Array.isArray(source[group.groupId])
+            ? source[group.groupId]
+            : this.resolveGroupPaletteEntry(group, source[group.groupId]);
+        });
+        return shaped;
+      }
+    };
   }
 
   const MAX_COLORS = paletteConfig.MAX_COLORS;

@@ -411,6 +411,7 @@ const PROFILE_FILTER_ATTR = 'data-profile-filter';
 const SETTINGS_ENABLED_PROFILES = new Set(['annet', 'campus']);
 const CAMPUS_VISIBLE_LABELS = new Set(['Graftegner', 'Brøkfigurer']);
 const SETTINGS_SCRIPT_SRC = '/settings.js';
+const SETTINGS_PALETTE_NORMALIZE_SRC = '/palette/palette-normalize.js';
 const SETTINGS_NORMALIZED_PATH = '/settings';
 let pendingSettingsScriptLoad = false;
 
@@ -426,10 +427,23 @@ function ensureSettingsScriptInIframe() {
   if (!iframe) return;
   const doc = iframe.contentDocument;
   if (!doc || !doc.head) return;
-  const existing = doc.querySelector(
+  const existingSettingsScript = doc.querySelector(
     `script[src="${SETTINGS_SCRIPT_SRC}"], script[data-settings-script="true"]`
   );
-  if (existing) return;
+  const existingNormalizeScript = doc.querySelector(
+    `script[src="${SETTINGS_PALETTE_NORMALIZE_SRC}"]`
+  );
+  if (!existingNormalizeScript) {
+    const normalizeScript = doc.createElement('script');
+    normalizeScript.defer = true;
+    normalizeScript.src = SETTINGS_PALETTE_NORMALIZE_SRC;
+    if (existingSettingsScript) {
+      doc.head.insertBefore(normalizeScript, existingSettingsScript);
+    } else {
+      doc.head.appendChild(normalizeScript);
+    }
+  }
+  if (existingSettingsScript) return;
   const script = doc.createElement('script');
   script.defer = true;
   script.src = SETTINGS_SCRIPT_SRC;
