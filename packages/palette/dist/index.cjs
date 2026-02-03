@@ -38,34 +38,7 @@ const RAW_COLOR_SLOT_GROUPS = [
       { fillIndex: 6, lineIndex: 7 },
       { fillIndex: 9, lineIndex: 10 },
       { fillIndex: 12, lineIndex: 13 },
-      { fillIndex: 15, lineIndex: 16 }
-    ],
-    slots: [
-      { index: 0, label: 'Fyll 1', description: 'Fyllfarge til fargesett 1.' },
-      { index: 1, label: 'Kant 1', description: 'Kantfarge til fargesett 1.' },
-      { index: 2, label: 'Linje 1', description: 'Linjefarge for grafer i fargesett 1.' },
-      { index: 3, label: 'Fyll 2', description: 'Fyllfarge til fargesett 2.' },
-      { index: 4, label: 'Kant 2', description: 'Kantfarge til fargesett 2.' },
-      { index: 5, label: 'Linje 2', description: 'Linjefarge for grafer i fargesett 2.' },
-      { index: 6, label: 'Fyll 3', description: 'Fyllfarge til fargesett 3.' },
-      { index: 7, label: 'Kant 3', description: 'Kantfarge til fargesett 3.' },
-      { index: 8, label: 'Linje 3', description: 'Linjefarge for grafer i fargesett 3.' },
-      { index: 9, label: 'Fyll 4', description: 'Fyllfarge til fargesett 4.' },
-      { index: 10, label: 'Kant 4', description: 'Kantfarge til fargesett 4.' },
-      { index: 11, label: 'Linje 4', description: 'Linjefarge for grafer i fargesett 4.' },
-      { index: 12, label: 'Fyll 5', description: 'Fyllfarge til fargesett 5.' },
-      { index: 13, label: 'Kant 5', description: 'Kantfarge til fargesett 5.' },
-      { index: 14, label: 'Linje 5', description: 'Linjefarge for grafer i fargesett 5.' },
-      { index: 15, label: 'Fyll 6', description: 'Fyllfarge til fargesett 6.' },
-      { index: 16, label: 'Kant 6', description: 'Kantfarge til fargesett 6.' },
-      { index: 17, label: 'Linje 6', description: 'Linjefarge for grafer i fargesett 6.' }
-    ]
-  },
-  {
-    groupId: 'graftegner',
-    title: 'Graftegner',
-    description: 'Farger som brukes i graftegner. Hvert fargesett har Fyll/Kant/Linje.',
-    colorRoles: [
+      { fillIndex: 15, lineIndex: 16 },
       { lineIndex: 2 },
       { lineIndex: 5 },
       { lineIndex: 8 },

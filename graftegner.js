@@ -133,7 +133,7 @@ function resolvePaletteFallbacks() {
   return null;
 }
 const SETTINGS_STORAGE_KEY = 'mathVisuals:settings';
-const GRAFTEGNER_GROUP_ID = 'graftegner';
+const GRAFTEGNER_GROUP_ID = 'fellesfarger';
 const paletteFallbacks = resolvePaletteFallbacks();
 const settingsDerivedFallbacks =
   paletteFallbacks && paletteFallbacks.settingsDefaultDerived ? paletteFallbacks.settingsDefaultDerived : null;
