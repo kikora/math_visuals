@@ -296,7 +296,7 @@ const AXIS_ARROW_PIXEL_THICKNESS = 26;
 const AXIS_ARROW_ASPECT_RATIO = 17 / 30;
 const AXIS_LABEL_OFFSET_PX = 10;
 const EXPORT_LABEL_SHIFT_PX = 5;
-const EXPORT_CURVE_LABEL_SHIFT_X_PX = -25;
+const EXPORT_CURVE_LABEL_SHIFT_X_PX = -35;
 const EXPORT_CURVE_LABEL_SHIFT_Y_PX = -5;
 const DEBUG_EXPORT_CURVE_LABEL_SHIFT = false;
 const AXIS_LABEL_MARGIN_FRACTION = 0.005;
@@ -3854,7 +3854,8 @@ function appendCurveLabelsToSvgClone(node) {
   if (!doc) return;
   if (node.querySelector('[data-export-curve-labels]')) return;
   const fontSizeRaw = Number.parseFloat(ADV.curveName.fontSize);
-  const fontSize = Number.isFinite(fontSizeRaw) ? fontSizeRaw : 15;
+  const baseFontSize = Number.isFinite(fontSizeRaw) ? fontSizeRaw : 15;
+  const fontSize = baseFontSize * 1.5;
   const logCurveLabelShift = (label, screenPos, textContent) => {
     if (!DEBUG_EXPORT_CURVE_LABEL_SHIFT) return;
     if (!label || !label.rendNode || typeof label.rendNode.getBoundingClientRect !== 'function') return;
