@@ -1,0 +1,1430 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Figurbibliotek</title>
+  <link rel="stylesheet" href="/base.css" />
+  <script>
+    (function ensureShellNavigation() {
+      if (typeof window === 'undefined') return;
+      if (window.top !== window) return;
+
+      function stripTrailingExampleSegment(path) {
+        if (typeof path !== 'string') return '/bibliotek';
+        let working = path.trim();
+        if (!working) return '/bibliotek';
+        if (!working.startsWith('/')) working = `/${working}`;
+        while (working.length > 1 && working.endsWith('/')) {
+          working = working.slice(0, -1);
+        }
+        const lastSlash = working.lastIndexOf('/');
+        if (lastSlash < 0) return working || '/bibliotek';
+        const segment = working.slice(lastSlash + 1);
+        if (/^eksempel[-_]?\d+$/i.test(segment)) {
+          return working.slice(0, lastSlash) || '/';
+        }
+        return working || '/bibliotek';
+      }
+
+      const currentPath = stripTrailingExampleSegment(window.location.pathname || '/bibliotek');
+      const search = window.location.search || '';
+      if (search.includes('path=')) return;
+      const url = new URL(window.location.href);
+      url.pathname = '/';
+      url.searchParams.set('path', currentPath);
+      window.location.replace(url.toString());
+    })();
+  </script>
+  <style>
+    :root {
+      --beta-color: #2563eb;
+    }
+    body {
+      background: var(--surface-bg);
+    }
+    .wrap {
+      max-width: none;
+      width: 100%;
+    }
+    .betaBadge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--beta-color);
+      background: rgba(37, 99, 235, 0.12);
+      border: 1px solid rgba(37, 99, 235, 0.35);
+      border-radius: 999px;
+      padding: 2px 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .betaBadge svg {
+      width: 14px;
+      height: 14px;
+    }
+    .betaHelperText {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      font-size: 14px;
+      background: #f9fafb;
+      border: 1px dashed rgba(37, 99, 235, 0.4);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin: 16px 0 0;
+      color: #1f2937;
+    }
+    .betaHelperText svg { flex: 0 0 auto; width: 18px; height: 18px; margin-top: 2px; color: var(--beta-color); }
+
+    .libraryLayout {
+      display: grid;
+      gap: clamp(20px, 3vw, 32px);
+    }
+
+    .browserHeader {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding-bottom: clamp(8px, 2vw, 16px);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.3);
+    }
+    .browserHeader h1 {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+    }
+    .browserHeader p {
+      max-width: 70ch;
+      margin: 0;
+    }
+
+    .visuallyHidden {
+      position: absolute !important;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    .categoryPanel {
+      display: grid;
+      gap: clamp(16px, 3vw, 28px);
+    }
+    .categoryPanel__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .libraryActions {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      width: 100%;
+      justify-content: flex-start;
+    }
+    .libraryControls__group {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: #1f2937;
+    }
+    .libraryControls__group--sort {
+      flex: 0 0 auto;
+    }
+    .libraryControls__group select,
+    .libraryControls__group input[type="search"] {
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 15px;
+      background: #fff;
+      color: #111827;
+      transition: border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+    .libraryControls__group input[type="search"]:focus,
+    .libraryControls__group select:focus {
+      border-color: rgba(37, 99, 235, 0.5);
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+      outline: none;
+    }
+    .categoryAppsField {
+      margin: 0;
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: grid;
+      gap: 10px;
+      width: 100%;
+    }
+    .categoryAppsField legend {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1f2937;
+      padding: 0 6px;
+    }
+    .categoryAppsOptions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+    }
+    .categoryAppsOption {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 14px;
+      color: #1f2937;
+      flex-wrap: wrap;
+    }
+    .categoryAppsOption input {
+      accent-color: var(--beta-color);
+    }
+    .categoryAppsOption[data-locked] {
+      color: #475569;
+      opacity: 0.9;
+    }
+    .categoryAppsOption[data-locked] input {
+      cursor: not-allowed;
+    }
+    .categoryAppsOptionHint {
+      font-size: 12px;
+      color: #64748b;
+      margin-left: 4px;
+    }
+    .categoryAddSubmit,
+    .categoryAddCancel {
+      border-radius: 999px;
+      padding: 8px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+    .categoryAddSubmit {
+      border: 1px solid rgba(37, 99, 235, 0.45);
+      background: rgba(59, 130, 246, 0.15);
+      color: #1d4ed8;
+    }
+    .categoryAddSubmit:hover,
+    .categoryAddSubmit:focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 20px rgba(37, 99, 235, 0.2);
+      outline: none;
+      border-color: rgba(37, 99, 235, 0.6);
+    }
+    .categoryAddCancel {
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      background: rgba(255, 255, 255, 0.85);
+      color: #334155;
+    }
+    .categoryAddCancel:hover,
+    .categoryAddCancel:focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 20px rgba(148, 163, 184, 0.2);
+      outline: none;
+      border-color: rgba(148, 163, 184, 0.65);
+    }
+    .categoryAddMessage {
+      font-size: 13px;
+      color: #1f2937;
+      margin: 0;
+    }
+    .categoryAddMessage[data-state="error"] {
+      color: #b91c1c;
+    }
+    .categoryAddMessage[hidden] {
+      display: none !important;
+    }
+    .categoryGrid {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: clamp(16px, 2.6vw, 28px);
+    }
+    .categoryItem {
+      list-style: none;
+      position: relative;
+      display: flex;
+    }
+    .categoryMenuToggle {
+      position: absolute;
+      top: clamp(12px, 1.2vw, 16px);
+      right: clamp(12px, 1.2vw, 16px);
+      z-index: 2;
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(255, 255, 255, 0.92);
+      color: #475569;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+      transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease, border-color 0.18s ease;
+    }
+    .categoryMenuToggle:hover,
+    .categoryMenuToggle:focus-visible {
+      background: rgba(59, 130, 246, 0.12);
+      color: #1d4ed8;
+      border-color: rgba(59, 130, 246, 0.42);
+      box-shadow: 0 12px 28px rgba(37, 99, 235, 0.22);
+      transform: translateY(-1px);
+      outline: none;
+    }
+    .categoryMenuToggle:focus-visible {
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.28);
+    }
+    .categoryMenuToggle svg {
+      width: 18px;
+      height: 18px;
+      pointer-events: none;
+    }
+    .categoryMenu {
+      position: fixed;
+      inset: 0;
+      display: block;
+      pointer-events: none;
+      z-index: 40;
+    }
+    .categoryMenu[hidden] {
+      display: none !important;
+    }
+    .categoryMenu[data-open="true"] {
+      pointer-events: auto;
+    }
+    .categoryMenu__surface {
+      position: absolute;
+      min-width: 200px;
+      max-width: min(240px, calc(100vw - 24px));
+      background: #fff;
+      border: 1px solid rgba(148, 163, 184, 0.45);
+      border-radius: 12px;
+      box-shadow: 0 18px 38px rgba(15, 23, 42, 0.18);
+      padding: 6px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .categoryMenu__item {
+      border: none;
+      background: transparent;
+      padding: 10px 16px;
+      font-size: 14px;
+      color: #1f2937;
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: background 0.18s ease, color 0.18s ease;
+    }
+    .categoryMenu__item:hover,
+    .categoryMenu__item:focus-visible {
+      background: rgba(59, 130, 246, 0.12);
+      color: #1d4ed8;
+      outline: none;
+    }
+    .categoryMenu__item + .categoryMenu__item {
+      border-top: 1px solid rgba(226, 232, 240, 0.7);
+    }
+    .categoryButton {
+      width: 100%;
+      border: none;
+      background: transparent;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: clamp(10px, 1vw, 14px);
+      align-items: stretch;
+      cursor: pointer;
+      text-align: left;
+      border-radius: 22px;
+      background: #fff;
+      border: 1px solid rgba(148, 163, 184, 0.28);
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+      padding: clamp(12px, 1.2vw, 18px);
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+    .categoryButton:focus-visible {
+      outline: 3px solid rgba(59, 130, 246, 0.35);
+      outline-offset: 3px;
+    }
+    .categoryButton:hover,
+    .categoryButton:focus-visible,
+    .categoryButton[data-selected="true"] {
+      transform: translateY(-2px);
+      box-shadow: 0 16px 32px rgba(15, 23, 42, 0.12);
+      border-color: rgba(59, 130, 246, 0.35);
+    }
+    .categoryFigure {
+      aspect-ratio: 4 / 3;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-rows: repeat(2, minmax(0, 1fr));
+      gap: clamp(6px, 1vw, 10px);
+      padding: clamp(10px, 1.2vw, 14px);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      border-radius: clamp(16px, 1.8vw, 20px);
+      background: linear-gradient(135deg, rgba(226, 232, 240, 0.45), rgba(248, 250, 252, 0.92));
+      overflow: hidden;
+    }
+    .categoryFigure img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      background: #fff;
+      border-radius: clamp(10px, 1.2vw, 14px);
+      box-shadow: 0 6px 16px rgba(15, 23, 42, 0.1);
+    }
+    .categoryMeta {
+      display: grid;
+      gap: 6px;
+      align-content: start;
+    }
+    .categoryMeta h3 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--heading-color);
+    }
+    .categoryMeta p {
+      margin: 0;
+      font-size: 13px;
+      color: #64748b;
+    }
+    .categoryMeta p[hidden] {
+      display: none !important;
+    }
+    .categoryCount {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #475569;
+    }
+    .bibliotekItem {
+      list-style: none;
+      border: 1px solid rgba(148, 163, 184, 0.32);
+      border-radius: 18px;
+      background: #fff;
+      display: grid;
+      gap: 12px;
+      padding: clamp(12px, 1.2vw, 18px);
+      box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+
+    .bibliotekItem:hover,
+    .bibliotekItem:focus-within {
+      transform: translateY(-2px);
+      box-shadow: 0 16px 32px rgba(15, 23, 42, 0.12);
+      border-color: rgba(59, 130, 246, 0.35);
+    }
+
+    .bibliotekFigure {
+      position: relative;
+      aspect-ratio: 4 / 3;
+      border: 1px solid rgba(226, 232, 240, 0.8);
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(226, 232, 240, 0.45), rgba(248, 250, 252, 0.9));
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .bibliotekFigure img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+    .bibliotekFigure[data-loading="true"]::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        -45deg,
+        rgba(226, 232, 240, 0.7),
+        rgba(226, 232, 240, 0.7) 20px,
+        rgba(248, 250, 252, 0.7) 20px,
+        rgba(248, 250, 252, 0.7) 40px
+      );
+      animation: loadingStripe 1.4s linear infinite;
+    }
+    @keyframes loadingStripe {
+      from { background-position: 0 0; }
+      to { background-position: 40px 40px; }
+    }
+
+    .bibliotekMeta { display: grid; gap: 10px; }
+    .bibliotekHeader {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .bibliotekMeta h2 {
+      font-size: 15px;
+      font-weight: 600;
+      margin: 0;
+      word-break: break-word;
+      color: var(--heading-color);
+    }
+    .bibliotekPath {
+      font-family: "JetBrains Mono", "Fira Code", "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+      border-radius: 8px;
+      background: rgba(148, 163, 184, 0.18);
+      padding: 6px 8px;
+      color: #1f2937;
+      word-break: break-all;
+    }
+    .bibliotekActions {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: nowrap;
+    }
+    .bibliotekActions button,
+    .bibliotekActions a {
+      border: 1px solid rgba(148, 163, 184, 0.55);
+      background: rgba(255, 255, 255, 0.95);
+      color: #1e3a8a;
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 13px;
+      font-weight: 500;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+    }
+    .bibliotekActions button:hover,
+    .bibliotekActions a:hover,
+    .bibliotekActions button:focus-visible,
+    .bibliotekActions a:focus-visible {
+      border-color: rgba(37, 99, 235, 0.5);
+      color: var(--beta-color);
+      transform: translateY(-1px);
+      box-shadow: 0 10px 18px rgba(37, 99, 235, 0.18);
+    }
+    .bibliotekActions button:focus-visible,
+    .bibliotekActions a:focus-visible {
+      outline: 3px solid rgba(59, 130, 246, 0.4);
+      outline-offset: 2px;
+    }
+
+    .bibliotekStatus {
+      font-size: 14px;
+      color: #4b5563;
+    }
+    .bibliotekStatus strong { color: #111827; }
+    .bibliotekStatus.error { color: #b91c1c; }
+
+    .filterHelper {
+      font-size: 13px;
+      color: #6b7280;
+      margin: 6px 0 0;
+    }
+
+    .uploadForm { display: grid; gap: 12px; }
+    .uploadForm label { display: grid; gap: 6px; font-size: 14px; font-weight: 500; }
+    .uploadForm input[type="text"],
+    .uploadForm input[type="search"],
+    .uploadForm input[type="file"] {
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 14px;
+      background: #f8fafc;
+    }
+    .uploadForm input[type="file"] {
+      padding: 6px 8px;
+      background: #fff;
+    }
+    .uploadHelper { margin: 0; font-size: 12px; color: #6b7280; }
+    .uploadActions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+    .uploadButton {
+      border: none;
+      background: var(--beta-color);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 999px;
+      padding: 8px 16px;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    }
+    .uploadButton:hover,
+    .uploadButton:focus-visible {
+      background: #1d4ed8;
+      transform: translateY(-1px);
+      box-shadow: 0 12px 24px rgba(37, 99, 235, 0.22);
+      outline: none;
+    }
+    .uploadButton:focus-visible {
+      outline: 3px solid rgba(37, 99, 235, 0.4);
+      outline-offset: 2px;
+    }
+    .uploadStatus {
+      font-size: 13px;
+      margin: 0;
+      color: #1e3a8a;
+      background: rgba(37, 99, 235, 0.12);
+      border: 1px solid rgba(37, 99, 235, 0.24);
+      border-radius: 10px;
+      padding: 10px 12px;
+      display: inline-flex;
+      gap: 10px;
+      align-items: flex-start;
+      white-space: pre-line;
+    }
+    .uploadStatus__spinner {
+      display: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 2px solid currentColor;
+      border-right-color: transparent;
+      animation: uploadStatusSpin 0.8s linear infinite;
+      margin-top: 2px;
+    }
+    .uploadStatus[data-state="pending"] {
+      color: #1d4ed8;
+    }
+    .uploadStatus[data-state="success"] {
+      color: #047857;
+      background: rgba(16, 185, 129, 0.14);
+      border-color: rgba(5, 150, 105, 0.3);
+    }
+    .uploadStatus[data-state="error"] {
+      color: #b91c1c;
+      background: rgba(248, 113, 113, 0.16);
+      border-color: rgba(185, 28, 28, 0.35);
+    }
+    .uploadStatus[data-state="warning"] {
+      color: #92400e;
+      background: rgba(251, 191, 36, 0.2);
+      border-color: rgba(180, 83, 9, 0.35);
+    }
+    .uploadStatus[data-state="pending"] .uploadStatus__spinner {
+      display: inline-flex;
+    }
+    @keyframes uploadStatusSpin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    dialog[data-custom-editor] {
+      border: none;
+      border-radius: 18px;
+      padding: 0;
+      max-width: min(420px, 90vw);
+      box-shadow: 0 24px 48px rgba(15, 23, 42, 0.25);
+    }
+    .customEditor {
+      display: grid;
+      gap: 16px;
+      padding: 20px;
+    }
+    .customEditor h2 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+    }
+    .customEditor label { display: grid; gap: 6px; font-size: 14px; font-weight: 500; }
+    .customEditor input[type="text"] {
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 14px;
+    }
+    .customEditorHelper { margin: 0; font-size: 13px; color: #6b7280; }
+    .customEditorActions { display: flex; justify-content: flex-end; gap: 8px; }
+    .customEditorActions button {
+      border-radius: 999px;
+      padding: 8px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+    .customEditorSave {
+      background: var(--beta-color);
+      color: #fff;
+      border-color: rgba(37, 99, 235, 0.8);
+    }
+    .customEditorSave:hover,
+    .customEditorSave:focus-visible {
+      background: #1d4ed8;
+      outline: none;
+      box-shadow: 0 12px 24px rgba(37, 99, 235, 0.22);
+    }
+    .customEditorCancel {
+      background: #fff;
+      color: #1e3a8a;
+      border-color: rgba(148, 163, 184, 0.6);
+    }
+    .customEditorCancel:hover,
+    .customEditorCancel:focus-visible {
+      outline: none;
+      border-color: rgba(37, 99, 235, 0.6);
+    }
+    .customEditorError {
+      margin: 0;
+      font-size: 13px;
+      color: #b91c1c;
+    }
+    dialog[data-custom-editor]::backdrop {
+      background: rgba(15, 23, 42, 0.35);
+    }
+
+    .copyFeedback { font-size: 12px; color: #047857; margin: 0; }
+
+    .categoryDialog {
+      border: none;
+      border-radius: 24px;
+      padding: 0;
+      width: min(960px, 92vw);
+      max-width: 960px;
+      color: #0f172a;
+    }
+    .categoryDialog::backdrop {
+      background: rgba(15, 23, 42, 0.45);
+    }
+    .categoryDialog__layout {
+      display: grid;
+      gap: clamp(12px, 2.4vw, 20px);
+      padding: clamp(16px, 3vw, 28px);
+      background: linear-gradient(135deg, rgba(248, 250, 252, 0.98), rgba(226, 232, 240, 0.9));
+      border-radius: 24px;
+      box-shadow: 0 32px 64px rgba(15, 23, 42, 0.28);
+      max-height: min(820px, 90vh);
+      overflow: hidden;
+    }
+    .categoryDialog__body {
+      overflow-y: auto;
+      padding-right: 4px;
+      max-height: min(540px, 60vh);
+    }
+    .categoryDialog__header {
+      display: grid;
+      gap: clamp(10px, 2vw, 18px);
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: start;
+    }
+    .categoryDialog__headerContent {
+      display: flex;
+      flex-wrap: wrap;
+      gap: clamp(8px, 1.6vw, 14px);
+      align-items: flex-start;
+    }
+    .categoryDialog__intro {
+      display: grid;
+      gap: 6px;
+      flex: 1 1 min(260px, 100%);
+      min-width: min(260px, 100%);
+    }
+    .categoryDialog__title {
+      margin: 0;
+      font-size: clamp(1.6rem, 3vw, 2rem);
+      font-weight: 600;
+      color: var(--heading-color);
+    }
+    .categoryDialog__description {
+      margin: 8px 0 0;
+      color: #475569;
+      font-size: 0.95rem;
+      max-width: 65ch;
+    }
+    .categoryDialog__apps {
+      flex: 0 1 320px;
+      min-width: min(260px, 100%);
+      display: block;
+    }
+    .categoryDialog__appsDetails {
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.78);
+      padding: 6px 10px;
+    }
+    .categoryDialog__appsDetails[open] {
+      padding-bottom: 10px;
+    }
+    .categoryDialog__appsSummary {
+      cursor: pointer;
+      font-weight: 600;
+      color: #0f172a;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 2px;
+    }
+    .categoryDialog__appsSummary::-webkit-details-marker {
+      display: none;
+    }
+    .categoryDialog__appsSummary::before {
+      content: '▸';
+      font-size: 0.85rem;
+      color: #64748b;
+      transition: transform 0.18s ease;
+    }
+    .categoryDialog__appsDetails[open] .categoryDialog__appsSummary::before {
+      transform: rotate(90deg);
+    }
+    .categoryDialog__appsPanel {
+      margin-top: 8px;
+      display: grid;
+      gap: 8px;
+    }
+    .categoryDialog__appsActions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px 12px;
+    }
+    .categoryDialog__appsSave {
+      border-radius: 999px;
+      border: 1px solid rgba(37, 99, 235, 0.45);
+      background: rgba(59, 130, 246, 0.16);
+      color: #1d4ed8;
+      font-weight: 600;
+      padding: 6px 12px;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+    .categoryDialog__appsSave:hover,
+    .categoryDialog__appsSave:focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 24px rgba(37, 99, 235, 0.18);
+      border-color: rgba(37, 99, 235, 0.6);
+      outline: none;
+    }
+    .categoryDialog__appsSave:focus-visible {
+      outline: 3px solid rgba(59, 130, 246, 0.45);
+      outline-offset: 2px;
+    }
+    .categoryDialog__appsStatus {
+      font-size: 13px;
+      color: #1f2937;
+      margin: 0;
+    }
+    .categoryDialog__close {
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.45);
+      background: rgba(255, 255, 255, 0.95);
+      color: #0f172a;
+      font-weight: 600;
+      padding: 6px 12px;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+    .categoryDialog__close:hover,
+    .categoryDialog__close:focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 32px rgba(37, 99, 235, 0.2);
+      border-color: rgba(37, 99, 235, 0.45);
+      outline: none;
+    }
+    .categoryDialog__close:focus-visible {
+      outline: 3px solid rgba(59, 130, 246, 0.45);
+      outline-offset: 3px;
+    }
+    @media (max-width: 640px) {
+      .categoryDialog__header {
+        grid-template-columns: 1fr;
+      }
+      .categoryDialog__headerContent {
+        flex-direction: column;
+        gap: 14px;
+      }
+      .categoryDialog__close {
+        justify-self: end;
+      }
+      .categoryDialog__apps,
+      .categoryDialog__intro {
+        min-width: 100%;
+      }
+    }
+    .categoryDialog__meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .categoryDialog__count {
+      margin: 0;
+      font-size: 0.95rem;
+      color: #1f2937;
+    }
+    .categoryDialog__actions {
+      display: inline-flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 6px;
+    }
+    .categoryDialog__actions .categoryDialog__actionButton {
+      border-radius: 999px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      line-height: 1;
+    }
+    .categoryDialog__actions .categoryDialog__actionButton svg {
+      width: 16px;
+      height: 16px;
+      flex: 0 0 auto;
+    }
+    .categoryDialog__actions .categoryDialog__actionButton--icon {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      justify-content: center;
+    }
+    .categoryDialog__footer {
+      border-top: 1px solid rgba(148, 163, 184, 0.35);
+      margin: 0;
+      padding-top: clamp(12px, 2vw, 18px);
+      display: flex;
+      justify-content: flex-end;
+    }
+    .categoryDialog__deleteCategory {
+      border: 1px solid rgba(220, 38, 38, 0.45);
+      border-radius: 999px;
+      background: linear-gradient(135deg, rgba(248, 113, 113, 0.16), rgba(248, 113, 113, 0.28));
+      color: #7f1d1d;
+      font-weight: 600;
+      padding: 10px 18px;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+    .categoryDialog__deleteCategory[hidden] {
+      display: none;
+    }
+    .categoryDialog__deleteCategory[disabled] {
+      opacity: 0.55;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    .categoryDialog__deleteCategory:not([disabled]):hover,
+    .categoryDialog__deleteCategory:not([disabled]):focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 32px rgba(239, 68, 68, 0.24);
+      border-color: rgba(239, 68, 68, 0.65);
+      outline: none;
+    }
+    .categoryDialog__deleteCategory:not([disabled]):focus-visible {
+      outline: 3px solid rgba(248, 113, 113, 0.45);
+      outline-offset: 3px;
+    }
+    .categoryDialog__upload {
+      border: 1px solid rgba(37, 99, 235, 0.4);
+      border-radius: 999px;
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(59, 130, 246, 0.24));
+      color: #1e3a8a;
+      font-weight: 600;
+      padding: 6px 12px;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+    .categoryDialog__upload:hover,
+    .categoryDialog__upload:focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 32px rgba(37, 99, 235, 0.2);
+      border-color: rgba(37, 99, 235, 0.5);
+      outline: none;
+    }
+    .categoryDialog__upload:focus-visible {
+      outline: 3px solid rgba(59, 130, 246, 0.45);
+      outline-offset: 3px;
+    }
+    .categoryDialog__delete {
+      border: 1px solid rgba(220, 38, 38, 0.4);
+      border-radius: 999px;
+      background: linear-gradient(135deg, rgba(248, 113, 113, 0.12), rgba(248, 113, 113, 0.24));
+      color: #991b1b;
+      font-weight: 600;
+      padding: 0;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+    .categoryDialog__delete[disabled] {
+      opacity: 0.55;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    .categoryDialog__delete:not([disabled]):hover,
+    .categoryDialog__delete:not([disabled]):focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 32px rgba(239, 68, 68, 0.22);
+      border-color: rgba(239, 68, 68, 0.6);
+      outline: none;
+    }
+    .categoryDialog__delete:not([disabled]):focus-visible {
+      outline: 3px solid rgba(248, 113, 113, 0.45);
+      outline-offset: 3px;
+    }
+    .categoryDialog__selectAll {
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      border-radius: 999px;
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(16, 185, 129, 0.24));
+      color: #065f46;
+      font-weight: 600;
+      padding: 0;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+    .categoryDialog__selectAll[disabled] {
+      opacity: 0.55;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    .categoryDialog__selectAll:not([disabled]):hover,
+    .categoryDialog__selectAll:not([disabled]):focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 32px rgba(16, 185, 129, 0.2);
+      border-color: rgba(5, 150, 105, 0.6);
+      outline: none;
+    }
+    .categoryDialog__selectAll:not([disabled]):focus-visible {
+      outline: 3px solid rgba(16, 185, 129, 0.45);
+      outline-offset: 3px;
+    }
+    .categoryDialog__grid {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(clamp(110px, 12vw, 140px), 1fr));
+      gap: clamp(8px, 1.5vw, 14px);
+      align-items: start;
+    }
+    .categoryDialog__item {
+      margin: 0;
+    }
+    .categoryDialog__name {
+      margin-top: 4px;
+      text-align: center;
+    }
+    .categoryDialog__nameButton,
+    .categoryDialog__nameLabel {
+      display: block;
+      width: 100%;
+      margin: 0;
+      padding: 4px 4px 0;
+      font-size: 15px;
+      line-height: 1.4;
+      font-weight: 600;
+      color: #0f172a;
+      text-align: center;
+      word-break: break-word;
+    }
+    .categoryDialog__nameButton {
+      border: none;
+      background: none;
+      cursor: pointer;
+      border-radius: 12px;
+      padding: 6px 30px 6px 8px;
+      position: relative;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23808ea4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 20h9'/%3E%3Cpath d='M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      background-size: 16px 16px;
+      transition: background 0.18s ease, color 0.18s ease;
+    }
+    .categoryDialog__nameButton:hover,
+    .categoryDialog__nameButton:focus-visible {
+      background: rgba(37, 99, 235, 0.1);
+      color: #1d4ed8;
+      outline: none;
+    }
+    .categoryDialog__nameButton:focus-visible {
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.35);
+    }
+    .categoryDialog__toggle {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      aspect-ratio: 3 / 2;
+      border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.55);
+      background: rgba(248, 250, 252, 0.85);
+      cursor: pointer;
+      transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease, background 0.18s ease;
+      padding: clamp(6px, 1.2vw, 10px);
+    }
+    .categoryDialog__toggle:hover,
+    .categoryDialog__toggle:focus-visible {
+      border-color: rgba(37, 99, 235, 0.45);
+      box-shadow: 0 12px 24px rgba(37, 99, 235, 0.16);
+      transform: translateY(-1px);
+      outline: none;
+    }
+    .categoryDialog__toggle[aria-pressed='true'] {
+      border-color: rgba(37, 99, 235, 0.65);
+      background: rgba(59, 130, 246, 0.16);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+    }
+    .categoryDialog__preview {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border-radius: 12px;
+      background: #fff;
+    }
+    .categoryDialog__preview img {
+      max-width: 100%;
+      max-height: 100%;
+      width: auto;
+      height: auto;
+      display: block;
+    }
+    .categoryDialog__indicator {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.9);
+      background: rgba(37, 99, 235, 0.88);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 700;
+      transform: scale(0.8);
+      opacity: 0;
+      transition: opacity 0.18s ease, transform 0.18s ease;
+      pointer-events: none;
+    }
+    .categoryDialog__toggle[aria-pressed='true'] .categoryDialog__indicator {
+      opacity: 1;
+      transform: scale(1);
+    }
+    .categoryDialog__empty {
+      margin: clamp(20px, 4vw, 32px) 0 0;
+      padding: clamp(18px, 3vw, 24px);
+      border: 1px dashed rgba(148, 163, 184, 0.6);
+      border-radius: 14px;
+      background: rgba(248, 250, 252, 0.85);
+      text-align: center;
+      color: #475569;
+      font-size: 0.95rem;
+    }
+    .uploadDialog {
+      border: none;
+      padding: 0;
+      width: min(540px, 92vw);
+      max-width: 540px;
+      color: #0f172a;
+    }
+    .uploadDialog::backdrop {
+      background: rgba(15, 23, 42, 0.45);
+    }
+    .uploadDialog__layout {
+      display: grid;
+      gap: clamp(18px, 3vw, 28px);
+      padding: clamp(22px, 4vw, 34px);
+      background: linear-gradient(135deg, rgba(248, 250, 252, 0.98), rgba(226, 232, 240, 0.9));
+      border-radius: 24px;
+      box-shadow: 0 24px 48px rgba(15, 23, 42, 0.28);
+      max-height: min(640px, 90vh);
+      overflow: auto;
+    }
+    .uploadDialog__header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .uploadDialog__intro { display: grid; gap: 8px; }
+    .uploadDialog__title {
+      margin: 0;
+      font-size: clamp(1.4rem, 3vw, 1.8rem);
+      font-weight: 600;
+      color: var(--heading-color);
+    }
+    .uploadDialog__description {
+      margin: 0;
+      color: #475569;
+      font-size: 0.95rem;
+    }
+    .uploadDialog__close {
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.45);
+      background: rgba(255, 255, 255, 0.95);
+      color: #0f172a;
+      font-weight: 600;
+      padding: 8px 16px;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+    .uploadDialog__close:hover,
+    .uploadDialog__close:focus-visible {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 32px rgba(37, 99, 235, 0.2);
+      border-color: rgba(37, 99, 235, 0.5);
+      outline: none;
+    }
+    .uploadDialog__close:focus-visible {
+      outline: 3px solid rgba(59, 130, 246, 0.45);
+      outline-offset: 3px;
+    }
+  </style>
+</head>
+<body>
+  <main id="main-content" role="main" class="wrap grid">
+    <header class="card browserHeader">
+      <h1>
+        Figurbibliotek
+        <span class="betaBadge" role="status" aria-label="Beta">Beta</span>
+      </h1>
+      <p class="bibliotekStatus" data-status role="status" aria-live="polite">
+        Laster figurer …
+      </p>
+    </header>
+    <div class="libraryLayout">
+      <section class="card categoryPanel" aria-labelledby="category-heading">
+        <header class="categoryPanel__header">
+          <h2 id="category-heading" class="visuallyHidden">Kategorier</h2>
+          <div class="libraryActions" aria-label="Filtrering og alternativer">
+            <button type="button" class="categoryAddSubmit" data-upload-launch>Last opp figurer</button>
+            <label class="libraryControls__group libraryControls__group--sort">
+              <span class="visuallyHidden">Sorter</span>
+              <select data-category-sort>
+                <option value="default">Standard</option>
+                <option value="alphabetical">A–Å</option>
+              </select>
+            </label>
+          </div>
+        </header>
+        <ul class="categoryGrid" data-category-grid></ul>
+      </section>
+    </div>
+  </main>
+  <dialog class="uploadDialog" data-upload-dialog aria-labelledby="upload-dialog-title" aria-modal="true">
+    <div class="uploadDialog__layout" role="document">
+      <header class="uploadDialog__header">
+        <div class="uploadDialog__intro">
+          <h2 class="uploadDialog__title" id="upload-dialog-title">Last opp figurer</h2>
+          <p class="uploadDialog__description">
+            Last opp egne SVG-er og legg dem til i biblioteket. Du kan senere endre navn og kategori.
+          </p>
+        </div>
+        <button type="button" class="uploadDialog__close" data-upload-close>
+          Lukk
+        </button>
+      </header>
+      <form class="uploadForm" data-upload-form>
+        <label>
+          <span>SVG-fil</span>
+          <input type="file" accept=".svg" data-upload-file required multiple />
+        </label>
+        <label>
+          <span>Kategori</span>
+          <input
+            type="text"
+            list="figure-category-suggestions"
+            data-upload-category
+            placeholder="Velg eller skriv kategori"
+            autocomplete="off"
+          />
+        </label>
+        <p class="uploadHelper">Velg en eksisterende kategori eller skriv inn en ny.</p>
+        <div class="uploadActions">
+          <button type="submit" class="uploadButton">Legg til figur</button>
+          <p class="uploadStatus" data-upload-status aria-live="polite" hidden>
+            <span class="uploadStatus__spinner" data-upload-status-spinner aria-hidden="true"></span>
+            <span data-upload-status-message></span>
+          </p>
+        </div>
+      </form>
+    </div>
+  </dialog>
+  <div class="categoryMenu" data-category-menu hidden>
+    <div
+      class="categoryMenu__surface"
+      data-category-menu-surface
+      role="menu"
+      aria-label="Kategori handlinger"
+    >
+      <button type="button" class="categoryMenu__item" data-category-action="open" role="menuitem">
+        Åpne kategori
+      </button>
+      <button type="button" class="categoryMenu__item" data-category-action="upload" role="menuitem">
+        Last opp til kategori
+      </button>
+      <button type="button" class="categoryMenu__item" data-category-action="delete" role="menuitem">
+        Slett kategori
+        <span class="visuallyHidden">(krever bekreftelse)</span>
+      </button>
+    </div>
+  </div>
+  <dialog class="categoryDialog" data-category-dialog>
+    <div class="categoryDialog__layout" role="document">
+      <header class="categoryDialog__header">
+        <div class="categoryDialog__headerContent">
+          <div class="categoryDialog__intro">
+            <h2 class="categoryDialog__title" data-category-title></h2>
+            <p class="categoryDialog__description" data-category-description hidden></p>
+          </div>
+          <div class="categoryDialog__apps" data-category-apps-section>
+            <details class="categoryDialog__appsDetails">
+              <summary class="categoryDialog__appsSummary">Tilgjengelig i apper</summary>
+              <div class="categoryDialog__appsPanel">
+                <fieldset class="categoryAppsField" data-category-apps="category">
+                  <legend class="visuallyHidden">Tilgjengelig i apper</legend>
+                  <div class="categoryAppsOptions" data-category-apps-options></div>
+                </fieldset>
+                <div class="categoryDialog__appsActions">
+                  <button type="button" class="categoryDialog__appsSave" data-category-apps-save>
+                    Lagre tilgjengelighet
+                  </button>
+                  <p class="categoryDialog__appsStatus" data-category-apps-status aria-live="polite" hidden></p>
+                </div>
+              </div>
+            </details>
+          </div>
+        </div>
+        <button type="button" class="categoryDialog__close" data-category-close>
+          Lukk
+        </button>
+      </header>
+      <div class="categoryDialog__meta">
+        <p class="categoryDialog__count" data-category-count></p>
+        <div class="categoryDialog__actions" role="toolbar" aria-label="Handlinger for kategori">
+          <button
+            type="button"
+            class="categoryDialog__delete categoryDialog__actionButton categoryDialog__actionButton--icon"
+            data-category-delete
+            disabled
+            title="Slett figur(er)"
+            aria-label="Slett figur(er)"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M3 6h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+              <path d="M8 6V4h8v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+              <path d="M6 6l1 14h10l1-14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+              <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            </svg>
+            <span class="visuallyHidden">Slett figur(er)</span>
+          </button>
+          <button
+            type="button"
+            class="categoryDialog__selectAll categoryDialog__actionButton categoryDialog__actionButton--icon"
+            data-category-select-all
+            data-select-label="Velg alle figurer"
+            data-clear-label="Fjern alle figurer"
+            disabled
+            title="Velg eller fjern alle figurer"
+            aria-labelledby="category-select-all-label"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M4 12l4 4 12-12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <span class="visuallyHidden" id="category-select-all-label" data-category-select-all-label>
+              Velg alle figurer
+            </span>
+          </button>
+          <button type="button" class="categoryDialog__upload categoryDialog__actionButton" data-category-upload>
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M12 16V4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+              <path d="M8 8l4-4 4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M4 20h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            </svg>
+            <span>Last opp filer</span>
+          </button>
+        </div>
+      </div>
+      <div class="categoryDialog__body">
+        <ul class="categoryDialog__grid" data-category-figures aria-live="polite"></ul>
+        <p class="categoryDialog__empty" data-category-empty hidden>
+          Ingen figurer er tilgjengelige i denne kategorien ennå.
+        </p>
+      </div>
+      <footer class="categoryDialog__footer">
+        <button
+          type="button"
+          class="categoryDialog__deleteCategory"
+          data-category-delete-category
+          hidden
+          disabled
+        >
+          Slett kategori
+        </button>
+      </footer>
+    </div>
+  </dialog>
+  <dialog data-custom-editor>
+    <form class="customEditor" data-editor-form method="dialog">
+      <h2>Rediger figur</h2>
+      <label for="editor-name">
+        Navn
+        <input id="editor-name" type="text" data-editor-name required autocomplete="off" />
+      </label>
+      <label for="editor-category">
+        Kategori
+        <input
+          id="editor-category"
+          type="text"
+          list="figure-category-suggestions"
+          data-editor-category
+          autocomplete="off"
+        />
+      </label>
+      <label for="editor-scale-label" data-editor-scale-field hidden>
+        Målestokk (scaleLabel)
+        <input
+          id="editor-scale-label"
+          type="text"
+          data-editor-scale-label
+          autocomplete="off"
+          placeholder="1:100"
+        />
+      </label>
+      <p class="customEditorHelper">Velg en eksisterende kategori eller skriv inn en ny.</p>
+      <p class="customEditorError" data-editor-error hidden></p>
+      <div class="customEditorActions">
+        <button type="button" class="customEditorCancel" data-editor-cancel>Avbryt</button>
+        <button type="submit" class="customEditorSave">Lagre endringer</button>
+      </div>
+    </form>
+  </dialog>
+  <datalist id="figure-category-suggestions" data-category-suggestions></datalist>
+  <script src="/bibliotek.js" type="module"></script>
+</body>
+</html>

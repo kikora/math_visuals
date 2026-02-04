@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Innstillinger</title>
+  <link rel="stylesheet" href="base.css" />
+  <script>
+    (function ensureShellNavigation() {
+      if (typeof window === 'undefined') return;
+      if (window.top !== window) return;
+      const currentPath = window.location.pathname || '/settings';
+      const search = window.location.search || '';
+      if (search.includes('path=')) return;
+      const url = new URL(window.location.href);
+      url.pathname = '/';
+      url.searchParams.set('path', currentPath);
+      window.location.replace(url.toString());
+    })();
+  </script>
+  <style>
+    :root {
+      color-scheme: light;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      background: var(--profile-body-background, #f7f8fb);
+      color: var(--profile-body-color, #111827);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      display: flex;
+      justify-content: center;
+      padding: 24px 20px;
+    }
+    body > .wrap {
+      width: min(1080px, 100%);
+      --gap: 20px;
+    }
+    .settings-layout {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .settings-page {
+      width: min(1080px, 100%);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .settings-card {
+      background: var(--profile-surface-background, #ffffffee);
+      border: 1px solid var(--profile-surface-border, #e5e7eb);
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 12px 24px rgba(15, 109, 143, 0.05);
+      backdrop-filter: blur(3px);
+    }
+    .settings-card h1 {
+      margin: 0;
+      font-size: 1.5rem;
+      color: var(--profile-title-color, #0f172a);
+    }
+    .project-heading {
+      font-weight: 600;
+      font-size: 1.1rem;
+      color: var(--profile-title-color, #0f172a);
+    }
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    fieldset {
+      margin: 0;
+      padding: 0;
+      border: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    legend {
+      font-weight: 600;
+      color: var(--profile-title-color, #0f172a);
+      font-size: 1.05rem;
+    }
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+    .color-section {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .color-groups {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .color-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 12px;
+    }
+    .color-group__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .color-group__title {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--profile-title-color, #0f172a);
+    }
+    .color-group__description {
+      margin: 0;
+      font-size: 0.85rem;
+      color: #64748b;
+    }
+    .color-group__actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: auto;
+      min-width: 0;
+    }
+    .color-table {
+      border: 1px solid var(--profile-surface-border, #e5e7eb);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.9);
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      padding: 12px;
+      width: 100%;
+      max-width: 100%;
+    }
+    .color-table[data-group-id="graftegner"] {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .color-table[data-group-id="fellesfarger"] {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .color-table[data-group-id="nkant"] {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .color-pair-row {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) minmax(220px, 1fr) minmax(240px, 1.2fr);
+      gap: 12px;
+      align-items: stretch;
+      width: 100%;
+    }
+    .color-triple-row {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) minmax(220px, 1fr);
+      gap: 12px;
+      align-items: stretch;
+      width: 100%;
+    }
+    .color-pair-row--header {
+      align-items: center;
+    }
+    .color-triple-row--header {
+      align-items: center;
+    }
+    .color-pair-row__heading {
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--profile-surface-border, #e5e7eb);
+      background: rgba(241, 245, 249, 0.9);
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #475569;
+    }
+    .color-slot {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: minmax(86px, 1fr) 48px;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: #fff;
+      border: 1px solid var(--profile-surface-border, #e5e7eb);
+      border-radius: 8px;
+    }
+    .color-slot--placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #94a3b8;
+      background: rgba(248, 250, 252, 0.8);
+      border-style: dashed;
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
+    .color-contrast-field {
+      padding: 10px 12px;
+      background: rgba(241, 245, 249, 0.8);
+      border: 1px dashed var(--profile-surface-border, #d1d5db);
+      border-radius: 8px;
+      font-size: 0.85rem;
+      color: #475569;
+      line-height: 1.4;
+      display: flex;
+      align-items: center;
+    }
+    .color-slot input[type="text"] {
+      width: 7ch;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--profile-surface-border, #e5e7eb);
+      font: inherit;
+      color: inherit;
+      background: rgba(249, 250, 251, 0.9);
+    }
+    .color-slot input[type="color"] {
+      width: 44px;
+      height: 30px;
+      border: none;
+      padding: 0;
+      background: transparent;
+      cursor: pointer;
+    }
+    .color-slot input[type="color"]::-webkit-color-swatch-wrapper {
+      padding: 0;
+      border-radius: 8px;
+    }
+    .color-slot input[type="color"]::-webkit-color-swatch {
+      border-radius: 8px;
+      border: 1px solid var(--profile-surface-border, #d1d5db);
+    }
+    .color-slot input[type="color"]::-moz-color-swatch {
+      border-radius: 8px;
+      border: 1px solid var(--profile-surface-border, #d1d5db);
+    }
+    .settings-actions {
+      display: flex;
+      justify-content: flex-start;
+    }
+    .settings-actions .btn {
+      padding-inline: 12px;
+    }
+    .form-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .form-status {
+      min-height: 1.4em;
+      font-size: 0.85rem;
+      color: #047857;
+    }
+    .form-status[data-status="error"] {
+      color: #b91c1c;
+    }
+    .form-status[data-status="info"] {
+      color: #0f172a;
+    }
+    .btn {
+      font: inherit;
+      border-radius: 8px;
+      border: 1px solid var(--profile-accent-border, rgba(15, 109, 143, 0.25));
+      background: var(--profile-accent-color, #0f6d8f);
+      color: var(--profile-accent-contrast, #ffffff);
+      padding: 8px 14px;
+      cursor: pointer;
+      transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+    }
+    .btn--inline {
+      padding-inline: 12px;
+      font-size: 0.95rem;
+    }
+    .btn:hover,
+    .btn:focus-visible {
+      background: var(--profile-accent-hover, #0c5974);
+      border-color: var(--profile-accent-border-strong, rgba(15, 109, 143, 0.35));
+      outline: none;
+    }
+    .btn--secondary {
+      background: transparent;
+      color: var(--profile-accent-color, #0f6d8f);
+    }
+    .btn--secondary:hover,
+    .btn--secondary:focus-visible {
+      background: rgba(15, 109, 143, 0.08);
+    }
+    @media (max-width: 720px) {
+      .settings-card {
+        padding: 20px;
+      }
+      .color-row {
+        flex-wrap: wrap;
+      }
+      .color-pair-row {
+        grid-template-columns: 1fr;
+      }
+      .color-pair-row--header {
+        display: none;
+      }
+      .color-slot {
+        width: 100%;
+        grid-template-columns: minmax(90px, auto) max-content 48px;
+        gap: 8px;
+        padding: 10px 12px;
+        border-left: none !important;
+      }
+      .color-slot + .color-slot {
+        border-top: 1px solid var(--profile-surface-border, #e5e7eb);
+      }
+      .color-slot input[type="color"] {
+        width: 40px;
+        height: 28px;
+      }
+      .color-table[data-group-id="graftegner"] {
+        grid-template-columns: 1fr;
+      }
+      .color-table[data-group-id="fellesfarger"] {
+        grid-template-columns: 1fr;
+      }
+      .color-table[data-group-id="nkant"] {
+        grid-template-columns: 1fr;
+      }
+      .color-triple-row {
+        grid-template-columns: 1fr;
+      }
+      .color-triple-row--header {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main id="main-content" role="main" class="wrap">
+    <div class="grid settings-layout">
+      <div class="settings-page">
+        <section class="settings-card">
+          <h1>Fargeinnstillinger</h1>
+          <form data-settings-form>
+            <div class="color-section">
+              <div class="color-groups" data-color-groups></div>
+            </div>
+            <p class="form-status" data-status aria-live="polite"></p>
+          </form>
+        </section>
+        <section class="settings-card" aria-labelledby="settings-archive-title">
+          <h2 class="project-heading" id="settings-archive-title">Arkiv og database</h2>
+          <p>
+            Her kan du åpne slettede figurer eller nullstille lokale data hvis noe har blitt korrupt.
+          </p>
+          <div class="form-actions">
+            <button class="btn btn--secondary" type="button" data-view-deleted>
+              Vis slettede figurer
+            </button>
+            <button class="btn" type="button" data-reset-database>
+              Slett database
+            </button>
+          </div>
+          <p class="form-status" data-actions-status aria-live="polite"></p>
+        </section>
+      </div>
+    </div>
+  </main>
+  <script defer src="/palette/palette-config.js"></script>
+  <script defer src="/theme/palette.js"></script>
+  <script defer src="/theme-profiles.js"></script>
+  <script src="/task-core.js"></script>
+  <script>window.MATH_VISUALS_EXAMPLES_API_URL = '/api/examples';</script>
+  <script defer src="/palette/palette-normalize.js"></script>
+  <script defer src="/examples.js"></script>
+  <script defer src="/settings.js"></script>
+</body>
+</html>

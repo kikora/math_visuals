@@ -1,0 +1,29 @@
+{
+  "name": "@math-visuals/core",
+  "version": "0.1.0",
+  "description": "Core contract and runtime utilities for Math Visuals applications.",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "scripts": {
+    "build": "rollup -c"
+  },
+  "keywords": [
+    "math",
+    "visuals",
+    "runtime",
+    "contract"
+  ],
+  "author": "",
+  "license": "MIT"
+}

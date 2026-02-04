@@ -1,0 +1,731 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Graftegner</title>
+
+  <link rel="stylesheet" href="vendor/cdn/jsxgraph/jsxgraph.css">
+  <link rel="stylesheet" href="vendor/cdn/katex/katex.min.css" />
+  <link rel="stylesheet" href="vendor/cdn/mathlive/mathlive-static.css" />
+
+  <link rel="stylesheet" href="base.css" />
+
+  <script defer src="vendor/cdn/katex/katex.min.js"></script>
+
+
+<style>
+    :root { --sidebar-width: 420px; }
+    body[data-app="graftegner"]{
+      --gap:12px;
+      --surface-bg:#fff;
+      padding:12px;
+    }
+    body[data-app="graftegner"] .card{
+      padding:12px;
+      gap:8px;
+    }
+    html { scroll-behavior: smooth; }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+    }
+    .figure{
+      background:#fff;
+      overflow:hidden;
+      border:none;
+      box-shadow:none;
+      display:flex;
+      justify-content:stretch;
+      align-items:stretch;
+      width:min(800px, 100%);
+      max-width:800px;
+      height:min(800px, 100vmin);
+      max-height:800px;
+      min-height:240px;
+      resize:vertical;
+    }
+    .figure .jxgbox{ border:0 !important; box-shadow:none; }
+    #board{
+      width:100%;
+      height:100%;
+      background:#fff;
+      border:none !important;
+      box-shadow:none !important;
+    }
+    .graf-axis-label{
+      --graf-axis-label-text:#0f172a;
+      --graf-axis-label-font-size:15px;
+      display:inline-block;
+      color:var(--graf-axis-label-text);
+      font-size:var(--graf-axis-label-font-size);
+      font-weight:600;
+      line-height:1.1;
+      letter-spacing:.01em;
+      white-space:nowrap;
+    }
+    .graf-axis-label .katex{
+      color:var(--graf-axis-label-text);
+      font-size:var(--graf-axis-label-font-size);
+      font-weight:600;
+    }
+    .graf-axis-label__var{ font-style:italic; }
+    .graf-axis-label__sep,
+    .graf-axis-label__unit{ font-style:normal; }
+    .graf-axis-label--x{
+      display:inline-block;
+      transform:translate(0, 0);
+    }
+    .graf-axis-label--y{
+      display:inline-block;
+      transform:translate(0, 0);
+    }
+    .toolbar{ gap:10px; justify-content:flex-start; }
+    #toolbar{ justify-content:space-between; }
+    .btn{ padding:8px 14px; }
+    .mobile-nav{ display:none; gap:12px; margin-top:12px; flex-wrap:wrap; }
+    .mobile-nav .btn{ flex:1 1 160px; text-align:center; text-decoration:none; display:flex; justify-content:center; align-items:center; }
+    .mobile-nav .btn:link,
+    .mobile-nav .btn:visited{ color:inherit; }
+    .sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+    .checkbar{ display:flex; flex-direction:column; gap:10px; align-items:flex-start; }
+    .status{ padding:6px 10px; border-radius:10px; font-weight:600; border:1px solid transparent; }
+    .status--success{ color:#065f46; background:#ecfdf5; border-color:#a7f3d0; }
+    .status--error{ color:#b91c1c; background:#fef2f2; border-color:#fecaca; }
+    .status--info{ color:#1f2937; background:#f3f4f6; border-color:#e5e7eb; }
+    .settings{ display:flex; flex-direction:column; gap:8px; }
+    .settings label{ white-space:normal; }
+    .settings input[type="text"], .settings input[type="number"], .settings select{ width:100%; }
+    .function-controls{ display:flex; flex-direction:column; gap:16px; align-items:stretch; }
+    .func-actions{ display:flex; gap:12px; align-items:center; justify-content:space-between; }
+    .func-actions .btn{ flex:1; min-height:42px; }
+    .func-actions .addFigureBtn{ flex:0 0 auto; }
+    @media (max-width:600px){
+      .func-actions{ flex-direction:column; align-items:stretch; }
+      .func-actions .addFigureBtn{ align-self:center; }
+    }
+    .func-groups{ display:flex; flex-direction:column; gap:12px; width:100%; }
+    .func-group{ display:flex; align-items:flex-start; gap:12px; }
+    .func-group fieldset{ flex:1 1 auto; margin:0; }
+    .func-group .func-fields{
+      display:grid;
+      gap:12px;
+      grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+      align-items:start;
+    }
+    .func-group .func-fields label{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      width:100%;
+    }
+    .func-group .func-fields label.func-color{
+      width:auto;
+    }
+    .func-row--main,
+    .func-row--secondary,
+    .func-row--domain{
+      display:grid;
+      gap:12px;
+      align-items:start;
+    }
+    .func-row--main{
+      grid-template-columns:minmax(0,1fr) auto;
+    }
+    .func-row--secondary{
+      grid-template-columns:repeat(2,minmax(0,1fr));
+    }
+    .func-row--domain{
+      grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    }
+    .func-main{
+      display:flex;
+      gap:12px;
+      align-items:stretch;
+    }
+    @media (min-width:981px){
+      body[data-app="graftegner"]{ overflow:hidden; }
+      body[data-app="graftegner"] .wrap{ height:calc(100vh - 24px); }
+      body[data-app="graftegner"] .layout--sidebar{ height:100%; }
+      body[data-app="graftegner"] .layout--sidebar > .side{
+        max-height:100%;
+        overflow-y:auto;
+        padding-right:4px;
+      }
+      body[data-app="graftegner"] .layout--sidebar > .card{
+        position:sticky;
+        top:var(--gap);
+      }
+    }
+    .func-row--markers{
+      display:flex;
+      gap:12px;
+      align-items:flex-end;
+      flex-wrap:wrap;
+    }
+    .func-row--markers label{
+      min-width:0;
+    }
+    .func-row--markers .point-marker,
+    .func-row--markers .point-lock{
+      flex:1 1 200px;
+    }
+    .func-row--secondary .startx-label{
+      max-width:12ch;
+    }
+    .func-row--secondary .startx-label input{
+      width:100%;
+      min-width:0;
+    }
+    .func-color input[type="color"]{
+      width:40px;
+      height:40px;
+      min-height:40px;
+      padding:0;
+      border-radius:8px;
+      border:1px solid #d1d5db;
+      background:#fff;
+      cursor:pointer;
+    }
+    .func-color input[type="color"]:focus,
+    .func-color input[type="color"]:focus-visible{
+      outline:none;
+      border-color:#6366f1;
+      box-shadow:0 0 0 3px rgba(99,102,241,.15);
+    }
+    .func-color input[type="color"]::-webkit-color-swatch-wrapper{
+      padding:0;
+      border-radius:8px;
+    }
+    .func-color input[type="color"]::-webkit-color-swatch{
+      border:none;
+      border-radius:8px;
+    }
+    .func-color input[type="color"]::-moz-color-swatch{
+      border:none;
+      border-radius:8px;
+    }
+    .func-color select[data-color]{
+      --func-color-swatch:#fff;
+      min-width:120px;
+      padding:10px 12px 10px 48px;
+      border-radius:8px;
+      border:1px solid #d1d5db;
+      background:linear-gradient(90deg, var(--func-color-swatch) 0 38px, #fff 38px 100%);
+      background-repeat:no-repeat;
+      color:#0f172a;
+      font-weight:600;
+    }
+    .func-color .func-color-picker{
+      display:flex;
+      gap:10px;
+      align-items:center;
+    }
+    .func-color .color-option{
+      position:relative;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .func-color .color-option input[type="radio"]{
+      position:absolute;
+      inset:0;
+      opacity:0;
+      margin:0;
+      cursor:pointer;
+    }
+    .func-color .color-swatch{
+      --swatch-color:#fff;
+      width:38px;
+      height:38px;
+      border-radius:50%;
+      background:var(--swatch-color);
+      border:2px solid #e5e7eb;
+      box-shadow:0 3px 6px rgba(15,23,42,.16);
+      transition:transform .08s ease, box-shadow .08s ease, border-color .08s ease;
+      display:inline-flex;
+    }
+    .func-color .color-option:hover .color-swatch{
+      box-shadow:0 4px 8px rgba(15,23,42,.2);
+      transform:translateY(-1px);
+    }
+    .func-color .color-option input[type="radio"]:focus-visible + .color-swatch{
+      outline:3px solid rgba(99,102,241,.45);
+      outline-offset:2px;
+    }
+    .func-color .color-option input[type="radio"]:checked + .color-swatch{
+      border-color:#111827;
+      box-shadow:0 0 0 3px rgba(15,23,42,.15), 0 4px 10px rgba(15,23,42,.22);
+      transform:translateY(-1px);
+    }
+    .func-color select[data-color]:focus,
+    .func-color select[data-color]:focus-visible{
+      outline:none;
+      border-color:#6366f1;
+      box-shadow:0 0 0 3px rgba(99,102,241,.15);
+    }
+    .func-color select[data-color] option{
+      --option-color:transparent;
+      color:#0f172a;
+      font-size:14px;
+      font-weight:600;
+      min-height:34px;
+      padding:12px 10px 12px 44px;
+      background:linear-gradient(90deg, var(--option-color) 0 32px, #fff 32px 100%);
+      background-repeat:no-repeat;
+      text-shadow:0 1px 2px rgba(255,255,255,.65);
+    }
+    .func-color-compact{
+      position:relative;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      width:40px;
+      height:40px;
+    }
+    .color-swatch--active{
+      width:32px;
+      height:32px;
+      border-radius:50%;
+      border:2px solid #fff;
+      --swatch-outer-ring:0 0 0 1px #d1d5db;
+      cursor:pointer;
+      padding:0;
+      transition:transform 0.1s;
+    }
+    .color-swatch--active:hover{
+      transform:scale(1.1);
+      --swatch-outer-ring:0 0 0 1px #9ca3af;
+    }
+    .color-options{
+      position:absolute;
+      top:100%;
+      left:50%;
+      transform:translateX(-50%);
+      background:white;
+      border:1px solid #e5e7eb;
+      border-radius:99px;
+      padding:8px;
+      display:grid;
+      grid-template-columns: repeat(var(--color-options-columns, 3), 1fr);
+      gap:8px;
+      box-shadow:0 4px 15px rgba(0,0,0,0.15);
+      z-index:100;
+      margin-top:8px;
+    }
+    .color-options::before{
+      content:'';
+      position:absolute;
+      top:-6px;
+      left:50%;
+      margin-left:-6px;
+      border-width:6px;
+      border-style:solid;
+      border-color:transparent transparent #fff transparent;
+    }
+    .color-option-btn{
+      width:24px;
+      height:24px;
+      border-radius:50%;
+      border:0;
+      background:transparent;
+      cursor:pointer;
+      padding:0;
+      transition:transform 0.1s;
+    }
+    .color-option-btn:hover{
+      transform:scale(1.2);
+    }
+    .color-option-btn.is-selected{
+      --swatch-outer-ring:0 0 0 2px #6366f1;
+    }
+    .color-options[hidden]{
+      display:none !important;
+    }
+    @media (max-width:900px){
+      .func-row--main{ grid-template-columns:1fr; }
+    }
+    .func-main .func-input{
+      flex:1 1 auto;
+      min-width:0;
+    }
+    .func-input .func-editor{
+      position:relative;
+      display:block;
+      min-height:44px;
+    }
+    .func-preview{
+      position:absolute;
+      inset:0;
+      display:none;
+      padding:8px 10px;
+      border-radius:10px;
+      font-size:15px;
+      line-height:1.4;
+      color:#111827;
+      word-break:break-word;
+      overflow:auto;
+      pointer-events:none;
+      box-sizing:border-box;
+      background:#fff;
+      z-index:0;
+    }
+    .func-editor[data-preview-layout="below"]{
+      display:flex;
+      flex-direction:column;
+      align-items:stretch;
+    }
+    .func-editor[data-preview-layout="below"] .func-preview{
+      position:static;
+      inset:auto;
+      display:none;
+      margin-top:6px;
+      padding:0;
+      background:transparent;
+      pointer-events:none;
+      z-index:auto;
+    }
+    .func-preview--latex{
+      font-family:"KaTeX_Main","Times New Roman",Times,serif;
+    }
+    .func-preview--text{
+      font-family:inherit;
+      font-size:15px;
+    }
+    .func-preview.func-preview--empty{
+      display:none;
+    }
+    .func-editor[data-editor-mode="edit"] .func-preview{
+      display:none;
+    }
+    .func-editor[data-editor-mode="preview"] .func-math-field,
+    .func-editor[data-editor-mode="preview"] input.func-math-field{
+      display:none;
+    }
+    .func-editor[data-editor-mode="preview"] .func-preview{
+      position:static;
+      display:block;
+      border:1px solid #d1d5db;
+      border-radius:10px;
+      padding:8px 10px;
+      min-height:44px;
+      background:#fff;
+      box-sizing:border-box;
+      pointer-events:auto;
+      cursor:text;
+      transition:border-color .15s ease, box-shadow .15s ease;
+    }
+    .func-editor[data-editor-mode="preview"] .func-preview:focus,
+    .func-editor[data-editor-mode="preview"] .func-preview:focus-visible{
+      outline:none;
+      border-color:#6366f1;
+      box-shadow:0 0 0 3px rgba(99,102,241,.15);
+    }
+    .func-editor[data-editor-mode="preview"][data-preview-layout="below"] .func-preview{
+      position:static;
+      border:0;
+      border-radius:0;
+      padding:0;
+      margin-top:6px;
+      background:transparent;
+      cursor:pointer;
+      box-shadow:none;
+    }
+    .func-editor[data-editor-mode="preview"][data-preview-layout="below"] .func-preview:focus,
+    .func-editor[data-editor-mode="preview"][data-preview-layout="below"] .func-preview:focus-visible{
+      border:0;
+      box-shadow:none;
+    }
+    .curve-label{
+      white-space:nowrap;
+    }
+    .func-math-field{
+      display:block;
+      width:100%;
+      min-height:44px;
+      border:1px solid #d1d5db;
+      border-radius:10px;
+      padding:8px 10px;
+      font-size:15px;
+      line-height:1.4;
+      color:var(--text-color);
+      background:#fff;
+      box-sizing:border-box;
+      transition:border-color .15s ease, box-shadow .15s ease;
+      --caret-color:var(--text-color);
+      --selection-color:var(--text-color);
+      --contains-highlight-color:var(--text-color);
+      --selection-background-color:rgba(99,102,241,.12);
+      --text-highlight-background-color:rgba(99,102,241,.12);
+      --contains-highlight-background-color:rgba(99,102,241,.12);
+    }
+    .func-math-field:focus,
+    .func-math-field:focus-within{
+      outline:none;
+      border-color:#6366f1;
+      box-shadow:0 0 0 3px rgba(99,102,241,.15);
+    }
+    .func-math-field::part(menu-toggle),
+    .func-math-field::part(virtual-keyboard-toggle){
+      display:none;
+    }
+    .func-fields--first{
+      grid-template-columns:1fr;
+      gap:16px;
+    }
+    .func-fields--first .func-row:not(.func-row--color):not(.func-row--main){
+      display:grid;
+      gap:12px;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      align-items:start;
+    }
+    .func-fields--first .func-row label,
+    .func-group .func-fields label{ min-width:0; }
+    .func-fields--first .func-row label.func-color{
+      width:auto;
+    }
+    .func-row--main label,
+    .func-row--gliders label{ width:100%; }
+    .func-fields--first .func-row label{ width:100%; }
+    .func-row--gliders label{ justify-self:start; }
+    .func-row--gliders{
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+    .func-row--gliders label.points{
+      width:100%;
+    }
+    .func-row--gliders .linepoints-row{
+      display:flex;
+      gap:12px;
+      flex-wrap:wrap;
+      align-items:flex-end;
+    }
+    .func-row--gliders .linepoints-row label.linepoint{
+      flex:1 1 120px;
+      max-width:100%;
+    }
+    .func-row--gliders label.points select{
+      width:100%;
+    }
+    .func-row--gliders label.linepoint input{
+      width:100%;
+      max-width:140px;
+    }
+    .func-answer--inline{
+      width:100%;
+    }
+    .func-answer--glider{
+      min-width:0;
+      width:100%;
+      max-width:none;
+    }
+    @media (max-width:900px), (any-pointer:coarse) {
+      .mobile-nav{ display:flex; }
+    }
+    #examplesCard,
+    #settingsCard{ scroll-margin-top:24px; }
+    @media (max-width:680px){
+      .function-controls{ align-items:stretch; }
+      .func-group{ flex-direction:column; }
+      .func-group .func-fields{ grid-template-columns:1fr; }
+      .func-fields--first .func-row:not(.func-row--color),
+      .func-row--secondary{ grid-template-columns:1fr; }
+      .func-main{ flex-direction:column; align-items:stretch; }
+      .func-row--gliders{ align-items:stretch; }
+      .func-row--domain{ grid-template-columns:1fr; }
+    }
+    .addFigureBtn{ width:clamp(36px,8vw,56px); aspect-ratio:1; border:2px dashed #cfcfcf; border-radius:10px; background:#fff; display:flex; align-items:center; justify-content:center; font-size:20px; color:#6b7280; cursor:pointer; transition:box-shadow .2s, transform .02s; }
+    .addFigureBtn:hover{ box-shadow:0 2px 8px rgba(0,0,0,.06); }
+    .addFigureBtn:active{ transform:translateY(1px); }
+    .settings fieldset{ border:1px solid #e5e7eb; border-radius:12px; padding:16px; background:#fafbfc; }
+    .settings fieldset legend{ padding:0 6px; font-size:12px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:#6b7280; }
+    .settings-group{ display:flex; flex-direction:column; gap:16px; }
+    .input-label{ gap:6px; white-space:normal; }
+    .input-label span{ font-size:12px; font-weight:600; letter-spacing:.01em; text-transform:uppercase; color:#374151; }
+    #cfgScreen.is-auto{ color:#9ca3af; }
+    .options-grid{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 12px; align-items:start; width:100%; }
+    .options-grid .checkbox-inline{ width:100%; }
+    @media (max-width:720px){
+      .options-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+    }
+    .settings label.checkbox-inline{ flex-direction:row; align-items:center; gap:8px; font-size:13px; color:#4b5563; padding:4px 6px; border-radius:6px; }
+    .settings label.checkbox-inline input{ margin:0; }
+    .settings label.checkbox-inline span{ flex:1; }
+    .axis-font-grid{ display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); align-items:start; }
+    .axis-group{ display:flex; flex-direction:column; gap:8px; }
+    .axis-title{ font-size:12px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:#6b7280; }
+    .axis-inputs{ display:flex; gap:12px; flex-wrap:wrap; }
+    .axis-inputs label{ flex-direction:row; align-items:center; gap:6px; color:#4b5563; font-size:13px; }
+    .axis-inputs label span{ font-size:12px; font-weight:600; letter-spacing:.02em; text-transform:uppercase; color:#374151; }
+    .axis-inputs label input{ width:90px; }
+    .axis-inputs--font{ gap:10px; }
+    .axis-inputs--font label{ flex:1 1 160px; }
+    .axis-inputs--font select{ flex:1; min-width:0; padding:6px 10px; }
+
+  </style>
+  <link rel="stylesheet" href="split.css" />
+</head>
+<body data-layout="app" data-app="graftegner">
+  <main id="main-content" role="main" class="wrap">
+    <div class="grid layout--sidebar">
+      <div class="card">
+        <h1 class="sr-only">Graftegner</h1>
+        <div class="figure">
+          <div id="board" aria-label="JSXGraph-tavle"></div>
+        </div>
+        
+        <div class="mobile-nav" aria-label="Hurtignavigasjon">
+          <a class="btn" href="#examplesCard">Gå til eksempler</a>
+          <a class="btn" href="#settingsCard">Gå til innstillinger</a>
+        </div>
+        </div>
+
+      <div class="side">
+        <div class="card card--examples" id="examplesCard">
+          <div
+            data-task-text-description
+            data-task-text-label="Oppgavetekst"
+            data-task-text-label-style="font-weight:600; margin-bottom:4px;"
+            data-task-text-placeholder="Skriv oppgavetekst her..."
+            data-task-text-check-host="check-area"
+          ></div>
+          <div class="toolbar">
+            <button id="btnUpdateExample" class="btn" type="button">Oppdater</button>
+            <button id="btnSaveExample" class="btn" type="button">Lag nytt</button>
+            <button id="btnSvg" class="btn" type="button">Eksporter PNG</button>
+          </div>
+        </div>
+
+        <div class="card card--settings" id="settingsCard">
+          <div class="settings">
+            <div class="function-controls">
+              <div id="funcRows" class="func-groups"></div>
+              <div class="func-actions">
+                <button id="addFunc" class="addFigureBtn" type="button" aria-label="Legg til funksjon" data-edit-only>+</button>
+              </div>
+            </div>
+            <fieldset>
+              <legend>Koordinatsystem</legend>
+              <div class="settings-group">
+                <label class="input-label">
+                  <span>Utsnitt</span>
+                  <input id="cfgScreen" type="text" value="-5,5,-5,5" placeholder="minX, maxX, minY, maxY">
+                </label>
+                <div class="options-grid" role="group" aria-label="Koordinatsystemalternativer">
+                  <label class="checkbox-inline">
+                    <input id="cfgShowNames" type="checkbox" checked>
+                    <span>vis navn</span>
+                  </label>
+                  <label class="checkbox-inline">
+                    <input id="cfgShowExpr" type="checkbox">
+                    <span>vis uttrykk</span>
+                  </label>
+                  <label class="checkbox-inline">
+                    <input id="cfgQ1" type="checkbox">
+                    <span>Kun 1. kvadrant</span>
+                  </label>
+                  <label class="checkbox-inline">
+                    <input id="cfgLock" type="checkbox" checked>
+                    <span>Lås aksene 1:1</span>
+                  </label>
+                  <label class="checkbox-inline">
+                    <input id="cfgSnap" type="checkbox" checked>
+                    <span>Fest punkter til rutenett</span>
+                  </label>
+                  <label class="checkbox-inline">
+                    <input id="cfgShowPointArrows" type="checkbox" checked>
+                    <span>Vis piler</span>
+                  </label>
+                  <label class="checkbox-inline">
+                    <input id="cfgShowPointCoords" type="checkbox" checked>
+                    <span>Vis koordinater</span>
+                  </label>
+                  <label class="checkbox-inline">
+                    <input id="cfgShowAxisNumbers" type="checkbox" checked>
+                    <span>Vis tall på aksene</span>
+                  </label>
+                  <label class="checkbox-inline">
+                    <input id="cfgShowGrid" type="checkbox" checked>
+                    <span>Vis ruter</span>
+                  </label>
+                  <label class="checkbox-inline">
+                    <input id="cfgForceTicks" type="checkbox" checked>
+                    <span>Tving 1, 2, 3 på akser</span>
+                  </label>
+                </div>
+                <div class="axis-font-grid">
+                  <div class="axis-group">
+                    <div class="axis-title">Navn på akser</div>
+                    <div class="axis-inputs">
+                      <label>
+                        <span>x</span>
+                        <input id="cfgAxisX" type="text" value="x">
+                      </label>
+                      <label>
+                        <span>y</span>
+                        <input id="cfgAxisY" type="text" value="y">
+                      </label>
+                    </div>
+                  </div>
+                  <div class="axis-group">
+                    <div class="axis-title">Skriftstørrelse</div>
+                    <div class="axis-inputs axis-inputs--font">
+                      <label>
+                        <span>størrelse</span>
+                        <select id="cfgFontSize">
+                          <option value="large">24 px (Stor)</option>
+                          <option value="medium" selected>20 px (Medium)</option>
+                          <option value="small">16 px (Liten)</option>
+                          <option value="custom">Tilpasset</option>
+                        </select>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </fieldset>
+          </div>
+        </div>
+
+        <div class="card card--export" id="exportCard" data-edit-only>
+          <h2>Eksporter</h2>
+          <div class="alt-text" data-edit-only>
+            <label for="altText">Alternativ tekst</label>
+            <textarea id="altText" rows="4" placeholder="Teksten genereres automatisk og kan endres ved behov."></textarea>
+            <div class="alt-text__footer">
+              <button id="btnRegenerateAltText" class="btn" type="button">Generer på nytt</button>
+              <span id="altTextStatus" class="alt-text__status" role="status" aria-live="polite"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="vendor/cdn/jsxgraph/jsxgraphcore.js"></script>
+  <script defer src="vendor/cdn/mathlive/mathlive.min.js"></script>
+  <script defer src="mathlive-offline-setup.js"></script>
+  <script src="palette/palette-config.js"></script>
+  <script src="palette/palette-resolver.js"></script>
+  <script src="theme/palette.js"></script>
+  <script src="palette/group-palette.js"></script>
+  <script src="palette/palette-service-client.js"></script>
+  <script src="theme-profiles.js"></script>
+  <script src="alt-text-ui.js"></script>
+  <script src="svg-export-helper.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script defer src="task-api.js"></script>
+  <script src="app-mode.js"></script>
+  <script defer src="colorpicker-helper.js"></script>
+  <script defer src="ui/colorpicker/adapter.js"></script>
+  <script defer src="ui/colorpicker/index.js"></script>
+  <script defer src="graftegner.js"></script>
+  <script src="task-core.js"></script>
+  <script>window.MATH_VISUALS_EXAMPLES_API_URL = '/api/examples';</script>
+  <script defer src="palette/palette-normalize.js"></script>
+  <script defer src="examples.js"></script>
+  <script src="split.js"></script>
+
+</body>
+</html>

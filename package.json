@@ -1,0 +1,51 @@
+{
+  "name": "math_visuals",
+  "version": "1.0.0",
+  "description": "",
+  "main": "arealmodell0.js",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "materialize-vendor": "node scripts/materialize-vendor.mjs",
+    "verify-vendor": "node scripts/materialize-vendor.mjs --check",
+    "prestart": "node scripts/materialize-vendor.mjs",
+    "pretest": "node scripts/materialize-vendor.mjs && node scripts/ensure-playwright-deps.js",
+    "build": "node scripts/materialize-vendor.mjs && npm run build:figures && npm run build:packages && node scripts/create-public.js",
+    "build:figures": "node scripts/build-figure-manifests.mjs",
+    "build:packages": "npm run build --workspaces --if-present",
+    "test": "node tests/check-shared-styles.js && node tests/unit/svg-archive-normalize.test.js && node tests/unit/api-runtime-stage-routing.test.js && node tests/unit/api-runtime-route-registration.test.js && node tests/unit/seed-figure-library.test.mjs && node tests/unit/cloudshell-verify.test.js && node scripts/run-playwright.js test",
+    "test:packages": "npm run test --workspaces --if-present",
+    "check-examples-api": "node scripts/check-examples-api.mjs",
+    "seed-examples": "node scripts/seed-examples.mjs",
+    "sync-svg-archive": "node scripts/sync-svg-archive.js",
+    "migrate-figure-library-assets": "node scripts/migrate-figure-library-assets.js",
+    "package-api-lambda": "bash scripts/package-api-lambda.sh",
+    "start": "npx http-server -c-1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "private": true,
+  "devDependencies": {
+    "@babel/cli": "^7.28.3",
+    "@babel/core": "^7.28.4",
+    "@babel/plugin-transform-nullish-coalescing-operator": "^7.27.1",
+    "@babel/plugin-transform-optional-chaining": "^7.27.1",
+    "@playwright/test": "^1.42.0",
+    "@rollup/plugin-commonjs": "^25.0.8",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "http-server": "^14.1.1",
+    "jsxgraph": "^1.12.0",
+    "katex": "^0.16.23",
+    "mathlive": "^0.107.1",
+    "pngjs": "^7.0.0",
+    "rollup": "^4.17.2"
+  },
+  "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.596.0",
+    "@aws-sdk/client-ssm": "^3.596.0",
+    "ioredis": "^5.8.2"
+  }
+}

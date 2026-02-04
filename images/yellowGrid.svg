@@ -1,0 +1,12 @@
+<svg width="51" height="51" viewBox="0 0 51 51" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<circle cx="25.6667" cy="25.762" r="23.9762" fill="#F7E611"/>
+<circle cx="25.6667" cy="25.762" r="23.9762" fill="url(#pattern0_1585_407)"/>
+<circle cx="25.6667" cy="25.762" r="23.9762" stroke="#DB9225" stroke-width="2.52381"/>
+<path opacity="0.8" d="M33.6661 25.5238C38.2155 25.5238 41.9036 21.8358 41.9036 17.2863C41.9036 12.7369 38.2155 9.04883 33.6661 9.04883C29.1166 9.04883 25.4286 12.7369 25.4286 17.2863C25.4286 21.8358 29.1166 25.5238 33.6661 25.5238Z" fill="#FDFAD7"/>
+<defs>
+<pattern id="pattern0_1585_407" patternContentUnits="objectBoundingBox" width="0.225" height="0.225">
+<use xlink:href="#image0_1585_407" transform="scale(0.0140625)"/>
+</pattern>
+<image id="image0_1585_407" width="16" height="16" preserveAspectRatio="none" xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAACXBIWXMAABYlAAAWJQFJUiTwAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAA1SURBVHgB7ZKxEQAABAPFLtYzjPUMwwYUGud8m9wXucBNggpEHVXONOQFGwToCt1PfsQTggQqYQawAs/P+AAAAABJRU5ErkJggg=="/>
+</defs>
+</svg>

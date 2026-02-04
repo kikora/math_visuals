@@ -1,0 +1,34 @@
+{
+  "outputRoot": "vendor/cdn",
+  "packages": {
+    "katex": {
+      "baseDir": "node_modules/katex/dist",
+      "files": [
+        "katex.min.css",
+        "katex.min.js"
+      ],
+      "inlineFonts": {
+        "directory": "fonts",
+        "targetCss": "katex.min.css"
+      }
+    },
+    "jsxgraph": {
+      "baseDir": "node_modules/jsxgraph/distrib",
+      "files": [
+        "jsxgraph.css",
+        "jsxgraphcore.js"
+      ]
+    },
+    "mathlive": {
+      "baseDir": "node_modules/mathlive",
+      "files": [
+        "mathlive.min.js",
+        "mathlive-static.css"
+      ],
+      "inlineFonts": {
+        "directory": "fonts",
+        "targetCss": "mathlive-static.css"
+      }
+    }
+  }
+}

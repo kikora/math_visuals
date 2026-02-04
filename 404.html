@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="/base.css" />
+  <title>Math Visuals</title>
+  <style>
+    :root {
+      color-scheme: light;
+    }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: var(--surface-bg);
+      color: var(--text-color);
+      display: grid;
+      place-items: center;
+      min-height: 100vh;
+      padding: 20px;
+      text-align: center;
+    }
+    main {
+      max-width: 480px;
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 18px 45px rgba(15, 109, 143, 0.12);
+      padding: 32px 28px;
+      border: 1px solid rgba(15, 109, 143, 0.16);
+    }
+    h1 {
+      margin: 0 0 12px;
+      font-size: clamp(1.5rem, 4vw, 2rem);
+    }
+    p {
+      margin: 0;
+      font-size: 1rem;
+      line-height: 1.5;
+      color: #1f2937;
+    }
+  </style>
+</head>
+<body>
+  <main id="main-content" role="main" class="wrap">
+    <div class="grid" id="status">
+      <h1>Fant ikke siden</h1>
+      <p>Prøver å åpne Math Visuals-appen …</p>
+    </div>
+  </main>
+  <script>
+    (function() {
+      if (typeof window === 'undefined' || typeof document === 'undefined') {
+        return;
+      }
+
+      const statusElement = document.getElementById('status');
+      const path = typeof window.location.pathname === 'string' ? window.location.pathname : '';
+      if (!path || path === '/' || path === '/index.html') {
+        return;
+      }
+      if (path.startsWith('/api/')) {
+        return;
+      }
+      if (/\.[^/]+$/.test(path)) {
+        return;
+      }
+
+      const isGithubHost = /github\.io$/i.test(window.location.hostname);
+      const repoBaseMatch = isGithubHost ? window.location.pathname.match(/^(.*?\/math_visuals\/)/i) : null;
+      const baseHref = isGithubHost && repoBaseMatch ? repoBaseMatch[1] : (isGithubHost ? '/math_visuals/' : '/');
+
+      const rewriteHtml = html => {
+        if (typeof html !== 'string' || !html) {
+          return null;
+        }
+        const baseTag = `<base href="${baseHref}">`;
+        if (html.includes('<base ')) {
+          return html;
+        }
+        return html.replace('<head>', `<head>${baseTag}`);
+      };
+
+      fetch('/index.html', { credentials: 'same-origin' })
+        .then(response => {
+          if (!response || !response.ok) {
+            throw new Error('Failed to load index.html');
+          }
+          return response.text();
+        })
+        .then(html => {
+          const transformed = rewriteHtml(html);
+          if (!transformed) {
+            throw new Error('Received empty index.html');
+          }
+          document.open();
+          document.write(transformed);
+          document.close();
+        })
+        .catch(error => {
+          if (statusElement) {
+            statusElement.innerHTML = '';
+            const heading = document.createElement('h1');
+            heading.textContent = 'Fant ikke siden';
+            const paragraph = document.createElement('p');
+            paragraph.textContent = 'Vi klarte ikke å laste inn Math Visuals. Gå tilbake og prøv igjen.';
+            statusElement.appendChild(heading);
+            statusElement.appendChild(paragraph);
+          }
+          console.error('Math Visuals 404 fallback failed:', error);
+        });
+    })();
+  </script>
+</body>
+</html>

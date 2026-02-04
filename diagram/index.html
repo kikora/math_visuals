@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Interaktivt stolpediagram (UU)</title>
+  <link rel="stylesheet" href="/base.css" />
+  <link rel="stylesheet" href="/diagram.css" />
+  <link rel="stylesheet" href="/vendor/cdn/katex/katex.min.css" />
+
+  <style>
+    svg { touch-action: none; }
+  </style>
+  <link rel="stylesheet" href="/split.css" />
+
+</head>
+<body data-layout="app" class="app-layout">
+  <main id="main-content" role="main" class="wrap">
+    <div class="grid layout--sidebar">
+      <div class="card">
+        <h2 id="chartTitle">Skjermtid i 7A</h2>
+        <div class="figure">
+          <svg id="barsvg" viewBox="0 0 900 560" aria-label="Interaktivt stolpediagram"></svg>
+        </div>
+        <div class="toolbar">
+          <button id="btnReset" class="btn">Nullstill</button>
+          <button id="btnShow" class="btn">Vis fasit</button>
+        </div>
+        </div>
+
+      <div class="side">
+        <div id="taskPanel" class="card task-panel" hidden>
+          <h3>Oppgave</h3>
+          <textarea id="taskModeDescription" class="task-text-editable" placeholder="Klikk her for å skrive oppgavetekst..."></textarea>
+        </div>
+
+        <div class="card card--examples">
+          <div class="example-description">
+            <textarea id="exampleDescription" aria-label="Oppgavetekst (valgfritt)" placeholder="Skriv oppgavetekst her"></textarea>
+            <div class="task-check-host" data-task-check-host hidden>
+              <button id="btnCheck" class="btn btn--task-check" type="button">Sjekk svar</button>
+              <div id="status" class="status" role="status" aria-live="polite" hidden></div>
+            </div>
+          </div>
+          <div class="toolbar">
+            <button id="btnUpdateExample" class="btn" type="button">Oppdater</button>
+            <button id="btnSaveExample" class="btn" type="button">Lag nytt</button>
+            <button id="btnSvg" class="btn" type="button">Eksporter SVG</button>
+          </div>
+        </div>
+
+        <div class="card card--settings">
+          <div class="settings">
+          <fieldset>
+            <legend>Diagram</legend>
+            <label>Type
+              <select id="cfgType">
+                <option value="bar">Stolpe</option>
+                <option value="line">Linje</option>
+                <option value="grouped">Grupperte stolper</option>
+                <option value="stacked" selected>Stablede stolper</option>
+                <option value="pie">Sektordiagram</option>
+              </select>
+            </label>
+            <label id="cfgValueDisplayWrapper">Vis verdier
+              <select id="cfgValueDisplay">
+                <option value="none" selected>Ingen</option>
+                <option value="number">Tall</option>
+                <option value="fraction">Brøk</option>
+                <option value="percent">Prosent</option>
+              </select>
+            </label>
+            <label id="cfgPieLabelPositionWrapper" style="display:none">Plassering sektoretiketter
+              <select id="cfgPieLabelPosition">
+                <option value="outside" selected>Utside</option>
+                <option value="inside">Innside</option>
+              </select>
+            </label>
+            <label>Skriftstørrelse
+              <select id="cfgFontSize">
+                <option value="large">24 px (Stor)</option>
+                <option value="medium" selected>20 px (Medium)</option>
+                <option value="small">16 px (Liten)</option>
+              </select>
+            </label>
+            <label>Overskrift
+              <input id="cfgTitle" type="text" value="Skjermtid i 7A">
+            </label>
+            <div class="settings-row">
+              <label>Etiketter 
+                <input id="cfgLabels" type="text" value="1,2,3,4,5,6,7">
+              </label>
+              <label>Endre (skriv 1,0,1....)
+                <input id="cfgLocked" type="text" value="">
+              </label>
+            </div>
+            <div class="settings-row" id="cfgAxisAndRangeRow">
+              <label>Min y
+                <input id="cfgYMin" type="text" value="0">
+              </label>
+              <label>Maks y
+                <input id="cfgYMax" type="text" value="9">
+              </label>
+              <label>Navn x
+                <input id="cfgAxisXLabel" type="text" value="Timer per dag">
+              </label>
+              <label>Navn y
+                <input id="cfgAxisYLabel" type="text" value="Antall elever">
+              </label>
+            </div>
+            <div class="settings-row" id="cfgGridSettingsRow">
+              <label id="cfgGuidelinesLabel">Hjelpelinjer
+                <select id="cfgGuidelines">
+                  <option value="none">Vis ingen hjelpelinjer</option>
+                  <option value="vertical">Vis vertikale hjelpelinjer</option>
+                  <option value="horizontal" selected>Vis horisontale hjelpelinjer</option>
+                  <option value="both">Vis vertikale og horisontale hjelpelinjer</option>
+                </select>
+              </label>
+            </div>
+            <div class="settings-row">
+              <label>Steg (snap)
+                <input id="cfgSnap" type="text" value="1">
+              </label>
+              <label>Toleranse
+                <input id="cfgTolerance" type="text" value="0">
+              </label>
+            </div>
+          </fieldset>
+          <div class="series-settings">
+            <fieldset id="series1Fields">
+              <legend>Dataserie 1</legend>
+              <label>Serienavn
+                <input id="cfgSeries1" type="text" value="Gutter">
+              </label>
+              <label>Startverdier
+                <input id="cfgStart" type="text" value="2,5,4,2,3,1,0">
+              </label>
+              <label>Fasitverdier
+                <input id="cfgAnswer" type="text" value="2,5,4,2,3,1,0">
+              </label>
+              <label class="color-picker-label">Farge
+                <div class="color-picker" data-series-color-picker data-series-index="0">
+                  <button type="button" class="color-swatch color-swatch--active color-swatch--pair" aria-label="Velg farge for dataserie 1"></button>
+                  <div class="color-options" hidden></div>
+                  <input type="hidden" data-series-color-input>
+                </div>
+              </label>
+            </fieldset>
+            <fieldset id="series2Fields" style="display:none">
+              <legend>Dataserie 2</legend>
+              <label>Serienavn
+                <input id="cfgSeries2" type="text" value="Jenter">
+              </label>
+              <label>Startverdier
+                <input id="cfgStart2" type="text" value="2,3,3,1,1,1,0">
+              </label>
+              <label>Fasitverdier
+                <input id="cfgAnswer2" type="text" value="2,3,3,1,1,1,0">
+              </label>
+              <label class="color-picker-label">Farge
+                <div class="color-picker" data-series-color-picker data-series-index="1">
+                  <button type="button" class="color-swatch color-swatch--active color-swatch--pair" aria-label="Velg farge for dataserie 2"></button>
+                  <div class="color-options" hidden></div>
+                  <input type="hidden" data-series-color-input>
+                </div>
+              </label>
+            </fieldset>
+            <div class="series-settings__controls" data-edit-only>
+              <button id="addSeries" class="addFigureBtn" type="button" aria-label="Legg til dataserie">+</button>
+              <button id="removeSeries" class="addFigureBtn" type="button" aria-label="Fjern dataserie" style="display:none">&minus;</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card card--export" data-edit-only>
+          <h2>Eksporter</h2>
+          <div class="alt-text" data-edit-only>
+            <label for="altText">Alternativ tekst</label>
+            <textarea id="altText" rows="4" placeholder="Teksten genereres automatisk og kan endres ved behov."></textarea>
+            <div class="alt-text__footer">
+              <button id="btnRegenerateAltText" class="btn" type="button">Generer på nytt</button>
+              <span id="altTextStatus" class="alt-text__status" role="status" aria-live="polite"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script defer src="/vendor/cdn/katex/katex.min.js"></script>
+  <script defer src="/svg-export-helper.js"></script>
+  <script defer src="/palette/palette-config.js"></script>
+  <script defer src="/palette/palette-resolver.js"></script>
+  <script defer src="/theme/palette.js"></script>
+  <script defer src="/theme-profiles.js"></script>
+  <script defer src="/task-api.js"></script>
+  <script defer src="/task-text.js"></script>
+  <script defer src="/colorpicker-helper.js"></script>
+  <script defer src="/ui/colorpicker/adapter.js"></script>
+  <script defer src="/ui/colorpicker/index.js"></script>
+  <script defer src="/diagram.js"></script>
+  <script>window.MATH_VISUALS_EXAMPLES_API_URL = '/api/examples';</script>
+  <script defer src="/examples.js"></script>
+  <script defer src="/split.js"></script>
+
+</body>
+</html>

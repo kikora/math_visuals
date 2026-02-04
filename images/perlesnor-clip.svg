@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 200">
+  <defs>
+    <linearGradient id="clipGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffe5be" />
+      <stop offset="35%" stop-color="#f5c88f" />
+      <stop offset="100%" stop-color="#d89a5f" />
+    </linearGradient>
+  </defs>
+  <path d="M0 0 L32 110 L39.2 200 L60.8 200 L68 110 L100 0 L59.9 70 L40.1 70 Z"
+        fill="url(#clipGradient)" stroke="#b7783a" stroke-width="6" stroke-linejoin="round" />
+</svg>

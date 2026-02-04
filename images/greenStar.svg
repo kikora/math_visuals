@@ -1,0 +1,13 @@
+<svg width="51" height="50" viewBox="0 0 51 50" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<path d="M34.1423 24.9999C38.6917 24.9999 42.3798 21.3118 42.3798 16.7624C42.3798 12.213 38.6917 8.5249 34.1423 8.5249C29.5928 8.5249 25.9048 12.213 25.9048 16.7624C25.9048 21.3118 29.5928 24.9999 34.1423 24.9999Z" fill="#C5E0C8"/>
+<circle cx="25.9048" cy="25" r="23.7381" fill="#639549"/>
+<circle cx="25.9048" cy="25" r="23.7381" fill="url(#pattern0_1585_413)"/>
+<circle cx="25.9048" cy="25" r="23.7381" stroke="#20451D" stroke-width="2.52381"/>
+<path opacity="0.8" d="M34.1423 25.225C38.6917 25.225 42.3798 21.5369 42.3798 16.9875C42.3798 12.4381 38.6917 8.75 34.1423 8.75C29.5928 8.75 25.9048 12.4381 25.9048 16.9875C25.9048 21.5369 29.5928 25.225 34.1423 25.225Z" fill="#C5E0C8"/>
+<defs>
+<pattern id="pattern0_1585_413" patternContentUnits="objectBoundingBox" width="0.580476" height="0.580476">
+<use xlink:href="#image0_1585_413" transform="scale(0.0120933)"/>
+</pattern>
+<image id="image0_1585_413" width="48" height="48" preserveAspectRatio="none" xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAACXBIWXMAABYlAAAWJQFJUiTwAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAEhSURBVHgB7ZhrCsIwEIQ36jEUcpQK9VzivQRzlIIeQ4lNakrtKwltk/0xH/RBN4WdmSaBEkUgy2MhS1kQIw5Ro4W4En3MnSIm7EIHGvfriz04pRAsoHHf3X+uxIQgAR33HWxSCEug6377jEcKXgEj7jtYpOBPYMz9tpY/BTFVsM43zRc0jyK9v1X3SlEGBgIiGu+TRUgrYEHjfZIKESs23ieJkPCNLBat69Obtmb9T0hrVZ9r51+KErDeJE7cuGP5MpqpcYfwDZCX04OmRGhS1f15poz4J7HWt+nifqaWBq+A36ehBgXrfp7dt0vYMjqaQn73DUECBikwcd8QvpH9pcDD/WjMiiRLuyqxIe6vhE0h7hUAAAAAAAAAAAAAALbgCzPUbO6Ox0ZRAAAAAElFTkSuQmCC"/>
+</defs>
+</svg>

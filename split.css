@@ -1,0 +1,480 @@
+.grid.split-enabled {
+  --side-max: 420px;
+  gap: 0 !important;
+  grid-template-columns: minmax(
+      var(--side-min, 200px),
+      min(var(--side-width, var(--side-max, 420px)), var(--side-max, 420px))
+    )
+    var(--gap)
+    minmax(0, 1fr) !important;
+  grid-template-areas: "side splitter main";
+}
+.grid.split-enabled > .splitter {
+  grid-area: splitter;
+  width: var(--gap);
+  cursor: col-resize;
+  position: relative;
+  user-select: none;
+  touch-action: none;
+  align-self: stretch;
+  min-height: 100%;
+}
+.grid.split-enabled > .splitter::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(50% - 3px);
+  width: 6px;
+  background: #e5e7eb;
+  border-radius: 3px;
+}
+.grid.split-enabled > .side {
+  grid-area: side;
+  min-width: 0;
+}
+.grid.split-enabled > :not(.splitter):not(.side) {
+  grid-area: main;
+  min-width: 0;
+}
+body.app-layout .grid.split-enabled {
+  height: 100%;
+}
+body.app-layout .grid.split-enabled > .side {
+  max-height: 100%;
+  overflow-y: auto;
+}
+body.app-layout .grid.split-enabled > :not(.side):not(.splitter) {
+  position: sticky;
+  top: var(--gap);
+}
+@media (max-width:980px){
+  .grid.split-enabled {
+    grid-template-columns: 1fr !important;
+    grid-template-areas:
+      "main"
+      "side";
+    gap: var(--gap) !important;
+  }
+  .grid.split-enabled > .side,
+  .grid.split-enabled > :not(.splitter):not(.side) {
+    grid-area: auto;
+  }
+  .grid.split-enabled > .splitter {
+    display: none;
+  }
+}
+
+body[data-app-mode="task"] .grid.split-enabled {
+  --side-max: 360px;
+  grid-template-columns: minmax(
+        var(--side-min, 200px),
+        min(var(--side-width, var(--side-max, 420px)), var(--side-max, 420px))
+      )
+      minmax(0, 1fr) !important;
+  grid-template-areas: "side main";
+  gap: var(--gap) !important;
+  padding: var(--gap);
+  background: #fff;
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+body[data-app-mode="task"] .grid.split-enabled > .splitter {
+  display: none !important;
+}
+
+body[data-app-mode="task"] .grid.split-enabled > .splitter::before {
+  background: #fff;
+}
+
+@media (max-width: 980px) {
+  body[data-app-mode="task"] .grid.split-enabled {
+    grid-template-columns: 1fr !important;
+    grid-template-areas:
+      "main"
+      "side";
+  }
+}
+
+/* Shared styling for settings panels */
+.card--settings fieldset,
+.card[data-card="settings"] fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px;
+  margin: 0;
+}
+
+.card--settings legend,
+.card[data-card="settings"] legend {
+  font-weight: 600;
+  font-size: 13px;
+  color: #374151;
+  padding: 0 4px;
+}
+
+.card--settings label,
+.card[data-card="settings"] label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: #4b5563;
+}
+
+.card--settings label.checkbox,
+.card--settings label.chk,
+.card--settings label.toggleLabel,
+.card[data-card="settings"] label.checkbox,
+.card[data-card="settings"] label.chk,
+.card[data-card="settings"] label.toggleLabel {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.card--settings label.checkbox input,
+.card[data-card="settings"] label.checkbox input {
+  order: -1;
+}
+
+.card--settings .settings-divider,
+.card[data-card="settings"] .settings-divider {
+  height: 10px;
+}
+
+.card--settings input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+.card--settings select,
+.card--settings textarea,
+.card[data-card="settings"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+.card[data-card="settings"] select,
+.card[data-card="settings"] textarea {
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 14px;
+  background: #fff;
+  color: #111827;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.card--settings textarea,
+.card[data-card="settings"] textarea {
+  resize: vertical;
+  min-height: 72px;
+}
+
+.card--examples {
+  gap: 14px;
+}
+
+.card--examples .example-description {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: #4b5563;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.card--examples .example-description-preview {
+  display: block;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #111827;
+  background: #fff;
+  overflow-x: auto;
+  margin-top: 4px;
+}
+
+.card--examples .example-description-preview[hidden] {
+  display: none;
+}
+
+.card--examples .example-description-preview[data-empty="true"] {
+  display: none;
+}
+
+.card--examples .example-description-preview[data-empty="true"][data-placeholder="true"] {
+  display: inline-flex;
+}
+
+.card--examples .example-description-preview[data-placeholder="true"] {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px dashed #c7d2fe;
+  border-radius: 10px;
+  background: #eef2ff;
+  color: #1e3a8a;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.card--examples .example-description-preview .katex {
+  display: inline-block;
+  font-size: 1.05em;
+}
+
+.card--examples .example-description-preview .katex-display {
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.card--examples .example-description-preview p {
+  margin: 0 0 10px;
+}
+
+.card--examples .example-description-preview p:last-child {
+  margin-bottom: 0;
+}
+
+.card--examples .example-description-preview table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0;
+}
+
+.card--examples .example-description-preview th,
+.card--examples .example-description-preview td {
+  border: 1px solid #d1d5db;
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.card--examples .example-description-preview th {
+  background: #f1f5f9;
+  font-weight: 600;
+}
+
+.card--examples .example-description-preview .math-vis-answerbox {
+  margin: 4px 4px 4px 0;
+}
+
+
+.card--examples .example-description label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card--examples .example-description label::after {
+  content: '';
+  display: none;
+}
+
+.card--examples .example-description textarea {
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #111827;
+  background: #fff;
+  resize: vertical;
+  min-height: 72px;
+}
+
+.card--examples .example-description.example-description--collapsed {
+  gap: 0;
+  padding: 10px;
+  border: 1px dashed #c7d2fe;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.card--examples .example-description.example-description--collapsed label::after {
+  display: none;
+}
+
+.card--examples .example-description.example-description--collapsed textarea {
+  min-height: 0;
+  height: 1px;
+  padding: 0;
+  margin: 0;
+  border-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  resize: none;
+}
+
+/* ==========================================================================
+   MODUS-STYRING: Redigeringsmodus vs. Oppgavemodus (globalt)
+   ========================================================================== */
+
+body:not([data-app-mode="task"]) .card--examples .example-description {
+  display: none;
+}
+
+body[data-app-mode="task"] .side {
+  display: flex !important;
+}
+
+body[data-app-mode="task"] .side .task-panel {
+  display: none !important;
+}
+
+body[data-app-mode="task"] .card--settings,
+body[data-app-mode="task"] #exportCard,
+body[data-app-mode="task"] .card--export,
+body[data-app-mode="task"] [data-export-button] {
+  display: none !important;
+}
+
+body[data-app-mode="task"] .card--examples {
+  display: flex !important;
+  background: #fff !important;
+  border: 1px solid #e5e7eb !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+  padding: 14px !important;
+}
+
+body[data-app-mode="task"] .card--examples .example-description {
+  display: flex !important;
+  flex-direction: column;
+  gap: 10px;
+}
+
+body[data-app-mode="task"] .card--examples .example-description label {
+  position: static !important;
+  width: auto !important;
+  height: auto !important;
+  padding: 0 !important;
+  margin: 0 0 4px !important;
+  overflow: visible !important;
+  clip: auto !important;
+  white-space: normal !important;
+  border: 0 !important;
+}
+
+body[data-app-mode="task"] .card--examples .example-description textarea {
+  display: block !important;
+  min-height: 400px;
+  font-size: 16px;
+  line-height: 1.5;
+  padding: 12px;
+  background: #fafbfc;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+}
+
+body[data-app-mode="task"] .card--examples .toolbar {
+  display: flex !important;
+}
+
+body[data-app-mode="task"] #checkArea,
+body[data-app-mode="task"] [data-task-check-host] {
+  display: none !important;
+}
+
+.math-vis-description-rendered {
+  display: block;
+}
+
+.math-vis-answerbox {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid #c7d2fe;
+  background: #e0e7ff;
+  color: #1e3a8a;
+  font-size: 0.95em;
+  vertical-align: middle;
+}
+
+.math-vis-answerbox--input {
+  padding: 0;
+  border: none;
+  background: none;
+  gap: 4px;
+}
+
+.math-vis-answerbox + .math-vis-answerbox {
+  margin-left: 6px;
+}
+
+.math-vis-answerbox__prompt {
+  font-weight: 600;
+  color: inherit;
+}
+
+.math-vis-answerbox__input-wrap {
+  display: inline-flex;
+  align-items: center;
+}
+
+.math-vis-answerbox__input {
+  border: 1px solid #c7d2fe;
+  border-radius: 8px;
+  padding: 4px 8px;
+  min-width: 72px;
+  font: inherit;
+  color: #111827;
+  background: #fff;
+}
+
+.math-vis-answerbox--input .math-vis-answerbox__input {
+  min-width: 0;
+}
+
+.math-vis-answerbox__input:focus {
+  outline: 2px solid #6366f1;
+  outline-offset: 1px;
+}
+
+.math-vis-answerbox__status {
+  display: inline-flex;
+  align-items: center;
+  min-width: 1.5em;
+  font-size: 0.85em;
+  color: #4338ca;
+}
+
+.math-vis-answerbox--input .math-vis-answerbox__status {
+  min-width: 0;
+}
+
+.math-vis-answerbox--correct {
+  border-color: #34d399;
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.math-vis-answerbox--correct .math-vis-answerbox__status {
+  color: #047857;
+}
+
+.math-vis-answerbox--incorrect {
+  border-color: #fb923c;
+  background: #fff7ed;
+  color: #b45309;
+}
+
+.math-vis-answerbox--incorrect .math-vis-answerbox__status {
+  color: #c2410c;
+}
+
+.math-vis-answerbox--empty .math-vis-answerbox__status {
+  color: #6b7280;
+}
+
+.card--settings input[type="checkbox"],
+.card--settings input[type="radio"],
+.card[data-card="settings"] input[type="checkbox"],
+.card[data-card="settings"] input[type="radio"] {
+  accent-color: #3b82f6;
+}

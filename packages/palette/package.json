@@ -1,0 +1,33 @@
+{
+  "name": "@math-visuals/palette",
+  "version": "0.1.0",
+  "description": "Palette configuration, fallbacks and service helpers for Math Visuals applications.",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "src/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "types": "./src/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "src/index.d.ts"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "scripts": {
+    "build": "rollup -c",
+    "test": "node --test __tests__/palette-service.test.js"
+  },
+  "keywords": [
+    "math",
+    "visuals",
+    "palette",
+    "theme"
+  ],
+  "author": "",
+  "license": "MIT"
+}

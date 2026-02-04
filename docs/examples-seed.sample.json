@@ -1,0 +1,206 @@
+{
+  "entries": [
+    {
+      "path": "/diagram",
+      "examples": [
+        {
+          "description": "Eksempel på søylediagram",
+          "exampleNumber": "1",
+          "isDefault": true,
+          "config": {
+            "diagram": {
+              "title": "Bøker lest per måned",
+              "categories": ["Jan", "Feb", "Mar"],
+              "series": [
+                {
+                  "name": "6. trinn",
+                  "values": [12, 15, 11]
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "deletedProvided": []
+    },
+    {
+      "path": "/perlesnor",
+      "examples": [
+        {
+          "description": "Tallinje for repetisjon",
+          "exampleNumber": "2",
+          "config": {
+            "pearls": {
+              "min": 0,
+              "max": 20,
+              "highlight": [5, 10, 15]
+            }
+          }
+        }
+      ],
+      "deletedProvided": [
+        {
+          "description": "Utgått øvelse",
+          "exampleNumber": "old-1"
+        }
+      ]
+    },
+    {
+      "path": "/nkant",
+      "examples": [
+        {
+          "description": "Rettvinklet trekant med standardetiketter",
+          "exampleNumber": "1",
+          "config": {
+            "STATE": {
+              "v": 1,
+              "view": {
+                "layoutMode": "row"
+              },
+              "opt": {
+                "layout": "row"
+              },
+              "figures": [
+                {
+                  "spec": "a=5, b=5, B=90",
+                  "anchor": {
+                    "row": 0,
+                    "col": 0
+                  }
+                }
+              ],
+              "desc": {
+                "text": "Rettvinklet trekant med like kateter og markert B-vinkel.",
+                "source": "manual"
+              }
+            }
+          }
+        },
+        {
+          "description": "Farget firkant med egendefinerte etiketter",
+          "exampleNumber": "2",
+          "config": {
+            "STATE": {
+              "v": 1,
+              "view": {
+                "layoutMode": "grid"
+              },
+              "opt": {
+                "rotateText": false,
+                "labels": {
+                  "fig1:A": {
+                    "dx": 6,
+                    "dy": -6,
+                    "rotation": -10
+                  }
+                }
+              },
+              "figures": [
+                {
+                  "spec": "a=4, b=4, c=6, d=6, A=90, C=90",
+                  "color": "#cc3366",
+                  "labels": {
+                    "sides": {
+                      "mode": {
+                        "a": "custom+value",
+                        "c": "custom"
+                      },
+                      "text": {
+                        "aText": "grunnlinje",
+                        "cText": "toppkant"
+                      }
+                    },
+                    "angles": {
+                      "mode": {
+                        "A": "custom+mark+value",
+                        "C": "mark"
+                      },
+                      "text": {
+                        "AText": "hjørne A",
+                        "CText": "høyre vinkel"
+                      }
+                    }
+                  },
+                  "anchor": {
+                    "row": 0,
+                    "col": 1
+                  }
+                }
+              ],
+              "desc": {
+                "text": "Firkant med egendefinerte side- og vinkelnavn samt flyttet A-etikett.",
+                "source": "manual"
+              }
+            }
+          }
+        },
+        {
+          "description": "To figurer i kolonne med egne farger",
+          "exampleNumber": "3",
+          "config": {
+            "STATE": {
+              "v": 1,
+              "view": {
+                "layoutMode": "col"
+              },
+              "opt": {
+                "layout": "col",
+                "defaults": {
+                  "sides": "custom+value",
+                  "angles": "custom+mark"
+                }
+              },
+              "figures": [
+                {
+                  "spec": "a=7, b=4, c=6, A=45, B=95",
+                  "color": "#0066ff",
+                  "anchor": {
+                    "row": 0,
+                    "col": 0
+                  }
+                },
+                {
+                  "spec": "a=5, b=5, c=5, d=5, A=60, B=120",
+                  "color": "#008866",
+                  "labels": {
+                    "angles": {
+                      "mode": {
+                        "A": "custom+mark+value",
+                        "B": "custom"
+                      },
+                      "text": {
+                        "AText": "spiss",
+                        "BText": "stump"
+                      }
+                    }
+                  },
+                  "anchor": {
+                    "row": 1,
+                    "col": 0
+                  }
+                }
+              ],
+              "desc": {
+                "text": "To fargelagte figurer stablet i kolonne med egendefinerte vinkelnavn nederst.",
+                "source": "manual"
+              }
+            }
+          }
+        }
+      ],
+      "deletedProvided": []
+    }
+  ],
+  "trash": [
+    {
+      "path": "/diagram",
+      "examples": [
+        {
+          "description": "Gammelt søylediagram",
+          "exampleNumber": "trash-1",
+          "config": {}
+        }
+      ]
+    }
+  ]
+}

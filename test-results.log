@@ -1,0 +1,2 @@
+INDEX 0 shape= circle parts= 3 division= horizontal allowWrong= False colorCount= 1
+INDEX 1 shape= triangle parts= 5 division= vertical allowWrong= True colorCount= 2

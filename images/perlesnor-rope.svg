@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 20">
+  <defs>
+    <linearGradient id="ropeGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f1d1ad" />
+      <stop offset="45%" stop-color="#ddb48b" />
+      <stop offset="55%" stop-color="#c89b72" />
+      <stop offset="100%" stop-color="#a87654" />
+    </linearGradient>
+  </defs>
+  <rect x="1" y="1" width="98" height="18" rx="9" ry="9"
+        fill="url(#ropeGradient)" stroke="#915f3a" stroke-width="1.2" />
+</svg>
