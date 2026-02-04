@@ -889,8 +889,8 @@ const fillColorPickerInstances = new WeakMap();
   let colorCount = stateColorCount || defaultColorCount;
   colorCount = PALETTE_SLOT_COUNT;
   STATE.colorCount = colorCount;
-  const MAX_ROWS = 3;
-  const MAX_COLS = 3;
+  const MAX_ROWS = 1;
+  const MAX_COLS = 1;
   const MIN_DIMENSION = 1;
   const figurePanels = new Map();
   const figureFieldsets = new Map();
@@ -2867,8 +2867,8 @@ const fillColorPickerInstances = new WeakMap();
         }
         for (let r = 1; r < m; r++) {
           createDivisionSegment(rows[r][0], rows[r][r], triangleDivisionOptions, false);
-          createDivisionSegment(rows[r][0], rows[m][r], triangleDivisionOptions, false);
-          createDivisionSegment(rows[r][r], rows[m][m - r], triangleDivisionOptions, false);
+          createDivisionSegment(rows[r][r], rows[m][r], triangleDivisionOptions, false);
+          createDivisionSegment(rows[r][0], rows[m][m - r], triangleDivisionOptions, false);
         }
         if (showOutlineGlobal) {
           board.create('polygon', [toEqTri([0, 1]), toEqTri([1, 1]), toEqTri([0.5, 0])], {

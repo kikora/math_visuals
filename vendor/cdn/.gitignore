@@ -1,8 +1,0 @@
-*
-!.gitignore
-!katex/
-!katex/**
-!jsxgraph/
-!jsxgraph/**
-!mathlive/
-!mathlive/**

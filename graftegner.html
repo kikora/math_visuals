@@ -16,24 +16,38 @@
 
 <style>
     :root { --sidebar-width: 420px; }
+    body[data-app="graftegner"]{
+      --gap:12px;
+      --surface-bg:#fff;
+      padding:12px;
+    }
+    body[data-app="graftegner"] .card{
+      padding:12px;
+      gap:8px;
+    }
     html { scroll-behavior: smooth; }
     @media (prefers-reduced-motion: reduce) {
       html { scroll-behavior: auto; }
     }
     .figure{
-      background:#fafbfc;
+      background:#fff;
       overflow:hidden;
       border:none;
       box-shadow:none;
       display:flex;
-      justify-content:center;
-      align-items:center;
+      justify-content:stretch;
+      align-items:stretch;
+      width:min(800px, 100%);
+      max-width:800px;
+      height:min(800px, 100vmin);
+      max-height:800px;
+      min-height:240px;
+      resize:vertical;
     }
     .figure .jxgbox{ border:0 !important; box-shadow:none; }
     #board{
-      width:min(800px, 100%, 100vmin);
-      aspect-ratio:1 / 1;
-      height:auto;
+      width:100%;
+      height:100%;
       background:#fff;
       border:none !important;
       box-shadow:none !important;
@@ -65,7 +79,7 @@
       display:inline-block;
       transform:translate(0, 0);
     }
-    .toolbar{ gap:12px; justify-content:flex-start; }
+    .toolbar{ gap:10px; justify-content:flex-start; }
     #toolbar{ justify-content:space-between; }
     .btn{ padding:8px 14px; }
     .mobile-nav{ display:none; gap:12px; margin-top:12px; flex-wrap:wrap; }
@@ -130,7 +144,7 @@
     }
     @media (min-width:981px){
       body[data-app="graftegner"]{ overflow:hidden; }
-      body[data-app="graftegner"] .wrap{ height:100vh; }
+      body[data-app="graftegner"] .wrap{ height:calc(100vh - 24px); }
       body[data-app="graftegner"] .layout--sidebar{ height:100%; }
       body[data-app="graftegner"] .layout--sidebar > .side{
         max-height:100%;
@@ -693,6 +707,7 @@
   <script defer src="vendor/cdn/mathlive/mathlive.min.js"></script>
   <script defer src="mathlive-offline-setup.js"></script>
   <script src="palette/palette-config.js"></script>
+  <script src="palette/palette-resolver.js"></script>
   <script src="theme/palette.js"></script>
   <script src="palette/group-palette.js"></script>
   <script src="palette/palette-service-client.js"></script>
