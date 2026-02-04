@@ -1,0 +1,480 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Math Visuals API – Lambda + HTTP API Gateway
+Transform: AWS::Serverless-2016-10-31
+
+Parameters:
+  LambdaCodeS3Bucket:
+    Type: String
+    Description: S3 bucket that stores the zipped Lambda artefact.
+  LambdaCodeS3Key:
+    Type: String
+    Description: Object key for the zipped Lambda artefact.
+  LambdaCodeS3ObjectVersion:
+    Type: String
+    Description: Optional version of the Lambda artefact object.
+    Default: ''
+  StageName:
+    Type: String
+    Default: prod
+    Description: Deployment stage name for the HTTP API.
+  ResolveNetworkFromParameters:
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: >-
+      When true, import values are treated as SSM parameter names and resolved via
+      dynamic references so the Lambda VPC config receives raw subnet and
+      security group IDs.
+  LambdaSecurityGroupIdOverride:
+    Type: String
+    Default: ''
+    Description: >-
+      Optional security group ID to attach to the Lambda instead of importing the
+      ID from the data stack. Useful when the VPC resources already exist and you
+      want to supply a known sg- identifier directly.
+  DataStackName:
+    Type: String
+    Default: math-visuals-data
+    Description: Name of the CloudFormation stack that exports Redis/VPC resources for the API.
+  SharedParametersStackName:
+    Type: String
+    Description: Name of the CloudFormation stack that exports shared parameter names.
+  AlarmTopicArn:
+    Type: String
+    Default: ''
+    Description: Optional SNS topic ARN (or PagerDuty HTTPS endpoint ARN) that should receive CloudWatch alarm notifications.
+  RedisKeyPrefix:
+    Type: String
+    Default: ''
+    Description: Optional Redis key prefix (e.g. "dev:") to namespace data in shared Redis.
+
+Globals:
+  Function:
+    Runtime: nodejs18.x
+    Timeout: 30
+    MemorySize: 256
+    Tracing: Active
+
+Resources:
+  ApiFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+      Policies:
+        - PolicyName: AllowSecretReads
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                  - secretsmanager:DescribeSecret
+                  - ssm:GetParameter
+                  - ssm:GetParameters
+                  - ssm:GetParametersByPath
+                Resource: '*'
+
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Aggregated Lambda handler that mounts existing /api routes via serverless-express.
+      Handler: index.handler
+      Role: !GetAtt ApiFunctionRole.Arn
+      CodeUri:
+        Bucket: !Ref LambdaCodeS3Bucket
+        Key: !Ref LambdaCodeS3Key
+        Version: !If
+          - HasLambdaCodeVersion
+          - !Ref LambdaCodeS3ObjectVersion
+          - !Ref AWS::NoValue
+      VpcConfig:
+        SecurityGroupIds:
+          - !If
+              - UseLambdaSecurityGroupOverride
+              - !Ref LambdaSecurityGroupIdOverride
+              - !If
+                  - UseNetworkParameterExports
+                  - !Sub
+                    - '{{resolve:ssm:${LambdaSecurityGroupIdParameterName}}}'
+                    - LambdaSecurityGroupIdParameterName: !ImportValue
+                        Fn::Sub: '${DataStackName}-LambdaSecurityGroupId'
+                  - !ImportValue
+                      Fn::Sub: '${DataStackName}-LambdaSecurityGroupId'
+        SubnetIds:
+          - !If
+              - UseNetworkParameterExports
+              - !Sub
+                - '{{resolve:ssm:${PrivateSubnet1IdParameterName}}}'
+                - PrivateSubnet1IdParameterName: !ImportValue
+                    Fn::Sub: '${DataStackName}-PrivateSubnet1Id'
+              - !ImportValue
+                  Fn::Sub: '${DataStackName}-PrivateSubnet1Id'
+          - !If
+              - UseNetworkParameterExports
+              - !Sub
+                - '{{resolve:ssm:${PrivateSubnet2IdParameterName}}}'
+                - PrivateSubnet2IdParameterName: !ImportValue
+                    Fn::Sub: '${DataStackName}-PrivateSubnet2Id'
+              - !ImportValue
+                  Fn::Sub: '${DataStackName}-PrivateSubnet2Id'
+      Environment:
+        Variables:
+          NODE_OPTIONS: --enable-source-maps
+          REDIS_ENDPOINT: !Sub
+            - '{{resolve:ssm:${RedisEndpointParameterName}}}'
+            - RedisEndpointParameterName: !ImportValue
+                Fn::Sub: '${DataStackName}-RedisEndpointParameterName'
+          REDIS_PORT: !Sub
+            - '{{resolve:ssm:${RedisPortParameterName}}}'
+            - RedisPortParameterName: !ImportValue
+                Fn::Sub: '${DataStackName}-RedisPortParameterName'
+          REDIS_PASSWORD: !Sub
+            - '{{resolve:secretsmanager:${RedisPasswordSecretName}:SecretString:vkPassword}}'
+            - RedisPasswordSecretName: !ImportValue
+                Fn::Sub: '${DataStackName}-RedisPasswordSecretName'
+          REDIS_USERNAME: !Sub
+            - '{{resolve:secretsmanager:${RedisPasswordSecretName}:SecretString:vkUser}}'
+            - RedisPasswordSecretName: !ImportValue
+                Fn::Sub: '${DataStackName}-RedisPasswordSecretName'
+          REDIS_KEY_PREFIX: !Ref RedisKeyPrefix
+          EXAMPLES_ALLOWED_ORIGINS: !Sub
+            - '{{resolve:ssm:${ExamplesAllowedOriginsParameterName}}}'
+            - ExamplesAllowedOriginsParameterName: !ImportValue
+                Fn::Sub: '${SharedParametersStackName}-ExamplesAllowedOriginsParameterName'
+          SVG_ALLOWED_ORIGINS: !Sub
+            - '{{resolve:ssm:${SvgAllowedOriginsParameterName}}}'
+            - SvgAllowedOriginsParameterName: !ImportValue
+                Fn::Sub: '${SharedParametersStackName}-SvgAllowedOriginsParameterName'
+
+  HttpApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: MathVisualsHttpApi
+      ProtocolType: HTTP
+      CorsConfiguration:
+        AllowCredentials: true
+        AllowHeaders:
+          - '*'
+        AllowMethods:
+          - '*'
+        AllowOrigins: !Split
+          - ','
+          - !Sub
+            - '{{resolve:ssm:${ExamplesAllowedOriginsParameterName}}}'
+            - ExamplesAllowedOriginsParameterName: !ImportValue
+                Fn::Sub: '${SharedParametersStackName}-ExamplesAllowedOriginsParameterName'
+        ExposeHeaders:
+          - Access-Control-Allow-Origin
+          - Access-Control-Allow-Headers
+          - Access-Control-Allow-Methods
+
+  HttpApiStage:
+    Type: AWS::ApiGatewayV2::Stage
+    DependsOn:
+      - HttpApiAccessLogGroup
+    Properties:
+      ApiId: !Ref HttpApi
+      StageName: !Ref StageName
+      AutoDeploy: true
+      AccessLogSettings:
+        DestinationArn: !GetAtt HttpApiAccessLogGroup.Arn
+        Format: |
+          {"requestId":"$context.requestId","status":$context.status,"integrationStatus":$context.integrationStatus,"routeKey":"$context.routeKey","requestTime":"$context.requestTime","domainName":"$context.domainName","path":"$context.path","responseLatency":$context.responseLatency,"errorMessage":"$context.error.message"}
+
+  LambdaIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ApiFunction.Arn}/invocations
+      PayloadFormatVersion: '2.0'
+      TimeoutInMillis: 30000
+
+  ApiRouteExamplesRoot:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: ANY /api/examples
+      Target: !Sub integrations/${LambdaIntegration}
+
+  ApiRouteExamplesProxy:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: ANY /api/examples/{proxy+}
+      Target: !Sub integrations/${LambdaIntegration}
+
+  ApiRouteSvgRaw:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: ANY /api/svg/raw
+      Target: !Sub integrations/${LambdaIntegration}
+
+  ApiRouteApiSvgRoot:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: ANY /api/svg
+      Target: !Sub integrations/${LambdaIntegration}
+
+  ApiRouteApiSvgProxy:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: ANY /api/svg/{proxy+}
+      Target: !Sub integrations/${LambdaIntegration}
+
+  ApiRouteFigureLibraryRaw:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: ANY /api/figure-library/raw
+      Target: !Sub integrations/${LambdaIntegration}
+
+  ApiRouteFigureLibraryRawProxy:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: ANY /api/figure-library/raw/{proxy+}
+      Target: !Sub integrations/${LambdaIntegration}
+
+  ApiRouteFigureLibraryRootApi:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: ANY /api/figure-library
+      Target: !Sub integrations/${LambdaIntegration}
+
+  ApiRouteFigureLibraryProxyApi:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: ANY /api/figure-library/{proxy+}
+      Target: !Sub integrations/${LambdaIntegration}
+
+  ApiRouteSettingsRoot:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: ANY /api/settings
+      Target: !Sub integrations/${LambdaIntegration}
+
+  ApiRouteSvgProxy:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: ANY /svg/{proxy+}
+      Target: !Sub integrations/${LambdaIntegration}
+
+  ApiRouteSvgRoot:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: ANY /svg
+      Target: !Sub integrations/${LambdaIntegration}
+
+  ApiRouteBildearkivProxy:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: ANY /bildearkiv/{proxy+}
+      Target: !Sub integrations/${LambdaIntegration}
+
+  ApiRouteBildearkivRoot:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: ANY /bildearkiv
+      Target: !Sub integrations/${LambdaIntegration}
+
+  ApiRouteFigureLibraryProxy:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: ANY /figure-library/{proxy+}
+      Target: !Sub integrations/${LambdaIntegration}
+
+  ApiRouteFigureLibraryRoot:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: ANY /figure-library
+      Target: !Sub integrations/${LambdaIntegration}
+
+  ApiFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${ApiFunction}
+      RetentionInDays: 30
+
+  HttpApiAccessLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/apigateway/${HttpApi}-access
+      RetentionInDays: 30
+
+  ApiAlarmTopic:
+    Condition: CreateDefaultAlarmTopic
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: MathVisualsApiAlerts
+      TopicName: !Sub math-visuals-api-alarms-${StageName}
+
+  RedisKvMissingMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref ApiFunctionLogGroup
+      FilterPattern: '"Redis KV is not configured"'
+      MetricTransformations:
+        - MetricValue: 1
+          MetricNamespace: MathVisuals/API
+          MetricName: RedisKvMissingCount
+
+  RedisWrongPassMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref ApiFunctionLogGroup
+      FilterPattern: '"WRONGPASS"'
+      MetricTransformations:
+        - MetricValue: 1
+          MetricNamespace: MathVisuals/API
+          MetricName: RedisWrongPassCount
+
+  RedisPingFailureMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref ApiFunctionLogGroup
+      FilterPattern: '"Redis PING" -"PONG"'
+      MetricTransformations:
+        - MetricValue: 1
+          MetricNamespace: MathVisuals/API
+          MetricName: RedisPingFailureCount
+
+  ApiGateway5xxMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref HttpApiAccessLogGroup
+      FilterPattern: '{ $.status >= 500 }'
+      MetricTransformations:
+        - MetricValue: 1
+          MetricNamespace: MathVisuals/API
+          MetricName: Api5xxCount
+
+  RedisKvMissingAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Detects Lambda logs that indicate Redis KV is missing configuration.
+      MetricName: RedisKvMissingCount
+      Namespace: MathVisuals/API
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: !If [UseProvidedAlarmTopic, [!Ref AlarmTopicArn], [!Ref ApiAlarmTopic]]
+
+  RedisWrongPassAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Detects Redis WRONGPASS authentication failures inside Lambda.
+      MetricName: RedisWrongPassCount
+      Namespace: MathVisuals/API
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: !If [UseProvidedAlarmTopic, [!Ref AlarmTopicArn], [!Ref ApiAlarmTopic]]
+
+  RedisPingFailureAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Detects Lambda log entries where Redis PING does not return PONG.
+      MetricName: RedisPingFailureCount
+      Namespace: MathVisuals/API
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: !If [UseProvidedAlarmTopic, [!Ref AlarmTopicArn], [!Ref ApiAlarmTopic]]
+
+  ApiGateway5xxAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Triggers when API Gateway access logs record HTTP 5xx responses.
+      MetricName: Api5xxCount
+      Namespace: MathVisuals/API
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: !If [UseProvidedAlarmTopic, [!Ref AlarmTopicArn], [!Ref ApiAlarmTopic]]
+
+  CloudshellRedisPingAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Fires if the CloudShell verification script publishes a failing Redis PING status.
+      Namespace: MathVisuals/Verification
+      MetricName: RedisPingStatus
+      Statistic: Minimum
+      Period: 300
+      EvaluationPeriods: 1
+      DatapointsToAlarm: 1
+      Threshold: 1
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: !If [UseProvidedAlarmTopic, [!Ref AlarmTopicArn], [!Ref ApiAlarmTopic]]
+
+  ApiFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ApiFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/*/*
+
+Conditions:
+  UseNetworkParameterExports: !Equals [!Ref ResolveNetworkFromParameters, 'true']
+  HasLambdaCodeVersion: !Not [!Equals [!Ref LambdaCodeS3ObjectVersion, '']]
+  UseProvidedAlarmTopic: !Not [!Equals [!Ref AlarmTopicArn, '']]
+  CreateDefaultAlarmTopic: !Equals [!Ref AlarmTopicArn, '']
+  UseLambdaSecurityGroupOverride: !Not [!Equals [!Ref LambdaSecurityGroupIdOverride, '']]
+
+Outputs:
+  ApiEndpoint:
+    Description: Invoke URL for the deployed HTTP API stage.
+    Value: !Sub https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}
+  ApiFunctionArn:
+    Description: ARN of the Lambda function that serves the API routes.
+    Value: !GetAtt ApiFunction.Arn
+  ApiFunctionLogGroupName:
+    Description: CloudWatch log group that stores Lambda logs for the API handler.
+    Value: !Ref ApiFunctionLogGroup
+  ApiAccessLogGroupName:
+    Description: CloudWatch log group that stores HTTP API access logs for 5xx detection.
+    Value: !Ref HttpApiAccessLogGroup
+  AlarmTopicDestinationArn:
+    Description: SNS topic/PagerDuty integration ARN used by CloudWatch alarms for Redis/auth/5xx failures.
+    Value: !If [UseProvidedAlarmTopic, !Ref AlarmTopicArn, !Ref ApiAlarmTopic]
