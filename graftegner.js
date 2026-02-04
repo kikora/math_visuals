@@ -172,6 +172,7 @@ const DEFAULT_GRAFTEGNER_LINE_ROLES = [
   { lineIndex: 14 },
   { lineIndex: 17 }
 ];
+const GRAFTEGNER_COLOR_PICKER_PALETTE = ['#155EEF', '#674D96', '#C14F30', '#B8325D', '#027A48', '#08616D'];
 const DEFAULT_FUNCTION_EXPRESSION = 'f(x)=x^2-2';
 const DEFAULT_SCREEN_BOUNDS = [-5, 5, -5, 5];
 
@@ -8589,6 +8590,9 @@ function setupSettingsForm() {
   };
   let functionColorOptions = [];
   const resolveFunctionColorOptions = () => {
+    if (GRAFTEGNER_COLOR_PICKER_PALETTE.length) {
+      return GRAFTEGNER_COLOR_PICKER_PALETTE.slice(0, FUNCTION_COLOR_OPTION_COUNT);
+    }
     const fullPalette = resolveGraftegnerFullPaletteForLineSlots();
     const linePalette = selectGraftegnerLineColors(fullPalette);
     const trimmedLinePalette = linePalette.slice(0, FUNCTION_COLOR_OPTION_COUNT);
