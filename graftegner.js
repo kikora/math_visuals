@@ -139,17 +139,14 @@ const settingsDerivedFallbacks =
   paletteFallbacks && paletteFallbacks.settingsDefaultDerived ? paletteFallbacks.settingsDefaultDerived : null;
 const settingsDefaultFallbacks =
   paletteFallbacks && Array.isArray(paletteFallbacks.settingsDefault) ? paletteFallbacks.settingsDefault : null;
-const GRAFTEGNER_COLOR_PICKER_PALETTE = (() => {
-  if (Array.isArray(settingsDefaultFallbacks) && settingsDefaultFallbacks.length >= 16) {
-    const derived = [0, 3, 6, 9, 12, 15]
-      .map(index => settingsDefaultFallbacks[index])
-      .filter(Boolean);
-    if (derived.length === 6) {
-      return derived;
-    }
-  }
-  return ['#DC6A4B', '#528BFF', '#4F9566', '#13A2B6', '#DC5D85', '#9780C0'];
-})();
+const GRAFTEGNER_COLOR_PICKER_PALETTE = [
+  '#155EEF',
+  '#674D96',
+  '#C14F30',
+  '#B8325D',
+  '#027A48',
+  '#08616D'
+];
 const GRAFTEGNER_FALLBACK_PALETTE = GRAFTEGNER_COLOR_PICKER_PALETTE.slice();
 const DEFAULT_LINE_THICKNESS = 3;
 const AUTO_SPAN_SAFETY_MULTIPLIER = 200;
