@@ -139,11 +139,18 @@ const settingsDerivedFallbacks =
   paletteFallbacks && paletteFallbacks.settingsDefaultDerived ? paletteFallbacks.settingsDefaultDerived : null;
 const settingsDefaultFallbacks =
   paletteFallbacks && Array.isArray(paletteFallbacks.settingsDefault) ? paletteFallbacks.settingsDefault : null;
-const GRAFTEGNER_FALLBACK_PALETTE = Array.isArray(settingsDerivedFallbacks && settingsDerivedFallbacks.graftegner)
-  ? settingsDerivedFallbacks.graftegner.slice()
-  : Array.isArray(settingsDefaultFallbacks)
-  ? settingsDefaultFallbacks.slice()
-  : [];
+const GRAFTEGNER_COLOR_PICKER_PALETTE = (() => {
+  if (Array.isArray(settingsDefaultFallbacks) && settingsDefaultFallbacks.length >= 16) {
+    const derived = [0, 3, 6, 9, 12, 15]
+      .map(index => settingsDefaultFallbacks[index])
+      .filter(Boolean);
+    if (derived.length === 6) {
+      return derived;
+    }
+  }
+  return ['#DC6A4B', '#528BFF', '#4F9566', '#13A2B6', '#DC5D85', '#9780C0'];
+})();
+const GRAFTEGNER_FALLBACK_PALETTE = GRAFTEGNER_COLOR_PICKER_PALETTE.slice();
 const DEFAULT_LINE_THICKNESS = 3;
 const AUTO_SPAN_SAFETY_MULTIPLIER = 200;
 const AUTO_SPAN_RECENTER_FACTOR = 1.25;
@@ -689,6 +696,10 @@ function resolveGraftegnerLineSlotPositions() {
 }
 
 function selectGraftegnerLineColors(palette) {
+  const fixedPalette = sanitizePaletteList(GRAFTEGNER_COLOR_PICKER_PALETTE);
+  if (fixedPalette.length) {
+    return fixedPalette.slice();
+  }
   const sanitized = sanitizePaletteList(palette);
   if (!sanitized.length) return [];
   const { positions, usePaletteOrder } = resolveGraftegnerLineSlotPositions();
@@ -716,6 +727,10 @@ function selectGraftegnerLineColors(palette) {
 }
 
 function resolveGraftegnerFullPaletteForLineSlots() {
+  const fixedPalette = sanitizePaletteList(GRAFTEGNER_COLOR_PICKER_PALETTE);
+  if (fixedPalette.length) {
+    return fixedPalette;
+  }
   const { positions } = resolveGraftegnerLineSlotPositions();
   const maxIndex = positions.length ? Math.max(...positions) : -1;
   const lineSlotCount = maxIndex + 1;
