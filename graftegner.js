@@ -8553,8 +8553,6 @@ function setupSettingsForm() {
   let pointLockEnabled = !(appState.simple.parsed && appState.simple.parsed.lockExtraPoints === false);
   ADV.points.lockExtraPoints = pointLockEnabled;
   const functionColorControls = [];
-  let answerControl = null;
-  const extraAnswerControls = [];
   const pruneControlsForExistingRows = () => {
     const rows = funcRows ? Array.from(funcRows.querySelectorAll('.func-group')) : [];
     if (!rows.length) return;
@@ -8570,7 +8568,6 @@ function setupSettingsForm() {
     };
     pruneList(pointMarkerControls);
     pruneList(functionColorControls);
-    pruneList(extraAnswerControls);
     [pointMarkerValues, pointLockStates].forEach(store => {
       Array.from(store.keys()).forEach(row => {
         if (!row || !rowSet.has(row)) {
@@ -9964,145 +9961,6 @@ function setupSettingsForm() {
     updateCheckbox(showPointArrowsInput);
     updateCheckbox(showPointCoordsInput);
   };
-  const updateExtraAnswerControl = control => {
-    if (!control || !control.label || !control.funInput) return;
-    const value = getFunctionInputValue(control.funInput);
-    const allow = !!value && isCoords(value) && !getPointLockValueForRow(control.row);
-    if (control.currentAllowed === allow) return;
-    control.currentAllowed = allow;
-    const { label, input } = control;
-    if (!allow) {
-      if (input) {
-        input.disabled = true;
-      }
-      label.style.display = 'none';
-      return;
-    }
-    if (input) {
-      input.disabled = false;
-    }
-    label.style.display = '';
-  };
-  const updateAllExtraAnswerControls = () => {
-    extraAnswerControls.forEach(updateExtraAnswerControl);
-  };
-  const registerExtraAnswerControl = (row, index, funInput, answerInput) => {
-    if (!row || !answerInput || !funInput || index === 1) return null;
-    const label = answerInput.closest('label.func-answer');
-    if (!label) return null;
-    const control = {
-      row,
-      index,
-      label,
-      funInput,
-      input: answerInput,
-      currentAllowed: null
-    };
-    extraAnswerControls.push(control);
-    updateExtraAnswerControl(control);
-    return control;
-  };
-  function placeAnswerField(position) {
-    if (!answerControl || !answerControl.label) return;
-    if (answerControl.currentPlacement === position) return;
-    const { label } = answerControl;
-    const group = label.closest('.func-group');
-    let { secondaryRow, mainRow } = answerControl;
-    if (!secondaryRow || !secondaryRow.isConnected) {
-      secondaryRow = group ? group.querySelector('.func-row--secondary') : null;
-      answerControl.secondaryRow = secondaryRow;
-    }
-    if (!mainRow || !mainRow.isConnected) {
-      mainRow = group ? group.querySelector('.func-row--main') : null;
-      answerControl.mainRow = mainRow;
-    }
-    let domainLabel = answerControl.domainLabel;
-    if (!domainLabel || !domainLabel.parentElement) {
-      domainLabel = group ? group.querySelector('label.domain') : null;
-      answerControl.domainLabel = domainLabel;
-    }
-    let gliderRow = answerControl.gliderRow;
-    if (!gliderRow || !gliderRow.parentElement) {
-      gliderRow = group ? group.querySelector('.glider-row') : null;
-      answerControl.gliderRow = gliderRow;
-    }
-    const answerInput = label.querySelector('input[data-answer]');
-    if (position === 'hidden') {
-      if (answerInput) {
-        answerInput.disabled = true;
-      }
-      label.classList.remove('func-answer--inline', 'func-answer--glider');
-      label.style.display = 'none';
-      if (secondaryRow) {
-        secondaryRow.style.display = 'none';
-        secondaryRow.appendChild(label);
-      } else if (mainRow) {
-        mainRow.appendChild(label);
-      }
-      answerControl.currentPlacement = position;
-      return;
-    }
-    if (answerInput) {
-      answerInput.disabled = false;
-    }
-    label.style.display = '';
-    const startLabel = gliderStartLabel && gliderStartLabel.isConnected ? gliderStartLabel : null;
-    if (secondaryRow) {
-      const shouldShowSecondary = position === 'secondary' || (startLabel && startLabel.style.display !== 'none');
-      secondaryRow.style.display = shouldShowSecondary ? '' : 'none';
-    }
-    if (position === 'inline') {
-      label.classList.add('func-answer--inline');
-      label.classList.remove('func-answer--glider');
-      if (domainLabel) {
-        domainLabel.after(label);
-      } else if (mainRow) {
-        mainRow.appendChild(label);
-      }
-    } else if (position === 'glider') {
-      label.classList.add('func-answer--glider');
-      label.classList.remove('func-answer--inline');
-      if (gliderRow) {
-        const colorLabel = gliderRow.querySelector('.func-color');
-        if (colorLabel) {
-          colorLabel.before(label);
-        } else {
-          gliderRow.appendChild(label);
-        }
-      }
-    } else {
-      label.classList.remove('func-answer--inline', 'func-answer--glider');
-      if (secondaryRow) {
-        secondaryRow.appendChild(label);
-      }
-    }
-    answerControl.currentPlacement = position;
-  }
-  function updateAnswerPlacement() {
-    if (!answerControl || !answerControl.label) return;
-    const firstValue = getFirstFunctionValue();
-    const firstRow = funcRows ? funcRows.querySelector('.func-group[data-index="1"]') : null;
-    if (firstValue && isCoords(firstValue) && getPointLockValueForRow(firstRow)) {
-      placeAnswerField('hidden');
-      return;
-    }
-    const gliderSectionVisible = gliderSection && gliderSection.style.display !== 'none';
-    if (gliderSectionVisible && getGliderCount() <= 0) {
-      placeAnswerField('hidden');
-      return;
-    }
-    const forced = determineForcedGliderCount(firstValue);
-    if (forced != null && forced > 0) {
-      placeAnswerField('inline');
-      return;
-    }
-    const glidersActive = shouldEnableGliders() && gliderSectionVisible;
-    if (glidersActive) {
-      placeAnswerField('glider');
-    } else {
-      placeAnswerField('secondary');
-    }
-  }
   const updateLinePointControls = (options = {}) => {
     const { silent = false } = options;
     if (!linePointSection) {
@@ -10168,9 +10026,6 @@ function setupSettingsForm() {
       updateSnapAvailability();
       return;
     }
-    if (answerControl) {
-      answerControl.gliderRow = gliderSection;
-    }
     const show = shouldEnableGliders();
     const visibilityChanged = show !== glidersVisible;
     glidersVisible = show;
@@ -10187,7 +10042,6 @@ function setupSettingsForm() {
       syncSimpleFromForm();
       scheduleSimpleRebuild();
     }
-    updateAnswerPlacement();
   };
   const buildSimpleFromForm = () => {
     var _rows$;
@@ -10197,7 +10051,6 @@ function setupSettingsForm() {
     const lineSpec = interpretLineTemplateFromExpression(firstVal);
     const neededLinePoints = getLinePointCount(lineSpec);
     const lines = [];
-    const answerLines = [];
     const markerExports = [];
     const lockExports = [];
     let hasPolylineCoords = false;
@@ -10205,20 +10058,11 @@ function setupSettingsForm() {
     rows.forEach((row, idx) => {
       const funInput = row.querySelector('[data-fun]');
       const domInput = row.querySelector('input[data-dom]');
-      const answerInput = row.querySelector('input[data-answer]');
       if (!funInput) return;
       const fun = getFunctionInputValue(funInput);
       if (!fun) return;
       const isCoordsRow = isCoords(fun);
       const rowLocked = isCoordsRow ? getPointLockValueForRow(row) : false;
-      const allowAnswer = isCoordsRow ? !rowLocked : true;
-      const rawAnswer = allowAnswer && answerInput && !answerInput.disabled && typeof answerInput.value === 'string'
-        ? answerInput.value.trim()
-        : '';
-      if (rawAnswer) {
-        const key = idx === 0 ? 'riktig' : `riktig${idx + 1}`;
-        answerLines.push(`${key}: ${rawAnswer}`);
-      }
       if (isCoordsRow) {
         const parsedPoints = parsePointListString(fun)
           .filter(pt => Array.isArray(pt) && pt.length === 2 && pt.every(Number.isFinite));
@@ -10326,11 +10170,6 @@ function setupSettingsForm() {
         lines.push('lockpoint=false');
       }
     }
-    answerLines.forEach(line => {
-      if (line) {
-        lines.push(line);
-      }
-    });
     return lines.join('\n');
   };
   const syncSimpleFromForm = () => {
@@ -10435,12 +10274,10 @@ function setupSettingsForm() {
   }
   const handleGliderCountInput = () => {
     updateStartInputState();
-    updateAnswerPlacement();
     scheduleSimpleFormChange();
   };
   const handleGliderCountCommit = () => {
     updateStartInputState();
-    updateAnswerPlacement();
     flushSimpleFormChange();
   };
   if (gliderCountInput) {
@@ -10475,9 +10312,8 @@ function setupSettingsForm() {
     }
     updateGliderVisibility();
     updateLinePointControls({ silent: true });
-    updateAnswerPlacement();
   };
-  const createRow = (index, funVal = '', domVal = '', colorVal = '', colorManual = false, answerVal = '', options = {}) => {
+  const createRow = (index, funVal = '', domVal = '', colorVal = '', colorManual = false, options = {}) => {
     const row = document.createElement('div');
     row.className = 'func-group';
     row.dataset.index = String(index);
@@ -10573,10 +10409,6 @@ function setupSettingsForm() {
           ${gliderMarkup}
           <div class="func-row func-row--secondary">
             ${startMarkup}
-            <label class="func-answer">
-              <span>Fasit</span>
-              <input type="text" data-answer placeholder="Skriv fasit (valgfritt)" autocomplete="off" spellcheck="false">
-            </label>
           </div>
         </div>
       </fieldset>
@@ -10639,8 +10471,6 @@ function setupSettingsForm() {
         const locked = !!lockCheckbox.checked;
         setPointLockValueForRow(row, locked);
         ADV.points.lockExtraPoints = locked;
-        updateAnswerPlacement();
-        updateAllExtraAnswerControls();
         syncSimpleFromForm();
         scheduleSimpleRebuild();
       };
@@ -10651,30 +10481,10 @@ function setupSettingsForm() {
       pointMarkerControls.push(markerControl);
     }
     let funInput = row.querySelector('[data-fun]');
-    const answerInput = row.querySelector('input[data-answer]');
-    if (answerInput) {
-      answerInput.value = answerVal || '';
-      const handleAnswerInput = () => {
-        scheduleSimpleFormChange();
-      };
-      const handleAnswerBlur = () => {
-        if (answerInput.value != null) {
-          const trimmed = answerInput.value.trim();
-          if (answerInput.value !== trimmed) {
-            answerInput.value = trimmed;
-          }
-        }
-        flushSimpleFormChange();
-      };
-      answerInput.addEventListener('input', handleAnswerInput);
-      answerInput.addEventListener('change', handleAnswerBlur);
-      answerInput.addEventListener('blur', handleAnswerBlur);
-    }
     funInput = ensureFunctionInputElement(funInput);
     const domInput = row.querySelector('input[data-dom]');
     if (funInput) {
       setFunctionInputValue(funInput, funVal || '');
-      const extraAnswerControl = registerExtraAnswerControl(row, index, funInput, answerInput);
       const beginEditing = () => {
         setFunctionEditorMode(funInput, 'edit');
         const focusInput = () => {
@@ -10725,9 +10535,6 @@ function setupSettingsForm() {
         updateLinePointControls();
         updatePointMarkerVisibility();
         updateFunctionLegend(row);
-        if (extraAnswerControl) {
-          updateExtraAnswerControl(extraAnswerControl);
-        }
       };
       const commitIfChanged = () => {
         runInputSideEffects();
@@ -10798,20 +10605,6 @@ function setupSettingsForm() {
       gliderCountInput = row.querySelector('[data-points]');
       gliderStartInput = row.querySelector('input[data-startx]');
       gliderStartLabel = gliderStartInput ? gliderStartInput.closest('label') : null;
-      const secondaryRow = row.querySelector('.func-row--secondary');
-      const mainRow = row.querySelector('.func-row--main');
-      const domainLabel = row.querySelector('.func-row--domain label.domain');
-      const answerLabel = secondaryRow ? secondaryRow.querySelector('label.func-answer') : null;
-      if (answerLabel) {
-        answerControl = {
-          label: answerLabel,
-          secondaryRow,
-          mainRow,
-          domainLabel,
-          gliderRow: gliderSection,
-          currentPlacement: null
-        };
-      }
       if (gliderCountInput) {
         gliderCountInput.addEventListener('input', handleGliderCountInput);
         gliderCountInput.addEventListener('change', handleGliderCountCommit);
@@ -10856,9 +10649,6 @@ function setupSettingsForm() {
       if (hiddenInput) {
         updateFunctionColorPicker(picker, hiddenInput, hiddenInput.value, getFunctionColorOptions());
       }
-    }
-    if (index === 1) {
-      updateAnswerPlacement();
     }
     updateFunctionActionButtons();
     return row;
@@ -11025,8 +10815,6 @@ function setupSettingsForm() {
       pointLockStates.clear();
       clearFunctionColorControls();
       pointMarkerValue = DEFAULT_POINT_MARKER;
-      answerControl = null;
-      extraAnswerControls.length = 0;
       funcRows.innerHTML = '';
     }
     const parsedRows = Array.isArray(appState.simple.parsed.rows) ? appState.simple.parsed.rows : [];
@@ -11100,7 +10888,6 @@ function setupSettingsForm() {
           }
         }
       }
-      const answerVal = Array.isArray(appState.simple.parsed.answers) ? appState.simple.parsed.answers[idx] || '' : '';
       const pointStart = rowSpec && Number.isFinite(rowSpec.pointStart) ? rowSpec.pointStart : 0;
       const inferredCount = parsePointListString(funVal)
         .filter(pt => Array.isArray(pt) && pt.length === 2 && pt.every(Number.isFinite)).length;
@@ -11114,7 +10901,7 @@ function setupSettingsForm() {
       const lockValForRow = rowSpec && rowSpec.type === 'coords'
         ? (parsedLocks.length ? parsedLocks[Math.min(pointStart, Math.max(0, parsedLocks.length - 1))] : pointLockEnabled)
         : pointLockEnabled;
-      createRow(idx + 1, funVal, domVal, colorVal, colorManualFlag, answerVal, {
+      createRow(idx + 1, funVal, domVal, colorVal, colorManualFlag, {
         pointMarkerValue: markerValForRow,
         pointLockValue: lockValForRow
       });
@@ -11146,7 +10933,6 @@ function setupSettingsForm() {
     const parsedMarker = normalizePointMarkerValue(parsedMarkerValueForInput);
     pointMarkerValue = parsedMarker || DEFAULT_POINT_MARKER;
     updatePointMarkerVisibility();
-    updateAllExtraAnswerControls();
     applyExampleStateToControls();
     syncExampleStateFromControls();
     syncSimpleFromForm();
@@ -11158,7 +10944,7 @@ function setupSettingsForm() {
   if (addBtn) {
     addBtn.addEventListener('click', () => {
       const index = (funcRows ? funcRows.querySelectorAll('.func-group').length : 0) + 1;
-      createRow(index, '', '', '', false, '');
+      createRow(index, '', '', '', false);
       syncSimpleFromForm();
       scheduleSimpleRebuild();
       updateFunctionActionButtons();
@@ -11173,7 +10959,6 @@ function setupSettingsForm() {
       lastRow.remove();
       pruneControlsForExistingRows();
       refreshFunctionColorDefaultsLocal();
-      updateAllExtraAnswerControls();
       updateFunctionActionButtons();
       const currentSimple = syncSimpleFromForm();
       if (typeof window !== 'undefined') {
