@@ -10522,12 +10522,6 @@ function setupSettingsForm() {
               </label>
             </div>
     `;
-    const startMarkup = index === 1 ? `
-            <label class="startx-label">
-              <span>Start</span>
-              <input type="text" data-startx value="x=1" placeholder="x=1">
-            </label>
-    ` : '';
     const fieldsClass = index === 1 ? 'func-fields func-fields--first' : 'func-fields';
     row.innerHTML = `
       <fieldset>
@@ -10556,13 +10550,6 @@ function setupSettingsForm() {
             </label>
           </div>
           ${gliderMarkup}
-          <div class="func-row func-row--secondary">
-            ${startMarkup}
-            <label class="func-answer">
-              <span>Fasit</span>
-              <input type="text" data-answer placeholder="Skriv fasit (valgfritt)" autocomplete="off" spellcheck="false">
-            </label>
-          </div>
         </div>
       </fieldset>
     `;
