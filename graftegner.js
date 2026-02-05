@@ -10866,35 +10866,11 @@ function setupSettingsForm() {
         if (parsedFunc) {
           colorVal = typeof parsedFunc.color === 'string' ? parsedFunc.color : '';
           colorManualFlag = parsedFunc.colorSource === 'manual' && !!colorVal;
-          if (colorVal) {
-            const normalizedManual = normalizeColorValue(colorVal);
-            const defaultColorForRow = normalizeColorValue(computeDefaultColorForIndex(idx + 1));
-            if (normalizedManual && defaultColorForRow && normalizedManual === defaultColorForRow) {
-              colorManualFlag = false;
-              colorVal = '';
-              parsedFunc.colorSource = 'auto';
-              parsedFunc.color = '';
-              const existingGraph = Array.isArray(appState.graphs) ? appState.graphs[funcIndex] || null : null;
-              if (existingGraph) {
-                existingGraph.manualColor = false;
-              }
-            }
-          }
         }
         funcIndex++;
       } else if (rowSpec && rowSpec.type === 'coords') {
         colorVal = typeof rowSpec.color === 'string' ? rowSpec.color : '';
         colorManualFlag = rowSpec.colorSource === 'manual' && !!colorVal;
-        if (colorVal) {
-          const normalizedManual = normalizeColorValue(colorVal);
-          const defaultColorForRow = normalizeColorValue(computeDefaultColorForIndex(idx + 1));
-          if (normalizedManual && defaultColorForRow && normalizedManual === defaultColorForRow) {
-            colorManualFlag = false;
-            colorVal = '';
-            rowSpec.colorSource = 'auto';
-            rowSpec.color = '';
-          }
-        }
       }
       const pointStart = rowSpec && Number.isFinite(rowSpec.pointStart) ? rowSpec.pointStart : 0;
       const inferredCount = parsePointListString(funVal)
