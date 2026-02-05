@@ -8783,9 +8783,20 @@ function setupSettingsForm() {
     applyColorManualClass(row, control.manual);
     const handleColorInput = event => {
       const target = event && event.target && swatches.includes(event.target) ? event.target : null;
+      const isPickerSelection = !!(
+        event
+        && event.type === 'change'
+        && target
+        && target.type === 'hidden'
+        && target.closest
+        && target.closest('[data-color-picker]')
+      );
       const normalized = normalizeFunctionColorChoice(target ? target.value : control.value);
       const nextValue = normalized || control.defaultColor || DEFAULT_COLOR_FALLBACK;
-      if (normalized && control.defaultColor && normalized === control.defaultColor) {
+      if (normalized && isPickerSelection) {
+        control.manual = true;
+        control.value = normalized;
+      } else if (normalized && control.defaultColor && normalized === control.defaultColor) {
         control.manual = false;
         control.value = control.defaultColor;
       } else if (normalized) {
