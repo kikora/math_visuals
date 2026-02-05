@@ -11271,6 +11271,17 @@ function setupSettingsForm() {
       needsRebuild = true;
     }
     const screenValueForParams = screenInput ? screenInput.value.trim() : '';
+    const defaultLockAspect = STORAGE_OPTIONS_DEFAULTS.lockAspect !== false;
+    const defaultAxisNumbers = !!STORAGE_OPTIONS_DEFAULTS.axisNumbers;
+    const defaultGrid = !!STORAGE_OPTIONS_DEFAULTS.grid;
+    const defaultShowNames = true;
+    const defaultShowExpression = false;
+    const defaultShowBrackets = true;
+    const defaultForceTicks = true;
+    const defaultSnapEnabled = true;
+    const defaultScreenValue = formatScreenForInput(DEFAULT_SCREEN);
+    const screenValueIsDefault = !!screenValueForParams && screenValueForParams === defaultScreenValue;
+    const screenIsAuto = !!(screenInput && screenInput.dataset && screenInput.dataset.autoscreen === '1');
     const currentFontSize = sanitizeFontSize(ADV.axis.grid.fontSize, FONT_DEFAULT);
     const p = new URLSearchParams();
     const parsedMarkerListForExport = Array.isArray(appState.simple.parsed.pointMarkers) && appState.simple.parsed.pointMarkers.length
@@ -11337,36 +11348,50 @@ function setupSettingsForm() {
         p.set('linepts', formatLinePoints(exportPoints));
       }
     }
-    if (screenValueForParams) p.set('screen', screenValueForParams);
-    if (lockChecked) p.set('lock', '1');else p.set('lock', '0');
+    if (screenValueForParams && !screenIsAuto && !screenValueIsDefault) p.set('screen', screenValueForParams);
+    if (lockChecked !== defaultLockAspect) p.set('lock', lockChecked ? '1' : '0');
     if (axisXValue && axisXValue !== 'x') p.set('xName', axisXValue);
     if (axisYValue && axisYValue !== 'y') p.set('yName', axisYValue);
-    if (zoomInput) {
-      p.set('zoom', zoomChecked ? '1' : '0');
+    if (zoomInput && zoomChecked) {
+      p.set('zoom', '1');
     }
     if (panChecked) p.set('pan', '1');
     if (showNamesInput) {
-      p.set('showNames', showNamesChecked ? '1' : '0');
+      if (showNamesChecked !== defaultShowNames) {
+        p.set('showNames', showNamesChecked ? '1' : '0');
+      }
     }
     if (showExprInput) {
-      p.set('showExpr', showExprChecked ? '1' : '0');
+      if (showExprChecked !== defaultShowExpression) {
+        p.set('showExpr', showExprChecked ? '1' : '0');
+      }
     }
-    p.set('brackets', showBracketsChecked ? '1' : '0');
+    if (showBracketsChecked !== defaultShowBrackets) {
+      p.set('brackets', showBracketsChecked ? '1' : '0');
+    }
     if (showAxisNumbersInput) {
-      p.set('axisNumbers', showAxisNumbersChecked ? '1' : '0');
+      if (showAxisNumbersChecked !== defaultAxisNumbers) {
+        p.set('axisNumbers', showAxisNumbersChecked ? '1' : '0');
+      }
     }
     if (showGridInput) {
-      p.set('grid', showGridChecked ? '1' : '0');
+      if (showGridChecked !== defaultGrid) {
+        p.set('grid', showGridChecked ? '1' : '0');
+      }
     }
     if (forceTicksInput) {
-      if (forceTicksInput.disabled && FORCE_TICKS_LOCKED_FALSE) {
-        p.set('forceTicks', FORCE_TICKS_REQUESTED ? '1' : '0');
-      } else {
-        p.set('forceTicks', forceTicksInput.checked ? '1' : '0');
+      const requestedForceTicks = forceTicksInput.disabled && FORCE_TICKS_LOCKED_FALSE
+        ? !!FORCE_TICKS_REQUESTED
+        : !!forceTicksInput.checked;
+      if (requestedForceTicks !== defaultForceTicks) {
+        p.set('forceTicks', requestedForceTicks ? '1' : '0');
       }
     }
     if (snapInput) {
-      if (snapInput.checked) p.set('snap', '1');else p.set('snap', '0');
+      const snapRequested = !!snapInput.checked;
+      if (snapRequested !== defaultSnapEnabled) {
+        p.set('snap', snapRequested ? '1' : '0');
+      }
     }
     if (q1Checked) p.set('q1', '1');
     const keepFontParam = FONT_PARAM_KEYS.some(key => params.has(key)) || Math.abs(currentFontSize - FONT_DEFAULT) > 1e-9;
