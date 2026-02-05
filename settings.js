@@ -153,7 +153,6 @@
   const HIDDEN_COLOR_GROUP_IDS = new Set([
     'fractions',
     'figurtall',
-    'brokfigurer',
     'brokpizza',
     'tenkeblokker'
   ]);

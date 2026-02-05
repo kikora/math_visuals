@@ -31,7 +31,7 @@ This document breaks the monolithic "Servér eksterne biblioteker lokalt i eksem
 
 :::task-stub{title="Task 3 – Vendore MathLive for interaktive oppgaver"}
 1. Synk `vendor/mathlive/` via `npm run materialize-vendor` (kjøres automatisk av `pretest`/`prestart`).
-2. Oppdater MathLive-referanser i `prikktilprikk.html`, `tallinje.html`, `graftegner.html`, `brøkfigurer.html`, `tallinje.js` og tilknyttede komponenter til å bruke de vendorede filene.
+2. Oppdater MathLive-referanser i `prikktilprikk.html`, `tallinje.html`, `graftegner.html`, `tallinje.js` og tilknyttede komponenter til å bruke de vendorede filene.
 3. Verifiser hvert delsteg ved å laste sidene lokalt og sikre at MathLive initialiseres uten CDN-kall.
 4. Legg til en enkel enhetstest eller Playwright-sjekk som bekrefter at MathLive-editoren starter med lokale assets.
 :::

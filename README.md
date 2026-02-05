@@ -6,13 +6,13 @@ Math Visuals er en samling interaktive matematiske visualiseringer og verktøy f
 
 **App-entrypoints i rotmappen**
 
-* `index.html` – startside med navigasjon til appene.
-* `graftegner.html`, `brøkfigurer.html`, `bibliotek.html`, `settings.html` – egne innganger for sentrale verktøy.
+* `index.html` – videresender til graftegneren.
+* `graftegner.html`, `bibliotek.html`, `settings.html` – egne innganger for sentrale verktøy.
 * `task-mode.html` – en «preview»-modus som rendrer valgt app/eksempel uten editor-UI.
 
 **App-ressurser og data**
 
-Appene består av JS/CSS-filer i rotmappen (for eksempel `graftegner.js`, `brøkfigurer.js`) og suppleres av mapper som `graftegner/`, `figurtall/`, `diagram/`, `arealmodell0/`, `arealmodellen1/`, `kuler/`, `kvikkbilder/`, `nkant/`, `perlesnor/` og `tenkeblokker/`, som inneholder eksempeldata, lagringsskjemaer og appspesifikk støtte.
+Appene består av JS/CSS-filer i rotmappen (for eksempel `graftegner.js`) og suppleres av mapper som `graftegner/`, `figurtall/`, `diagram/`, `arealmodell0/`, `arealmodellen1/`, `kuler/`, `kvikkbilder/`, `nkant/`, `perlesnor/` og `tenkeblokker/`, som inneholder eksempeldata, lagringsskjemaer og appspesifikk støtte.
 
 **Delte komponenter**
 

@@ -32,7 +32,7 @@ var MathVisualsPalettePackage = (function (exports) {
       groupId: 'fellesfarger',
       title: 'Felles farger',
       description:
-        'Farger som brukes av graftegner, diagram, brøksirkler, brøkfigurer, tallfigurer, kvikkbilder, tenkeblokker, brøkvegg og 3D-figurer. Hvert fargesett har Fyll/Kant/Linje.',
+        'Farger som brukes av graftegner, diagram, brøksirkler, tallfigurer, kvikkbilder, tenkeblokker, brøkvegg og 3D-figurer. Hvert fargesett har Fyll/Kant/Linje.',
       colorRoles: [
         { fillIndex: 0, lineIndex: 1 },
         { fillIndex: 3, lineIndex: 4 },
