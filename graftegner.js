@@ -4788,6 +4788,14 @@ function finalizeLatexFromPlain(input) {
   out = out.replace(/(^|[^\\])#/g, (_, prefix) => `${prefix}\\#`);
   return out.replace(/\n/g, '\\\\');
 }
+function convertNumericFractionsToLatex(input) {
+  if (typeof input !== 'string' || !input.includes('/')) return input;
+  return input.replace(
+    /(^|[^\w.])(-?\d+(?:\.\d+)?)(\s*)\/(\s*)(\d+(?:\.\d+)?)/g,
+    (match, prefix, numerator, _spaceA, _spaceB, denominator) =>
+      `${prefix}\\frac{${numerator}}{${denominator}}`
+  );
+}
 function convertExpressionToLatex(str) {
   if (typeof str !== 'string') return '';
   const trimmed = str.trim();
@@ -4842,15 +4850,15 @@ function convertExpressionToLatex(str) {
         return '';
       };
       const text = Array.from(tpl.content.childNodes).map(node => convertNode(node)).join('');
-      return finalizeLatexFromPlain(text);
+      return convertNumericFractionsToLatex(finalizeLatexFromPlain(text));
     } catch (_) {
-      return finalizeLatexFromPlain(manualConvert(trimmed));
+      return convertNumericFractionsToLatex(finalizeLatexFromPlain(manualConvert(trimmed)));
     }
   }
   if (/[<&]/.test(trimmed)) {
-    return finalizeLatexFromPlain(manualConvert(trimmed));
+    return convertNumericFractionsToLatex(finalizeLatexFromPlain(manualConvert(trimmed)));
   }
-  return finalizeLatexFromPlain(trimmed);
+  return convertNumericFractionsToLatex(finalizeLatexFromPlain(trimmed));
 }
 function renderLatexToHtml(latex) {
   if (!latex) return '';
