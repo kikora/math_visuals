@@ -16,10 +16,18 @@ const STORAGE_SCHEMA_V2 = {
     }
   }
 };
+const CANVAS_HEIGHT_LIMITS = { min: 240, max: 800 };
 
 function normalizeNumber(value) {
   const num = typeof value === 'number' ? value : Number.parseFloat(value);
   return Number.isFinite(num) ? num : null;
+}
+
+function normalizeCanvasHeight(value) {
+  const num = normalizeNumber(value);
+  if (num == null) return null;
+  const clamped = Math.min(CANVAS_HEIGHT_LIMITS.max, Math.max(CANVAS_HEIGHT_LIMITS.min, num));
+  return Math.round(clamped);
 }
 
 function normalizeViewArray(view) {
@@ -97,14 +105,19 @@ function migrateToStorageV2(snapshot = {}) {
   const view = normalizeViewArray(adv && adv.screen || snapshot.view || state.view) || null;
   const options = normalizeDiffOptions(adv, defaults);
   const meta = snapshot.meta && typeof snapshot.meta === 'object' ? { ...snapshot.meta } : {};
+  const canvasHeight = normalizeCanvasHeight(snapshot.canvasHeight || meta.canvasHeight);
 
-  return {
+  const migrated = {
     v: STORAGE_SCHEMA_V2.version,
     code,
     view,
     options,
     meta
   };
+  if (canvasHeight != null) {
+    migrated.canvasHeight = canvasHeight;
+  }
+  return migrated;
 }
 
 module.exports = {
