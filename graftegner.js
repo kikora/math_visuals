@@ -11423,8 +11423,19 @@ function setupSettingsForm() {
     }
     const cleanUrlEnabled = prefersCleanUrl();
     const newSearch = p.toString();
-    const effectiveSearch = cleanUrlEnabled ? '' : newSearch;
     const currentSearch = typeof window !== 'undefined' && window.location ? window.location.search : '';
+    let effectiveSearch = newSearch;
+    if (cleanUrlEnabled) {
+      const preserved = new URLSearchParams();
+      try {
+        const currentParams = new URLSearchParams(currentSearch);
+        const exampleParam = currentParams.get('example');
+        if (exampleParam != null && exampleParam !== '') {
+          preserved.set('example', exampleParam);
+        }
+      } catch (_) {}
+      effectiveSearch = preserved.toString();
+    }
     const normalizedCurrentSearch = currentSearch.startsWith('?') ? currentSearch.slice(1) : currentSearch;
     if (effectiveSearch !== normalizedCurrentSearch) {
       const hash = typeof window !== 'undefined' && window.location ? window.location.hash || '' : '';
