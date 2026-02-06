@@ -1019,6 +1019,37 @@ const normalizeStorageView = typeof normalizeViewArray === 'function'
     });
     return normalized.some(entry => entry == null) ? null : normalized;
   };
+const CANVAS_HEIGHT_LIMITS = { min: 240, max: 800 };
+const normalizeCanvasHeight = value => {
+  const parsed = typeof value === 'number' ? value : Number.parseFloat(value);
+  if (!Number.isFinite(parsed)) return null;
+  const clamped = Math.min(CANVAS_HEIGHT_LIMITS.max, Math.max(CANVAS_HEIGHT_LIMITS.min, parsed));
+  return Math.round(clamped);
+};
+const getCanvasHeightTarget = () => {
+  if (typeof document === 'undefined') return null;
+  return document.querySelector('.figure') || document.getElementById('board');
+};
+const readCanvasHeight = () => {
+  const target = getCanvasHeightTarget();
+  if (!target) return null;
+  const height = target.clientHeight || (target.getBoundingClientRect && target.getBoundingClientRect().height);
+  return normalizeCanvasHeight(height);
+};
+const applyCanvasHeight = value => {
+  const normalized = normalizeCanvasHeight(value);
+  if (normalized == null || typeof document === 'undefined') return false;
+  const figure = document.querySelector('.figure');
+  if (!figure) return false;
+  figure.style.height = `${normalized}px`;
+  return true;
+};
+const storeCanvasHeight = (state, value) => {
+  const normalized = normalizeCanvasHeight(value);
+  if (normalized == null || !state || typeof state !== 'object') return false;
+  state.canvasHeight = normalized;
+  return true;
+};
 const migrateStorageState = raw => {
   if (raw && typeof raw === 'object' && raw.v === STORAGE_SCHEMA_VERSION) {
     const normalizedView = normalizeStorageView(raw.view);
@@ -1114,6 +1145,9 @@ function createCleanSaveState(meta, defaults = CLEAN_SAVE_DEFAULTS) {
         : null
     }))
     : undefined;
+  const canvasHeight = normalizeCanvasHeight(EXAMPLE_STATE && EXAMPLE_STATE.canvasHeight != null
+    ? EXAMPLE_STATE.canvasHeight
+    : readCanvasHeight());
 
   const cleanState = {
     v: STORAGE_SCHEMA_VERSION,
@@ -1122,6 +1156,9 @@ function createCleanSaveState(meta, defaults = CLEAN_SAVE_DEFAULTS) {
     options,
     curveLabels
   };
+  if (canvasHeight != null) {
+    cleanState.canvasHeight = canvasHeight;
+  }
 
   if (meta && typeof meta === 'object') {
     cleanState.meta = { ...meta };
@@ -1633,6 +1670,10 @@ function buildExampleStateFromStorageV2(storageState) {
   if (!storageState || storageState.v !== STORAGE_SCHEMA_VERSION) return null;
   const opts = storageState.options || {};
   const exampleState = {};
+  const normalizedCanvasHeight = normalizeCanvasHeight(storageState.canvasHeight || storageState.meta && storageState.meta.canvasHeight);
+  if (normalizedCanvasHeight != null) {
+    exampleState.canvasHeight = normalizedCanvasHeight;
+  }
   if (Array.isArray(storageState.view) && storageState.view.length === 4) {
     exampleState.screen = storageState.view.slice(0, 4);
     exampleState.screenSource = 'manual';
@@ -1748,6 +1789,9 @@ const EXAMPLE_STATE = (() => {
   }
   return existing;
 })();
+if (EXAMPLE_STATE && typeof EXAMPLE_STATE === 'object' && EXAMPLE_STATE.canvasHeight != null) {
+  applyCanvasHeight(EXAMPLE_STATE.canvasHeight);
+}
 
 const CURVE_LABEL_STATE = [];
 function hydrateCurveLabelStateFromExample() {
@@ -7317,6 +7361,24 @@ const scheduleResize = () => {
         }
       }
     }
+    if (board && typeof board.getBoundingBox === 'function') {
+      const currentScreen = fromBoundingBox(board.getBoundingBox());
+      if (currentScreen) {
+        const corrected = calculateCorrectedScreen(currentScreen);
+        const clamped = clampScreenToWholeGrid(corrected);
+        if (Array.isArray(clamped) && !screensEqual(currentScreen, clamped)) {
+          IS_SETTING_BOUNDING_BOX = true;
+          try {
+            board.setBoundingBox(toBB(clamped), false);
+          } catch (_) {}
+          IS_SETTING_BOUNDING_BOX = false;
+        }
+      }
+    }
+    const height = board && board.containerObj ? board.containerObj.clientHeight : readCanvasHeight();
+    if (height != null) {
+      storeCanvasHeight(EXAMPLE_STATE, height);
+    }
     updateAfterViewChange();
   });
 };
@@ -8362,6 +8424,16 @@ function setupSettingsForm() {
   };
   const applyExampleStateToControls = () => {
     const exampleState = getExampleState();
+    if (exampleState && typeof exampleState === 'object') {
+      if (exampleState.canvasHeight != null) {
+        applyCanvasHeight(exampleState.canvasHeight);
+      } else {
+        const currentHeight = readCanvasHeight();
+        if (currentHeight != null) {
+          storeCanvasHeight(exampleState, currentHeight);
+        }
+      }
+    }
     const defaultScreen = DEFAULT_SCREEN.slice(0, 4);
     const hasScreen = exampleState && Array.isArray(exampleState.screen) && exampleState.screen.length === 4;
     if (exampleState && !hasScreen) {
