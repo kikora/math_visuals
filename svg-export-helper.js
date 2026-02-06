@@ -1151,7 +1151,8 @@
       doc,
       svgElement,
       bounds: options.bounds || {},
-      backgroundColor: options.backgroundColor
+      backgroundColor: options.backgroundColor,
+      convertForeignObjectsToText: false
     });
     const clone = preprocessInfo.svgElement || svgElement.cloneNode(true);
     if (typeof ensureSvgBackground === 'function') {
