@@ -869,6 +869,18 @@ function paramStr(id, def = '') {
   const v = params.get(id);
   return v == null ? def : v;
 }
+function prefersCleanUrl() {
+  if (typeof window === 'undefined') return false;
+  if (window.MATH_VISUALS_CLEAN_URL === true) return true;
+  if (window.MATH_VISUALS_CLEAN_URL === false) return false;
+  const doc = window.document;
+  const htmlDataset = doc && doc.documentElement && doc.documentElement.dataset;
+  const attrValue = htmlDataset && typeof htmlDataset.cleanUrl === 'string'
+    ? htmlDataset.cleanUrl.trim().toLowerCase()
+    : '';
+  if (!attrValue) return false;
+  return attrValue === '1' || attrValue === 'true' || attrValue === 'yes';
+}
 function paramBool(id, fallback = false) {
   if (!params.has(id)) return !!fallback;
   const raw = params.get(id);
@@ -11409,13 +11421,15 @@ function setupSettingsForm() {
       ADV.curveName.fontSize = nextFontSize;
       needsRebuild = true;
     }
+    const cleanUrlEnabled = prefersCleanUrl();
     const newSearch = p.toString();
+    const effectiveSearch = cleanUrlEnabled ? '' : newSearch;
     const currentSearch = typeof window !== 'undefined' && window.location ? window.location.search : '';
     const normalizedCurrentSearch = currentSearch.startsWith('?') ? currentSearch.slice(1) : currentSearch;
-    if (newSearch !== normalizedCurrentSearch) {
+    if (effectiveSearch !== normalizedCurrentSearch) {
       const hash = typeof window !== 'undefined' && window.location ? window.location.hash || '' : '';
       const basePath = typeof window !== 'undefined' && window.location ? window.location.pathname || '' : '';
-      const nextSearch = newSearch ? `?${newSearch}` : '';
+      const nextSearch = effectiveSearch ? `?${effectiveSearch}` : '';
       const nextUrl = `${basePath}${nextSearch}${hash}`;
       if (typeof window !== 'undefined' && window.history && typeof window.history.replaceState === 'function') {
         window.history.replaceState(null, '', nextUrl);
