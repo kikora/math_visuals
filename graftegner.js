@@ -3815,6 +3815,7 @@ function appendAxisLabelsToSvgClone(node) {
   if (hasExistingAxisLabelNodes(node)) return;
   const doc = node.ownerDocument || (typeof document !== 'undefined' ? document : null);
   if (!doc) return;
+  let usedKatex = false;
   const fontSizeRaw = Number.parseFloat(ADV.axis.labels.fontSize);
   const fontSize = Number.isFinite(fontSizeRaw) ? fontSizeRaw : 15;
   const color = normalizeColorValue(ADV.axis.style && ADV.axis.style.stroke ? ADV.axis.style.stroke : '#111827') || '#111827';
@@ -3837,7 +3838,10 @@ function appendAxisLabelsToSvgClone(node) {
         plainText: label,
         fontStyle: 'italic'
       });
-      if (katexNode) return katexNode;
+      if (katexNode) {
+        usedKatex = true;
+        return katexNode;
+      }
     }
     const textEl = doc.createElementNS('http://www.w3.org/2000/svg', 'text');
     textEl.setAttribute('x', String(screenPos.x));
@@ -3865,6 +3869,9 @@ function appendAxisLabelsToSvgClone(node) {
   if (yLabel) group.appendChild(yLabel);
   if (group.childNodes.length) {
     node.appendChild(group);
+    if (usedKatex) {
+      ensureKatexStyleInSvg(node);
+    }
   }
 }
 
