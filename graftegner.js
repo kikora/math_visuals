@@ -7627,6 +7627,10 @@ function sanitizeSvgForeignObjects(svgNode) {
   nodes.forEach(node => {
     const parent = node.parentNode;
     if (!parent) return;
+    const hasKatexMarkup = typeof node.querySelector === 'function' && !!node.querySelector('.katex');
+    if (hasKatexMarkup) {
+      return;
+    }
     const attrFallback = typeof node.getAttribute === 'function' ? (node.getAttribute('data-export-plain-text') || '') : '';
     const textContent = (node.textContent || '').trim() || (attrFallback || '').trim();
     if (!textContent) {
