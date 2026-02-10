@@ -3822,12 +3822,13 @@ function appendAxisLabelsToSvgClone(node) {
   const makeTextNode = (axisKey) => {
     const label = axisLabelText(axisKey);
     if (!label) return null;
+    const parts = axisLabelParts(axisKey);
     const worldPos = computeAxisLabelWorldPosition(axisKey);
     const screenPos = shiftExportScreenPosition(worldToScreenPoint(worldPos), {
       shiftX: -EXPORT_LABEL_SHIFT_PX
     });
     if (!screenPos) return null;
-    const latex = convertExpressionToLatex(label) || label;
+    const latex = axisLabelLatex(axisKey);
     const katexHtml = latex ? renderLatexToHtml(latex) : '';
     if (katexHtml && ensureKatexStyleInSvg(node)) {
       const katexNode = createKatexExportLabel(doc, katexHtml, screenPos, {
@@ -3835,8 +3836,7 @@ function appendAxisLabelsToSvgClone(node) {
         fontSize,
         alignH: axisKey === 'x' ? 'end' : 'start',
         alignV: axisKey === 'x' ? 'after-edge' : 'before-edge',
-        plainText: label,
-        fontStyle: 'italic'
+        plainText: label
       });
       if (katexNode) {
         usedKatex = true;
@@ -3849,8 +3849,26 @@ function appendAxisLabelsToSvgClone(node) {
     textEl.setAttribute('fill', color);
     textEl.setAttribute('font-size', `${fontSize}`);
     textEl.setAttribute('font-family', 'Inter, "Segoe UI", system-ui, sans-serif');
-    textEl.setAttribute('font-style', 'italic');
-    textEl.textContent = label;
+    const variableText = parts && typeof parts.variable === 'string' ? parts.variable : label;
+    const unitText = parts && typeof parts.unit === 'string' ? parts.unit : '';
+    if (unitText) {
+      const variableSpan = doc.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+      variableSpan.setAttribute('font-style', 'italic');
+      variableSpan.textContent = variableText;
+      textEl.appendChild(variableSpan);
+
+      const separatorSpan = doc.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+      separatorSpan.textContent = ', ';
+      textEl.appendChild(separatorSpan);
+
+      const unitSpan = doc.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+      unitSpan.setAttribute('font-style', 'normal');
+      unitSpan.textContent = unitText;
+      textEl.appendChild(unitSpan);
+    } else {
+      textEl.setAttribute('font-style', 'italic');
+      textEl.textContent = label;
+    }
     if (axisKey === 'x') {
       textEl.setAttribute('text-anchor', 'end');
       textEl.setAttribute('dominant-baseline', 'text-after-edge');
