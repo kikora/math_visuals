@@ -8308,6 +8308,7 @@ if (btnSvg) {
         htmlTarget,
         backgroundColor: '#fff',
         pngFallbackOrder: 'svg-first',
+        svgStringAlreadySanitized: true,
         downloadSvg: true,
         downloadMetadata: false,
         downloadPng: true
