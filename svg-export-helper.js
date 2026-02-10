@@ -653,6 +653,63 @@
     return true;
   }
 
+  function normalizeExportTextAnchor(value) {
+    if (typeof value !== 'string') return '';
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'start' || normalized === 'middle' || normalized === 'end') {
+      return normalized;
+    }
+    return '';
+  }
+
+  function normalizeExportDominantBaseline(value) {
+    if (typeof value !== 'string') return '';
+    const normalized = value.trim().toLowerCase();
+    if (
+      normalized === 'text-before-edge' ||
+      normalized === 'middle' ||
+      normalized === 'central' ||
+      normalized === 'text-after-edge' ||
+      normalized === 'after-edge'
+    ) {
+      return normalized;
+    }
+    return '';
+  }
+
+  function resolveForeignObjectTextPosition(foreignObject) {
+    const width = parseLength(foreignObject.getAttribute('width'));
+    const height = parseLength(foreignObject.getAttribute('height'));
+    const xAttr = foreignObject.getAttribute('x');
+    const yAttr = foreignObject.getAttribute('y');
+    const xValue = parseLength(xAttr);
+    const yValue = parseLength(yAttr);
+    const textAnchor = normalizeExportTextAnchor(foreignObject.getAttribute('data-export-text-anchor'));
+    const dominantBaseline = normalizeExportDominantBaseline(foreignObject.getAttribute('data-export-dominant-baseline'));
+    let adjustedX = xValue;
+    let adjustedY = yValue;
+    if (Number.isFinite(xValue) && Number.isFinite(width)) {
+      if (textAnchor === 'middle') {
+        adjustedX = xValue + width / 2;
+      } else if (textAnchor === 'end') {
+        adjustedX = xValue + width;
+      }
+    }
+    if (Number.isFinite(yValue) && Number.isFinite(height)) {
+      if (dominantBaseline === 'middle' || dominantBaseline === 'central') {
+        adjustedY = yValue + height / 2;
+      } else if (dominantBaseline === 'text-after-edge' || dominantBaseline === 'after-edge') {
+        adjustedY = yValue + height;
+      }
+    }
+    return {
+      x: Number.isFinite(adjustedX) ? String(adjustedX) : xAttr || '0',
+      y: Number.isFinite(adjustedY) ? String(adjustedY) : yAttr || '0',
+      textAnchor,
+      dominantBaseline
+    };
+  }
+
   async function rasterizeKatexForeignObjectToImage(foreignObject, options = {}) {
     if (!foreignObject || !foreignObject.ownerDocument) return null;
     const doc = foreignObject.ownerDocument;
@@ -741,16 +798,11 @@
       const doc = foreignObject.ownerDocument;
       if (!doc || typeof doc.createElementNS !== 'function') continue;
       const textEl = doc.createElementNS('http://www.w3.org/2000/svg', 'text');
-      const width = parseLength(foreignObject.getAttribute('width'));
-      const height = parseLength(foreignObject.getAttribute('height'));
-      const x = parseLength(foreignObject.getAttribute('x'));
-      const y = parseLength(foreignObject.getAttribute('y'));
-      const centerX = Number.isFinite(width) && Number.isFinite(x) ? x + width / 2 : Number.isFinite(x) ? x : 0;
-      const centerY = Number.isFinite(height) && Number.isFinite(y) ? y + height / 2 : Number.isFinite(y) ? y : 0;
-      textEl.setAttribute('x', String(centerX));
-      textEl.setAttribute('y', String(centerY));
-      textEl.setAttribute('text-anchor', 'middle');
-      textEl.setAttribute('dominant-baseline', 'middle');
+      const textPosition = resolveForeignObjectTextPosition(foreignObject);
+      textEl.setAttribute('x', textPosition.x);
+      textEl.setAttribute('y', textPosition.y);
+      textEl.setAttribute('text-anchor', textPosition.textAnchor || 'start');
+      textEl.setAttribute('dominant-baseline', textPosition.dominantBaseline || 'text-before-edge');
       textEl.setAttribute('xml:space', 'preserve');
       const existingClass = foreignObject.getAttribute('class');
       const fallbackClass = existingClass ? `${existingClass} foreign-object-fallback` : 'foreign-object-fallback';
@@ -900,7 +952,10 @@
       ensureSvgBackground(workingSvg, { bounds: options.bounds || {}, fill: options.backgroundColor });
     }
 
-    const shouldConvertForeignObjects = options.convertForeignObjectsToText !== false;
+    const shouldSkipForeignObjectConversion =
+      options.convertForeignObjectsToText === false
+      || options.svgStringAlreadySanitized === true;
+    const shouldConvertForeignObjects = !shouldSkipForeignObjectConversion;
     if (shouldConvertForeignObjects) {
       await replaceForeignObjectsWithText(workingSvg, foreignObjectStyles, {
         fontFamily: options.foreignObjectFontFamily,
@@ -1147,7 +1202,8 @@
       bounds: dimensions,
       backgroundColor: options.backgroundColor,
       convertKatexForeignObjectsToText: false,
-      rasterizeKatexForeignObjects: options.rasterizeKatexForeignObjects === true
+      rasterizeKatexForeignObjects: options.rasterizeKatexForeignObjects === true,
+      svgStringAlreadySanitized: options.svgStringAlreadySanitized === true
     });
     const exportSvgString = preprocessInfo && preprocessInfo.svgString ? preprocessInfo.svgString : svgString;
     const canvas = doc.createElement('canvas');
@@ -1366,7 +1422,8 @@
     backgroundColor,
     htmlTarget,
     fallbackOrder,
-    rasterizeKatexForeignObjects
+    rasterizeKatexForeignObjects,
+    svgStringAlreadySanitized
   }) {
     const resolvedOrder = fallbackOrder === 'svg-first' ? ['svg', 'html'] : ['html', 'svg'];
     let pngResult = null;
@@ -1377,7 +1434,8 @@
           pngResult = await renderSvgToPng(doc, svgUrl, svgString, dimensions, {
             sourceElement: svgElement,
             backgroundColor,
-            rasterizeKatexForeignObjects
+            rasterizeKatexForeignObjects,
+            svgStringAlreadySanitized
           });
         } else {
           if (htmlTarget) {
@@ -1470,7 +1528,8 @@
       backgroundColor: options.backgroundColor || '#fff',
       htmlTarget,
       fallbackOrder,
-      rasterizeKatexForeignObjects
+      rasterizeKatexForeignObjects,
+      svgStringAlreadySanitized: options.svgStringAlreadySanitized === true
     });
     if (pngResult) {
       pngData = pngResult;
