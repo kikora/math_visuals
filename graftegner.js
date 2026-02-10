@@ -8364,10 +8364,8 @@ if (btnSvg) {
         svgStringAlreadySanitized: true,
         downloadSvg: true,
         downloadMetadata: false,
-        downloadPng: false
+        downloadPng: true
       });
-      await downloadBoardPNG(svgExport, `${baseName}.png`);
-      await downloadBoardSvg(svgExport, baseName);
       return;
     }
     const pngName = `${baseName}.png`;
