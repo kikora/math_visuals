@@ -3981,7 +3981,7 @@ function appendCurveLabelsToSvgClone(node) {
   if (node.querySelector('[data-export-curve-labels]')) return;
   const fontSizeRaw = Number.parseFloat(ADV.curveName.fontSize);
   const baseFontSize = Number.isFinite(fontSizeRaw) ? fontSizeRaw : 15;
-  const fontSize = baseFontSize * 1.5;
+  const fontSize = baseFontSize;
   const logCurveLabelShift = (label, screenPos, textContent) => {
     if (!DEBUG_EXPORT_CURVE_LABEL_SHIFT) return;
     if (!label || !label.rendNode || typeof label.rendNode.getBoundingClientRect !== 'function') return;
