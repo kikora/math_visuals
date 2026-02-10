@@ -1483,7 +1483,18 @@
     const summary = options.summary != null ? options.summary : null;
     const createdAt = new Date().toISOString();
 
-    const dimensions = parseSvgStringDimensions(svgString) || getSvgDimensions(exportSvg);
+    const resolveExportDimensions = value => {
+      const width = Number(value && value.width);
+      const height = Number(value && value.height);
+      if (!(Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0)) {
+        return null;
+      }
+      return { width, height };
+    };
+    const dimensions =
+      resolveExportDimensions(options.dimensions)
+      || parseSvgStringDimensions(svgString)
+      || getSvgDimensions(exportSvg);
 
     const fallbackBase = sanitizeBaseName(options.defaultBaseName || suggestedName || tool || 'export', sanitizeBaseName(tool || 'export'));
     let baseNameSuggestion;

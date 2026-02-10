@@ -8357,14 +8357,16 @@ if (btnSvg) {
       inspectExportLabelGroups(svgExport.markup, 'pre-archive');
       await helper.exportGraphicWithArchive(svgElement, baseName, 'graftegner', {
         svgString: svgExport.markup,
+        dimensions: { width: svgExport.width, height: svgExport.height },
         htmlTarget,
         backgroundColor: '#fff',
         pngFallbackOrder: 'svg-first',
         svgStringAlreadySanitized: true,
         downloadSvg: true,
         downloadMetadata: false,
-        downloadPng: true
+        downloadPng: false
       });
+      await downloadBoardPNG(svgExport, `${baseName}.png`);
       await downloadBoardSvg(svgExport, baseName);
       return;
     }
