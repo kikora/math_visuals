@@ -639,19 +639,107 @@
     return '"Inter", "Segoe UI", system-ui, sans-serif';
   }
 
-  function replaceForeignObjectsWithText(svgElement, styleData, options = {}) {
+  function foreignObjectContainsKatex(foreignObject) {
+    if (!foreignObject || typeof foreignObject.querySelector !== 'function') return false;
+    return !!foreignObject.querySelector('.katex');
+  }
+
+  function shouldConvertForeignObjectToText(foreignObject, options = {}) {
+    if (!foreignObject) return false;
+    const hasKatex = foreignObjectContainsKatex(foreignObject);
+    if (hasKatex) {
+      return options.convertKatexForeignObjectsToText === true;
+    }
+    return true;
+  }
+
+  async function rasterizeKatexForeignObjectToImage(foreignObject, options = {}) {
+    if (!foreignObject || !foreignObject.ownerDocument) return null;
+    const doc = foreignObject.ownerDocument;
+    const html2canvas = await ensureHtml2Canvas(doc);
+    if (typeof html2canvas !== 'function') return null;
+    const target = foreignObject.firstElementChild || foreignObject;
+    const width = parseLength(foreignObject.getAttribute('width'));
+    const height = parseLength(foreignObject.getAttribute('height'));
+    const x = parseLength(foreignObject.getAttribute('x'));
+    const y = parseLength(foreignObject.getAttribute('y'));
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+      return null;
+    }
+
+    const host = doc.createElement('div');
+    host.style.position = 'fixed';
+    host.style.left = '-10000px';
+    host.style.top = '-10000px';
+    host.style.pointerEvents = 'none';
+    host.style.opacity = '0';
+    host.style.zIndex = '-1';
+    const clone = target.cloneNode(true);
+    clone.style.margin = '0';
+    clone.style.width = `${width}px`;
+    clone.style.height = `${height}px`;
+    clone.style.display = 'flex';
+    clone.style.alignItems = 'center';
+    clone.style.justifyContent = 'center';
+    host.appendChild(clone);
+    doc.body.appendChild(host);
+
+    try {
+      const ratio = typeof global.devicePixelRatio === 'number' && global.devicePixelRatio > 0 ? global.devicePixelRatio : 1;
+      const scale = Math.max(2, ratio);
+      const canvas = await html2canvas(clone, {
+        backgroundColor: null,
+        scale,
+        useCORS: true,
+        foreignObjectRendering: true,
+        logging: false
+      });
+      if (!canvas || typeof canvas.toDataURL !== 'function') return null;
+      const href = canvas.toDataURL('image/png');
+      if (!href) return null;
+      const image = doc.createElementNS('http://www.w3.org/2000/svg', 'image');
+      image.setAttribute('x', Number.isFinite(x) ? String(x) : foreignObject.getAttribute('x') || '0');
+      image.setAttribute('y', Number.isFinite(y) ? String(y) : foreignObject.getAttribute('y') || '0');
+      image.setAttribute('width', String(width));
+      image.setAttribute('height', String(height));
+      image.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+      image.setAttribute('href', href);
+      image.setAttributeNS('http://www.w3.org/1999/xlink', 'href', href);
+      return image;
+    } catch (error) {
+      return null;
+    } finally {
+      if (host && host.parentNode) {
+        host.parentNode.removeChild(host);
+      }
+    }
+  }
+
+  async function replaceForeignObjectsWithText(svgElement, styleData, options = {}) {
     if (!svgElement || typeof svgElement.querySelectorAll !== 'function') return;
     const foreignObjects = Array.from(svgElement.querySelectorAll('foreignObject'));
-    foreignObjects.forEach((foreignObject, index) => {
+    for (const [index, foreignObject] of foreignObjects.entries()) {
       const parent = foreignObject.parentNode;
-      if (!parent) return;
+      if (!parent) continue;
+
+      const containsKatex = foreignObjectContainsKatex(foreignObject);
+      if (!shouldConvertForeignObjectToText(foreignObject, options)) {
+        if (containsKatex && options.rasterizeKatexForeignObjects === true) {
+          const rasterized = await rasterizeKatexForeignObjectToImage(foreignObject, options);
+          if (rasterized) {
+            parent.replaceChild(rasterized, foreignObject);
+          }
+        }
+        continue;
+      }
+
       const textContent = normalizeForeignObjectText(foreignObject.textContent || '');
       if (!textContent) {
         parent.removeChild(foreignObject);
-        return;
+        continue;
       }
       const doc = foreignObject.ownerDocument;
-      if (!doc || typeof doc.createElementNS !== 'function') return;
+      if (!doc || typeof doc.createElementNS !== 'function') continue;
       const textEl = doc.createElementNS('http://www.w3.org/2000/svg', 'text');
       const width = parseLength(foreignObject.getAttribute('width'));
       const height = parseLength(foreignObject.getAttribute('height'));
@@ -693,7 +781,7 @@
       }
 
       parent.replaceChild(textEl, foreignObject);
-    });
+    }
   }
 
   function resolveImageHref(imageElement) {
@@ -814,8 +902,10 @@
 
     const shouldConvertForeignObjects = options.convertForeignObjectsToText !== false;
     if (shouldConvertForeignObjects) {
-      replaceForeignObjectsWithText(workingSvg, foreignObjectStyles, {
-        fontFamily: options.foreignObjectFontFamily
+      await replaceForeignObjectsWithText(workingSvg, foreignObjectStyles, {
+        fontFamily: options.foreignObjectFontFamily,
+        convertKatexForeignObjectsToText: options.convertKatexForeignObjectsToText,
+        rasterizeKatexForeignObjects: options.rasterizeKatexForeignObjects
       });
     }
 
@@ -1055,7 +1145,9 @@
       svgElement: options.sourceElement || null,
       svgString,
       bounds: dimensions,
-      backgroundColor: options.backgroundColor
+      backgroundColor: options.backgroundColor,
+      convertKatexForeignObjectsToText: false,
+      rasterizeKatexForeignObjects: options.rasterizeKatexForeignObjects === true
     });
     const exportSvgString = preprocessInfo && preprocessInfo.svgString ? preprocessInfo.svgString : svgString;
     const canvas = doc.createElement('canvas');
@@ -1254,6 +1346,17 @@
     return canvasToPngData(canvas, 'html2canvas PNG-eksport feilet', null);
   }
 
+
+  function hasUnstableForeignObjectRendering(options = {}) {
+    if (options.forceRasterizeKatexForeignObjects === true) return true;
+    if (options.forceRasterizeKatexForeignObjects === false) return false;
+    const ua = typeof global.navigator === 'object' && global.navigator && typeof global.navigator.userAgent === 'string'
+      ? global.navigator.userAgent
+      : '';
+    if (!ua) return false;
+    return /Safari\//i.test(ua) && !/Chrome\//i.test(ua);
+  }
+
   async function resolvePngExport({
     doc,
     svgElement,
@@ -1262,7 +1365,8 @@
     dimensions,
     backgroundColor,
     htmlTarget,
-    fallbackOrder
+    fallbackOrder,
+    rasterizeKatexForeignObjects
   }) {
     const resolvedOrder = fallbackOrder === 'svg-first' ? ['svg', 'html'] : ['html', 'svg'];
     let pngResult = null;
@@ -1272,7 +1376,8 @@
         if (strategy === 'svg') {
           pngResult = await renderSvgToPng(doc, svgUrl, svgString, dimensions, {
             sourceElement: svgElement,
-            backgroundColor
+            backgroundColor,
+            rasterizeKatexForeignObjects
           });
         } else {
           if (htmlTarget) {
@@ -1355,6 +1460,7 @@
     let pngUrl = null;
     const fallbackOrder = options.pngFallbackOrder === 'svg-first' ? 'svg-first' : 'html-first';
     const htmlTarget = options.htmlTarget || null;
+    const rasterizeKatexForeignObjects = hasUnstableForeignObjectRendering(options);
     const { pngResult, pngError } = await resolvePngExport({
       doc,
       svgElement: exportSvg,
@@ -1363,7 +1469,8 @@
       dimensions,
       backgroundColor: options.backgroundColor || '#fff',
       htmlTarget,
-      fallbackOrder
+      fallbackOrder,
+      rasterizeKatexForeignObjects
     });
     if (pngResult) {
       pngData = pngResult;
