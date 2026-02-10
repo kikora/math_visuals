@@ -1026,6 +1026,11 @@ const normalizeCanvasHeight = value => {
   const clamped = Math.min(CANVAS_HEIGHT_LIMITS.max, Math.max(CANVAS_HEIGHT_LIMITS.min, parsed));
   return Math.round(clamped);
 };
+const normalizeCanvasWidth = value => {
+  const parsed = typeof value === 'number' ? value : Number.parseFloat(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return Math.round(parsed);
+};
 const getCanvasHeightTarget = () => {
   if (typeof document === 'undefined') return null;
   return document.querySelector('.figure') || document.getElementById('board');
@@ -1049,6 +1054,27 @@ const storeCanvasHeight = (state, value) => {
   if (normalized == null || !state || typeof state !== 'object') return false;
   state.canvasHeight = normalized;
   return true;
+};
+const syncBoardContainerSize = () => {
+  if (!appState || !appState.board || !appState.board.containerObj) return null;
+  const board = appState.board;
+  const container = board.containerObj;
+  const width = normalizeCanvasWidth(container.clientWidth);
+  const height = normalizeCanvasHeight(container.clientHeight);
+  if (!(width > 0) || height == null) return null;
+  const boardWidth = normalizeCanvasWidth(board.canvasWidth);
+  const boardHeight = normalizeCanvasHeight(board.canvasHeight);
+  const widthChanged = !Number.isFinite(boardWidth) || Math.abs(boardWidth - width) > 0.5;
+  const heightChanged = boardHeight == null || boardHeight !== height;
+  if (widthChanged || heightChanged) {
+    if (typeof board.resizeContainer === 'function') {
+      board.resizeContainer(width, height);
+    }
+    if (typeof board.update === 'function') {
+      board.update();
+    }
+  }
+  return { width, height };
 };
 const migrateStorageState = raw => {
   if (raw && typeof raw === 'object' && raw.v === STORAGE_SCHEMA_VERSION) {
@@ -1129,6 +1155,7 @@ function buildCleanSaveOptionsSnapshot(adv, defaults = CLEAN_SAVE_DEFAULTS) {
 }
 function createCleanSaveState(meta, defaults = CLEAN_SAVE_DEFAULTS) {
   syncCurveLabelStateToExample();
+  const syncedBoardSize = syncBoardContainerSize();
   const code = typeof appState === 'object'
     && appState
     && appState.simple
@@ -1145,9 +1172,14 @@ function createCleanSaveState(meta, defaults = CLEAN_SAVE_DEFAULTS) {
         : null
     }))
     : undefined;
-  const canvasHeight = normalizeCanvasHeight(EXAMPLE_STATE && EXAMPLE_STATE.canvasHeight != null
-    ? EXAMPLE_STATE.canvasHeight
-    : readCanvasHeight());
+  const canvasHeight = normalizeCanvasHeight(
+    (syncedBoardSize && syncedBoardSize.height != null)
+      ? syncedBoardSize.height
+      : readCanvasHeight()
+  );
+  if (canvasHeight != null) {
+    storeCanvasHeight(EXAMPLE_STATE, canvasHeight);
+  }
 
   const cleanState = {
     v: STORAGE_SCHEMA_VERSION,
@@ -7859,8 +7891,10 @@ function normalizeBoardSvgForExport(node, dims) {
 
 function cloneBoardSvgRoot() {
   if (!appState.board || !appState.board.renderer || !appState.board.renderer.svgRoot) return null;
-  const width = appState.board.canvasWidth;
-  const height = appState.board.canvasHeight;
+  const syncedBoardSize = syncBoardContainerSize();
+  const width = normalizeCanvasWidth(syncedBoardSize && syncedBoardSize.width) || normalizeCanvasWidth(appState.board.canvasWidth);
+  const height = normalizeCanvasHeight(syncedBoardSize && syncedBoardSize.height) || normalizeCanvasHeight(appState.board.canvasHeight);
+  if (!(width > 0) || height == null) return null;
   const helper = typeof window !== 'undefined' ? window.MathVisSvgExport : null;
   const sourceSvg = appState.board.renderer.svgRoot;
   const node =
