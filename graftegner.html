@@ -15,7 +15,10 @@
 
 
 <style>
-    :root { --sidebar-width: 420px; }
+    :root {
+      --sidebar-width: 420px;
+      --figure-max-height: 800px;
+    }
     body[data-app="graftegner"]{
       --gap:12px;
       --surface-bg:#fff;
@@ -39,9 +42,9 @@
       align-items:stretch;
       width:min(800px, 100%);
       max-width:800px;
-      height:clamp(240px, calc(100vh - 180px), 800px);
-      max-height:800px;
-      min-height:240px;
+      height:clamp(180px, calc(100dvh - 180px), var(--figure-max-height));
+      max-height:var(--figure-max-height);
+      min-height:180px;
       resize:vertical;
     }
     .figure .jxgbox{ border:0 !important; box-shadow:none; }

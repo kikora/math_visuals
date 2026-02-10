@@ -1019,7 +1019,7 @@ const normalizeStorageView = typeof normalizeViewArray === 'function'
     });
     return normalized.some(entry => entry == null) ? null : normalized;
   };
-const CANVAS_HEIGHT_LIMITS = { min: 240, max: 800 };
+const CANVAS_HEIGHT_LIMITS = { min: 180, max: 800 };
 const normalizeCanvasHeight = value => {
   const parsed = typeof value === 'number' ? value : Number.parseFloat(value);
   if (!Number.isFinite(parsed)) return null;
@@ -7824,13 +7824,10 @@ const EXPORT_BASE_SIZE = 800;
 function getNormalizedBoardExportDimensions(width, height) {
   const safeWidth = Number.isFinite(width) && width > 0 ? width : EXPORT_BASE_SIZE;
   const safeHeight = Number.isFinite(height) && height > 0 ? height : EXPORT_BASE_SIZE;
-  const maxDim = Math.max(safeWidth, safeHeight, 1);
-  const scale = EXPORT_BASE_SIZE / maxDim;
-  const normalizedWidth = safeWidth * scale;
-  const normalizedHeight = safeHeight * scale;
+  const scale = EXPORT_BASE_SIZE / safeWidth;
   return {
-    width: normalizedWidth,
-    height: normalizedHeight,
+    width: EXPORT_BASE_SIZE,
+    height: safeHeight * scale,
     offsetX: 0,
     offsetY: 0,
     scale
