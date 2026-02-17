@@ -11112,11 +11112,27 @@ function setupSettingsForm() {
       const loadedScreen = (EXAMPLE_STATE && Array.isArray(EXAMPLE_STATE.screen)) ? EXAMPLE_STATE.screen.slice() : null;
       const loadedLock = (EXAMPLE_STATE && typeof EXAMPLE_STATE.lockAspect === 'boolean') ? EXAMPLE_STATE.lockAspect : null;
       const loadedQ1 = (EXAMPLE_STATE && typeof EXAMPLE_STATE.firstQuadrant === 'boolean') ? EXAMPLE_STATE.firstQuadrant : null;
+      const loadedCanvasHeight = EXAMPLE_STATE ? EXAMPLE_STATE.canvasHeight : null;
 
       hydrateCurveLabelStateFromExample();
       
       // 2. Kjør reset (som nullstiller UI og globale variabler)
       resetScreenStateForExample();
+
+      // 2.1 Gjenopprett lagret canvas-høyde når eksempelet hadde en gyldig verdi.
+      // Hvis ikke, bruk eksisterende fallback (les dagens høyde fra CSS/layout).
+      const restoredCanvasHeight = normalizeCanvasHeight(loadedCanvasHeight);
+      if (restoredCanvasHeight != null) {
+        applyCanvasHeight(restoredCanvasHeight);
+        if (EXAMPLE_STATE && typeof EXAMPLE_STATE === 'object') {
+          storeCanvasHeight(EXAMPLE_STATE, restoredCanvasHeight);
+        }
+      } else if (EXAMPLE_STATE && typeof EXAMPLE_STATE === 'object') {
+        const fallbackCanvasHeight = readCanvasHeight();
+        if (fallbackCanvasHeight != null) {
+          storeCanvasHeight(EXAMPLE_STATE, fallbackCanvasHeight);
+        }
+      }
 
       // 3. Gjenopprett utsnittet hvis det fantes i eksempelet
       if (loadedScreen) {
