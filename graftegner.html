@@ -562,6 +562,25 @@
     .axis-inputs label{ flex-direction:row; align-items:center; gap:6px; color:#4b5563; font-size:13px; }
     .axis-inputs label span{ font-size:12px; font-weight:600; letter-spacing:.02em; text-transform:uppercase; color:#374151; }
     .axis-inputs label input{ width:90px; }
+    .axis-inputs--labels{
+      display:grid;
+      grid-template-columns:minmax(0,1fr);
+      gap:10px;
+      width:100%;
+    }
+    .axis-label-row{
+      display:grid;
+      grid-template-columns:auto minmax(0,1fr) minmax(0,1fr);
+      gap:8px;
+      align-items:center;
+    }
+    .axis-label-row .axis-key{
+      font-size:22px;
+      font-weight:700;
+      color:#374151;
+      min-width:20px;
+    }
+    .axis-label-row input{ width:100% !important; }
     .axis-inputs--font{ gap:10px; }
     .axis-inputs--font label{ flex:1 1 160px; }
     .axis-inputs--font select{ flex:1; min-width:0; padding:6px 10px; }
@@ -660,15 +679,17 @@
                 <div class="axis-font-grid">
                   <div class="axis-group">
                     <div class="axis-title">Navn på akser</div>
-                    <div class="axis-inputs">
-                      <label>
-                        <span>x</span>
-                        <input id="cfgAxisX" type="text" value="x">
-                      </label>
-                      <label>
-                        <span>y</span>
-                        <input id="cfgAxisY" type="text" value="y">
-                      </label>
+                    <div class="axis-inputs axis-inputs--labels">
+                      <div class="axis-label-row">
+                        <span class="axis-key">x</span>
+                        <input id="cfgAxisX" type="text" value="x" placeholder="størrelse">
+                        <input id="cfgAxisXUnit" type="text" value="" placeholder="enhet">
+                      </div>
+                      <div class="axis-label-row">
+                        <span class="axis-key">y</span>
+                        <input id="cfgAxisY" type="text" value="y" placeholder="størrelse">
+                        <input id="cfgAxisYUnit" type="text" value="" placeholder="enhet">
+                      </div>
                     </div>
                   </div>
                   <div class="axis-group">
