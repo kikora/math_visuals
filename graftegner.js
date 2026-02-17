@@ -11730,6 +11730,16 @@ function setupSettingsForm() {
       || migrateStorageState({ state: rawState, adv: ADV })
       || migrateStorageState({ adv: ADV });
     if (!normalized) return false;
+    const loadedCanvasHeight = normalizeCanvasHeight(
+      normalized.canvasHeight || (normalized.meta && normalized.meta.canvasHeight)
+    );
+    if (loadedCanvasHeight != null) {
+      normalized.canvasHeight = loadedCanvasHeight;
+      if (normalized.meta && typeof normalized.meta === 'object') {
+        normalized.meta.canvasHeight = loadedCanvasHeight;
+      }
+      storeCanvasHeight(EXAMPLE_STATE, loadedCanvasHeight);
+    }
 
     if (typeof window !== 'undefined') {
       window.STATE_V2 = normalized;
@@ -11786,6 +11796,10 @@ function setupSettingsForm() {
         ADV.axis.labels.y = opts.axisLabels.y;
         if (axisYInput) axisYInput.value = opts.axisLabels.y;
       }
+    }
+
+    if (loadedCanvasHeight != null) {
+      applyCanvasHeight(loadedCanvasHeight);
     }
 
     apply();
