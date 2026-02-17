@@ -4847,11 +4847,105 @@ function finalizeLatexFromPlain(input) {
 }
 function convertNumericFractionsToLatex(input) {
   if (typeof input !== 'string' || !input.includes('/')) return input;
-  return input.replace(
-    /(^|[^\w.])(-?\d+(?:\.\d+)?)(\s*)\/(\s*)(\d+(?:\.\d+)?)/g,
-    (match, prefix, numerator, _spaceA, _spaceB, denominator) =>
-      `${prefix}\\frac{${numerator}}{${denominator}}`
-  );
+  const isTopLevelUnarySign = (value, idx) => {
+    if (idx < 0 || idx >= value.length) return false;
+    const ch = value[idx];
+    if (ch !== '+' && ch !== '-') return false;
+    let left = idx - 1;
+    while (left >= 0 && /\s/.test(value[left])) left--;
+    return left < 0 || /[+\-*/=,(\[]/.test(value[left]);
+  };
+  const findMatchingLeftBracket = (value, closeIndex) => {
+    const close = value[closeIndex];
+    const open = close === ')' ? '(' : close === ']' ? '[' : close === '}' ? '{' : '';
+    if (!open) return -1;
+    let depth = 0;
+    for (let i = closeIndex; i >= 0; i--) {
+      const ch = value[i];
+      if (ch === close) {
+        depth++;
+      } else if (ch === open) {
+        depth--;
+        if (depth === 0) return i;
+      }
+    }
+    return -1;
+  };
+  const findMatchingRightBracket = (value, openIndex) => {
+    const open = value[openIndex];
+    const close = open === '(' ? ')' : open === '[' ? ']' : open === '{' ? '}' : '';
+    if (!close) return -1;
+    let depth = 0;
+    for (let i = openIndex; i < value.length; i++) {
+      const ch = value[i];
+      if (ch === open) {
+        depth++;
+      } else if (ch === close) {
+        depth--;
+        if (depth === 0) return i;
+      }
+    }
+    return -1;
+  };
+  const readLeftOperand = (value, slashIndex) => {
+    let end = slashIndex - 1;
+    while (end >= 0 && /\s/.test(value[end])) end--;
+    if (end < 0) return null;
+    let start = end;
+    if (/[)\]}]/.test(value[end])) {
+      start = findMatchingLeftBracket(value, end);
+      if (start === -1) return null;
+      while (start > 0 && /[A-Za-z0-9_\\]/.test(value[start - 1])) start--;
+    } else {
+      while (start >= 0 && /[A-Za-z0-9_.\\]/.test(value[start])) start--;
+      if (start === end) return null;
+      start++;
+    }
+    if (start > 0 && isTopLevelUnarySign(value, start - 1)) {
+      start--;
+    }
+    return { start, end };
+  };
+  const readRightOperand = (value, slashIndex) => {
+    let start = slashIndex + 1;
+    while (start < value.length && /\s/.test(value[start])) start++;
+    if (start >= value.length) return null;
+    let signStart = start;
+    if (isTopLevelUnarySign(value, start)) {
+      start++;
+      while (start < value.length && /\s/.test(value[start])) start++;
+      if (start >= value.length) return null;
+    }
+    let end = start;
+    if (/[({\[]/.test(value[start])) {
+      end = findMatchingRightBracket(value, start);
+      if (end === -1) return null;
+    } else {
+      while (end < value.length && /[A-Za-z0-9_.\\]/.test(value[end])) end++;
+      if (end === start) return null;
+      end--;
+    }
+    return { start: signStart, end };
+  };
+  let out = input;
+  let idx = out.indexOf('/');
+  while (idx !== -1) {
+    const left = readLeftOperand(out, idx);
+    const right = readRightOperand(out, idx);
+    if (!left || !right || left.end >= idx || right.start <= idx) {
+      idx = out.indexOf('/', idx + 1);
+      continue;
+    }
+    const numerator = out.slice(left.start, left.end + 1).trim();
+    const denominator = out.slice(right.start, right.end + 1).trim();
+    if (!numerator || !denominator) {
+      idx = out.indexOf('/', idx + 1);
+      continue;
+    }
+    out = `${out.slice(0, left.start)}\\frac{${numerator}}{${denominator}}${out.slice(right.end + 1)}`;
+    idx = out.indexOf('/', left.start + 6);
+  }
+  return out;
 }
 function convertExpressionToLatex(str) {
   if (typeof str !== 'string') return '';
