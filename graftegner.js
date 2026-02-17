@@ -11840,6 +11840,7 @@ function setupSettingsForm() {
       || migrateStorageState({ state: rawState, adv: ADV })
       || migrateStorageState({ adv: ADV });
     if (!normalized) return false;
+    const normalizedExampleState = buildExampleStateFromStorageV2(normalized);
     const loadedCanvasHeight = normalizeCanvasHeight(
       normalized.canvasHeight || (normalized.meta && normalized.meta.canvasHeight)
     );
@@ -11854,6 +11855,10 @@ function setupSettingsForm() {
     if (typeof window !== 'undefined') {
       window.STATE_V2 = normalized;
       window.STATE = normalized;
+    }
+
+    if (normalizedExampleState && EXAMPLE_STATE && typeof EXAMPLE_STATE === 'object') {
+      Object.assign(EXAMPLE_STATE, normalizedExampleState);
     }
 
     const nextCode = typeof normalized.code === 'string' ? normalized.code : '';
@@ -11873,6 +11878,10 @@ function setupSettingsForm() {
       ADV.screen = copy;
       LAST_COMPUTED_SCREEN = copy.slice(0, 4);
       LAST_SCREEN_SOURCE = 'manual';
+      if (EXAMPLE_STATE && typeof EXAMPLE_STATE === 'object') {
+        EXAMPLE_STATE.screen = copy.slice(0, 4);
+        EXAMPLE_STATE.screenSource = 'manual';
+      }
       if (screenInput) {
         screenInput.value = formatScreenForInput(copy);
         screenInput.classList.remove('is-auto');
