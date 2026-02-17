@@ -4927,24 +4927,27 @@ function convertNumericFractionsToLatex(input) {
     }
     return { start: signStart, end };
   };
-  let out = input;
-  let idx = out.indexOf('/');
+  let out = '';
+  let cursor = 0;
+  let idx = input.indexOf('/');
   while (idx !== -1) {
-    const left = readLeftOperand(out, idx);
-    const right = readRightOperand(out, idx);
-    if (!left || !right || left.end >= idx || right.start <= idx) {
-      idx = out.indexOf('/', idx + 1);
+    const left = readLeftOperand(input, idx);
+    const right = readRightOperand(input, idx);
+    if (!left || !right || left.end >= idx || right.start <= idx || left.start < cursor) {
+      idx = input.indexOf('/', idx + 1);
       continue;
     }
-    const numerator = out.slice(left.start, left.end + 1).trim();
-    const denominator = out.slice(right.start, right.end + 1).trim();
+    const numerator = input.slice(left.start, left.end + 1).trim();
+    const denominator = input.slice(right.start, right.end + 1).trim();
     if (!numerator || !denominator) {
-      idx = out.indexOf('/', idx + 1);
+      idx = input.indexOf('/', idx + 1);
       continue;
     }
-    out = `${out.slice(0, left.start)}\\frac{${numerator}}{${denominator}}${out.slice(right.end + 1)}`;
-    idx = out.indexOf('/', left.start + 6);
+    out += `${input.slice(cursor, left.start)}\\frac{${numerator}}{${denominator}}`;
+    cursor = right.end + 1;
+    idx = input.indexOf('/', cursor);
   }
+  out += input.slice(cursor);
   return out;
 }
 function convertExpressionToLatex(str) {
