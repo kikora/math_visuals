@@ -3614,15 +3614,57 @@ function updateAxisArrows() {
 function axisLabelParts(axisKey) {
   const fallback = axisKey === 'y' ? 'y' : 'x';
   const raw = axisKey === 'x' ? ADV.axis.labels.x : ADV.axis.labels.y;
-  const trimmed = typeof raw === 'string' ? raw.trim() : '';
-  const label = trimmed || fallback;
-  const match = label.match(/^([^()]+?)\s*\(([^)]*)\)\s*$/);
-  const candidateVar = match && match[1] ? match[1].trim() : '';
-  const candidateUnit = match && match[2] ? match[2].trim() : '';
-  if (candidateVar && candidateUnit && candidateVar.toLowerCase() === fallback) {
-    return { variable: candidateVar, unit: candidateUnit };
+  const parsed = parseAxisLabelParts(raw, fallback);
+  return {
+    variable: parsed.variable,
+    unit: parsed.unit || null
+  };
+}
+
+function composeAxisLabelValue(variable, unit, fallback) {
+  const variableValue = typeof variable === 'string' ? variable.trim() : '';
+  const unitValue = typeof unit === 'string' ? unit.trim() : '';
+  const base = variableValue || fallback;
+  return unitValue ? `${base} (${unitValue})` : base;
+}
+
+function splitAxisLabelValue(rawValue, fallback) {
+  const parsed = parseAxisLabelParts(rawValue, fallback);
+  return {
+    variable: parsed.variable,
+    unit: parsed.unit || ''
+  };
+}
+
+function parseAxisLabelParts(rawValue, fallback) {
+  const raw = typeof rawValue === 'string' ? rawValue.trim() : '';
+  const label = raw || fallback;
+  if (!label || !label.endsWith(')')) {
+    return { variable: label, unit: '' };
   }
-  return { variable: label, unit: null };
+  let depth = 0;
+  let unitStart = -1;
+  for (let i = label.length - 1; i >= 0; i -= 1) {
+    const char = label[i];
+    if (char === ')') {
+      depth += 1;
+    } else if (char === '(') {
+      depth -= 1;
+      if (depth === 0) {
+        unitStart = i;
+        break;
+      }
+    }
+  }
+  if (unitStart <= 0) {
+    return { variable: label, unit: '' };
+  }
+  const variable = label.slice(0, unitStart).trim();
+  const unit = label.slice(unitStart + 1, -1).trim();
+  if (!variable || !unit) {
+    return { variable: label, unit: '' };
+  }
+  return { variable, unit };
 }
 
 function axisLabelText(axisKey) {
@@ -3632,12 +3674,20 @@ function axisLabelText(axisKey) {
 
 function axisLabelLatex(axisKey) {
   const { variable, unit } = axisLabelParts(axisKey);
-  const variableLatex = convertExpressionToLatex(variable) || `\\text{${escapeKatexPlainText(variable)}}`;
+  const variableRaw = typeof variable === 'string' ? variable.trim() : '';
+  const variableLatex = /\s/.test(variableRaw)
+    ? `\\textit{${escapeKatexPlainText(variableRaw)}}`
+    : (convertExpressionToLatex(variableRaw) || `\\textit{${escapeKatexPlainText(variableRaw)}}`);
   const formatUnitLatex = (rawUnit) => {
     if (!rawUnit) return '';
-    const latex = convertExpressionToLatex(rawUnit);
+    const unitRaw = typeof rawUnit === 'string' ? rawUnit.trim() : '';
+    if (!unitRaw) return '';
+    if (/\s/.test(unitRaw)) {
+      return `\\text{${escapeKatexPlainText(unitRaw)}}`;
+    }
+    const latex = convertExpressionToLatex(unitRaw);
     if (!latex) {
-      return `\\text{${escapeKatexPlainText(rawUnit)}}`;
+      return `\\text{${escapeKatexPlainText(unitRaw)}}`;
     }
     const needsUprightText = /[A-Za-z\u00c6\u00d8\u00c5\u00e6\u00f8\u00e5]/.test(latex);
     return needsUprightText ? `\\mathrm{${latex}}` : latex;
@@ -8557,6 +8607,8 @@ function setupSettingsForm() {
   const panInput = g('cfgPan');
   const axisXInputElement = g('cfgAxisX');
   const axisYInputElement = g('cfgAxisY');
+  const axisXUnitInputElement = g('cfgAxisXUnit');
+  const axisYUnitInputElement = g('cfgAxisYUnit');
   const snapCheckbox = g('cfgSnap');
   const getExampleState = () => {
     const stateV2 = typeof window !== 'undefined' ? migrateStorageState(window.STATE) : null;
@@ -8653,11 +8705,19 @@ function setupSettingsForm() {
     const axisYValue = axisLabelConfig && typeof axisLabelConfig.y === 'string'
       ? axisLabelConfig.y
       : ADV.axis.labels.y;
-    if (axisXInputElement && typeof axisXValue === 'string' && axisXInputElement.value !== axisXValue) {
-      axisXInputElement.value = axisXValue;
+    const splitX = splitAxisLabelValue(axisXValue, 'x');
+    const splitY = splitAxisLabelValue(axisYValue, 'y');
+    if (axisXInputElement && axisXInputElement.value !== splitX.variable) {
+      axisXInputElement.value = splitX.variable;
     }
-    if (axisYInputElement && typeof axisYValue === 'string' && axisYInputElement.value !== axisYValue) {
-      axisYInputElement.value = axisYValue;
+    if (axisXUnitInputElement && axisXUnitInputElement.value !== splitX.unit) {
+      axisXUnitInputElement.value = splitX.unit;
+    }
+    if (axisYInputElement && axisYInputElement.value !== splitY.variable) {
+      axisYInputElement.value = splitY.variable;
+    }
+    if (axisYUnitInputElement && axisYUnitInputElement.value !== splitY.unit) {
+      axisYUnitInputElement.value = splitY.unit;
     }
     if ((ADV.axis.labels.x || '') !== axisXValue) {
       ADV.axis.labels.x = axisXValue;
@@ -8810,8 +8870,16 @@ function setupSettingsForm() {
       ? ADV.axis.labels.fontSize
       : null;
     exampleState.axisLabels = {
-      x: axisXInputElement ? axisXInputElement.value : ADV.axis.labels.x,
-      y: axisYInputElement ? axisYInputElement.value : ADV.axis.labels.y,
+      x: composeAxisLabelValue(
+        axisXInputElement ? axisXInputElement.value : ADV.axis.labels.x,
+        axisXUnitInputElement ? axisXUnitInputElement.value : '',
+        'x'
+      ),
+      y: composeAxisLabelValue(
+        axisYInputElement ? axisYInputElement.value : ADV.axis.labels.y,
+        axisYUnitInputElement ? axisYUnitInputElement.value : '',
+        'y'
+      ),
       fontSize: axisLabelFontSize
     };
   };
@@ -11058,8 +11126,12 @@ function setupSettingsForm() {
         fontSize: currentLabels.fontSize
       };
 
-      if (axisXInputElement) axisXInputElement.value = nextLabels.x;
-      if (axisYInputElement) axisYInputElement.value = nextLabels.y;
+      const splitX = splitAxisLabelValue(nextLabels.x, 'x');
+      const splitY = splitAxisLabelValue(nextLabels.y, 'y');
+      if (axisXInputElement) axisXInputElement.value = splitX.variable;
+      if (axisXUnitInputElement) axisXUnitInputElement.value = splitX.unit;
+      if (axisYInputElement) axisYInputElement.value = splitY.variable;
+      if (axisYUnitInputElement) axisYUnitInputElement.value = splitY.unit;
       ADV.axis.labels.x = nextLabels.x;
       ADV.axis.labels.y = nextLabels.y;
 
@@ -11346,8 +11418,14 @@ function setupSettingsForm() {
   }
   syncScreenInputFromState();
   g('cfgLock').checked = params.has('lock') ? paramBool('lock') : true;
-  g('cfgAxisX').value = paramStr('xName', 'x');
-  g('cfgAxisY').value = paramStr('yName', 'y');
+  const initialXAxisLabel = paramStr('xName', 'x');
+  const initialYAxisLabel = paramStr('yName', 'y');
+  const initialXAxisParts = splitAxisLabelValue(initialXAxisLabel, 'x');
+  const initialYAxisParts = splitAxisLabelValue(initialYAxisLabel, 'y');
+  g('cfgAxisX').value = initialXAxisParts.variable;
+  g('cfgAxisY').value = initialYAxisParts.variable;
+  if (axisXUnitInputElement) axisXUnitInputElement.value = initialXAxisParts.unit;
+  if (axisYUnitInputElement) axisYUnitInputElement.value = initialYAxisParts.unit;
   if (zoomInput) {
     zoomInput.checked = false;
     zoomInput.disabled = true;
@@ -11499,8 +11577,10 @@ function setupSettingsForm() {
     }
     const axisXInput = axisXInputElement || g('cfgAxisX');
     const axisYInput = axisYInputElement || g('cfgAxisY');
-    const axisXValue = axisXInput ? axisXInput.value.trim() : '';
-    const axisYValue = axisYInput ? axisYInput.value.trim() : '';
+    const axisXUnitInput = axisXUnitInputElement || g('cfgAxisXUnit');
+    const axisYUnitInput = axisYUnitInputElement || g('cfgAxisYUnit');
+    const axisXValue = composeAxisLabelValue(axisXInput ? axisXInput.value : '', axisXUnitInput ? axisXUnitInput.value : '', 'x');
+    const axisYValue = composeAxisLabelValue(axisYInput ? axisYInput.value : '', axisYUnitInput ? axisYUnitInput.value : '', 'y');
     if ((ADV.axis.labels.x || '') !== axisXValue) {
       ADV.axis.labels.x = axisXValue;
       needsRebuild = true;
@@ -11806,8 +11886,16 @@ function setupSettingsForm() {
     window.resetToDefaults = resetToDefaults;
   }
   const syncAxisLabelsFromInputs = () => {
-    const axisXValue = axisXInputElement ? axisXInputElement.value.trim() : '';
-    const axisYValue = axisYInputElement ? axisYInputElement.value.trim() : '';
+    const axisXValue = composeAxisLabelValue(
+      axisXInputElement ? axisXInputElement.value : '',
+      axisXUnitInputElement ? axisXUnitInputElement.value : '',
+      'x'
+    );
+    const axisYValue = composeAxisLabelValue(
+      axisYInputElement ? axisYInputElement.value : '',
+      axisYUnitInputElement ? axisYUnitInputElement.value : '',
+      'y'
+    );
     let changed = false;
     if ((ADV.axis.labels.x || '') !== axisXValue) {
       ADV.axis.labels.x = axisXValue;
@@ -11834,7 +11922,9 @@ function setupSettingsForm() {
     });
   };
   bindAxisInput(axisXInputElement);
+  bindAxisInput(axisXUnitInputElement);
   bindAxisInput(axisYInputElement);
+  bindAxisInput(axisYUnitInputElement);
   const handleCurveNameToggle = event => {
     if (event && typeof event.stopPropagation === 'function') {
       event.stopPropagation();
@@ -11948,11 +12038,15 @@ function setupSettingsForm() {
     if (opts.axisLabels && ADV.axis && ADV.axis.labels) {
       if (typeof opts.axisLabels.x === 'string') {
         ADV.axis.labels.x = opts.axisLabels.x;
-        if (axisXInput) axisXInput.value = opts.axisLabels.x;
+        const splitX = splitAxisLabelValue(opts.axisLabels.x, 'x');
+        if (axisXInput) axisXInput.value = splitX.variable;
+        if (axisXUnitInputElement) axisXUnitInputElement.value = splitX.unit;
       }
       if (typeof opts.axisLabels.y === 'string') {
         ADV.axis.labels.y = opts.axisLabels.y;
-        if (axisYInput) axisYInput.value = opts.axisLabels.y;
+        const splitY = splitAxisLabelValue(opts.axisLabels.y, 'y');
+        if (axisYInput) axisYInput.value = splitY.variable;
+        if (axisYUnitInputElement) axisYUnitInputElement.value = splitY.unit;
       }
     }
 
