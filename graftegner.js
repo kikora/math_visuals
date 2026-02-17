@@ -1155,6 +1155,7 @@ function buildCleanSaveOptionsSnapshot(adv, defaults = CLEAN_SAVE_DEFAULTS) {
 }
 function createCleanSaveState(meta, defaults = CLEAN_SAVE_DEFAULTS) {
   syncCurveLabelStateToExample();
+  syncAxisLabelStateToExample();
   const syncedBoardSize = syncBoardContainerSize();
   const code = typeof appState === 'object'
     && appState
@@ -1186,7 +1187,23 @@ function createCleanSaveState(meta, defaults = CLEAN_SAVE_DEFAULTS) {
     code,
     view,
     options,
-    curveLabels
+    curveLabels,
+    axisLabelPositions: EXAMPLE_STATE && EXAMPLE_STATE.axisLabelPositions && typeof EXAMPLE_STATE.axisLabelPositions === 'object'
+      ? {
+        x: {
+          manual: !!(EXAMPLE_STATE.axisLabelPositions.x && EXAMPLE_STATE.axisLabelPositions.x.manual),
+          position: EXAMPLE_STATE.axisLabelPositions.x && Array.isArray(EXAMPLE_STATE.axisLabelPositions.x.position)
+            ? EXAMPLE_STATE.axisLabelPositions.x.position.slice(0, 2)
+            : null
+        },
+        y: {
+          manual: !!(EXAMPLE_STATE.axisLabelPositions.y && EXAMPLE_STATE.axisLabelPositions.y.manual),
+          position: EXAMPLE_STATE.axisLabelPositions.y && Array.isArray(EXAMPLE_STATE.axisLabelPositions.y.position)
+            ? EXAMPLE_STATE.axisLabelPositions.y.position.slice(0, 2)
+            : null
+        }
+      }
+      : undefined
   };
   if (canvasHeight != null) {
     cleanState.canvasHeight = canvasHeight;
@@ -1748,6 +1765,28 @@ function buildExampleStateFromStorageV2(storageState) {
           position: normalizedPos
         };
       });
+  }
+  const axisLabelPositionsSource = storageState.axisLabelPositions;
+  if (axisLabelPositionsSource && typeof axisLabelPositionsSource === 'object') {
+    const normalizeAxisLabelEntry = entry => {
+      if (!entry || typeof entry !== 'object') {
+        return { manual: false, position: null };
+      }
+      const rawPosition = Array.isArray(entry.position) && entry.position.length >= 2
+        ? [Number.parseFloat(entry.position[0]), Number.parseFloat(entry.position[1])]
+        : null;
+      const normalizedPosition = rawPosition && rawPosition.every(Number.isFinite)
+        ? rawPosition
+        : null;
+      return {
+        manual: !!entry.manual,
+        position: normalizedPosition
+      };
+    };
+    exampleState.axisLabelPositions = {
+      x: normalizeAxisLabelEntry(axisLabelPositionsSource.x),
+      y: normalizeAxisLabelEntry(axisLabelPositionsSource.y)
+    };
   }
   return Object.keys(exampleState).length ? exampleState : null;
 }
