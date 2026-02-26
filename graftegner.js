@@ -8540,7 +8540,9 @@ if (btnSvg) {
         dimensions: { width: svgExport.width, height: svgExport.height },
         htmlTarget,
         backgroundColor: '#fff',
-        pngFallbackOrder: 'svg-first',
+        // HTML-first captures JSXGraph sine HTML-etiketter (f.eks. punktnavn A, B, C, D)
+        // før vi eventuelt faller tilbake til SVG-rendring.
+        pngFallbackOrder: 'html-first',
         svgStringAlreadySanitized: true,
         downloadSvg: true,
         downloadMetadata: false,
